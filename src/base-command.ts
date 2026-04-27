@@ -64,7 +64,7 @@ export abstract class NotraCommand extends Command {
       this.logToStderr(chalk.red('✗ ') + friendly.message);
       if (friendly.detail) this.logToStderr(chalk.dim(friendly.detail));
     }
-    this.exit(friendly.exitCode);
+    process.exit(friendly.exitCode);
   }
 }
 

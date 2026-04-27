@@ -140,3 +140,8 @@ dist
 
 # local CLI test snapshots
 snapshot/
+
+# compiled CLI output (only the entry shebangs are tracked)
+dist/*
+!dist/run.js
+!dist/dev.js
