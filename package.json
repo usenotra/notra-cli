@@ -1,6 +1,6 @@
 {
   "name": "notra",
-  "version": "0.1.0",
+  "version": "0.0.2",
   "description": "Command-line interface for the Notra API.",
   "type": "module",
   "license": "MIT",
@@ -8,8 +8,7 @@
     "notra": "./dist/run.js"
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
   "exports": {
     ".": "./src/index.ts"
