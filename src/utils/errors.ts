@@ -77,10 +77,19 @@ export function toFriendlyError(err: unknown): FriendlyError {
   }
 
   if (err instanceof Error) {
-    return { message: err.message, exitCode: ExitCode.Generic };
+    const oclifExit = readOclifExit(err);
+    return {
+      message: err.message,
+      exitCode: (oclifExit as ExitCode | undefined) ?? ExitCode.Generic,
+    };
   }
 
   return { message: String(err), exitCode: ExitCode.Generic };
+}
+
+function readOclifExit(err: Error): number | undefined {
+  const oclif = (err as Error & { oclif?: { exit?: number } }).oclif;
+  return typeof oclif?.exit === 'number' ? oclif.exit : undefined;
 }
 
 function mapStatus(status: number): ExitCode {

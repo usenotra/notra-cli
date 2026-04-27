@@ -22,7 +22,9 @@
     "dev": "bun ./bin/dev.js",
     "start": "bun ./bin/run.js",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "snapshot:run": "bun ./snapshot/run.ts",
+    "snapshot:serve": "bun ./snapshot/serve.ts"
   },
   "dependencies": {
     "@inquirer/prompts": "^7.2.1",
@@ -51,6 +53,9 @@
     ],
     "topicSeparator": " ",
     "topics": {
+      "auth": {
+        "description": "Sign in to Notra and manage the local API key."
+      },
       "config": {
         "description": "Manage local CLI configuration (API key, base URL)."
       },

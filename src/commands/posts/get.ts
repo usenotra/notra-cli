@@ -21,12 +21,12 @@ export default class PostsGet extends NotraCommand {
     const { args, flags } = await this.parse(PostsGet);
     const response = await this.client().content.getPost({ postId: args.postId });
 
+    if (!response.post) {
+      this.error(`Post ${args.postId} not found.`, { exit: 5 });
+    }
     if (this.emitJson()) {
       this.printJson(response);
       return;
-    }
-    if (!response.post) {
-      this.error('Post not found.', { exit: 5 });
     }
     if (flags.markdown) {
       this.log(response.post.markdown);

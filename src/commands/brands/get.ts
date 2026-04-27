@@ -15,11 +15,13 @@ export default class BrandsGet extends NotraCommand {
     const response = await this.client().content.getBrandIdentity({
       brandIdentityId: args.brandIdentityId,
     });
+    if (!response.brandIdentity) {
+      this.error(`Brand identity ${args.brandIdentityId} not found.`, { exit: 5 });
+    }
     if (this.emitJson()) {
       this.printJson(response);
       return;
     }
-    if (!response.brandIdentity) this.error('Brand identity not found.', { exit: 5 });
 
     const b = response.brandIdentity;
     this.log(
