@@ -1,18 +1,29 @@
 {
   "name": "notra",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "description": "Command-line interface for the Notra API.",
   "type": "module",
   "license": "MIT",
+  "homepage": "https://www.usenotra.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/usenotra/notra-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/usenotra/notra-cli/issues"
+  },
+  "keywords": [
+    "notra",
+    "cli",
+    "changelog",
+    "content"
+  ],
   "bin": {
     "notra": "./dist/run.js"
   },
   "files": [
     "dist"
   ],
-  "exports": {
-    ".": "./src/index.ts"
-  },
   "engines": {
     "bun": ">=1.1.0"
   },
@@ -20,8 +31,10 @@
   "scripts": {
     "dev": "bun ./dist/dev.js",
     "start": "bun ./dist/run.js",
+    "build": "bun ./scripts/build.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
+    "prepack": "bun run build",
     "snapshot:run": "bun ./snapshot/run.ts",
     "snapshot:serve": "bun ./snapshot/serve.ts"
   },
@@ -44,7 +57,7 @@
   "oclif": {
     "bin": "notra",
     "dirname": "notra",
-    "commands": "./src/commands",
+    "commands": "./dist/commands",
     "plugins": [
       "@oclif/plugin-help",
       "@oclif/plugin-not-found",
