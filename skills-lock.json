@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "audit-github-actions": {
+      "source": "franky47/dotfiles",
+      "sourceType": "github",
+      "skillPath": "dot-claude/skills/audit-github-actions/SKILL.md",
+      "computedHash": "86e60805e671a31e73d4972aadd37cd9f8cdc47fded0b73828c49fee5b6771c4"
+    }
+  }
+}
