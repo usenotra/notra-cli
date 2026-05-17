@@ -14,35 +14,10 @@ export default class IntegrationsList extends NotraCommand {
 
   public async run(): Promise<void> {
     const response = await this.client().content.listIntegrations();
+    const rows = toRows(response);
     if (this.emitJson()) {
       this.printJson(response);
       return;
-    }
-
-    const rows: Row[] = [];
-    for (const g of response.github) {
-      rows.push({
-        id: g.id,
-        type: 'github',
-        display: g.displayName,
-        detail: g.owner && g.repo ? `${g.owner}/${g.repo}` : '—',
-      });
-    }
-    for (const l of response.linear) {
-      rows.push({
-        id: l.id,
-        type: 'linear',
-        display: l.displayName,
-        detail: l.linearTeamName ?? l.linearOrganizationName ?? '—',
-      });
-    }
-    for (const s of response.slack) {
-      const id = typeof s === 'object' && s !== null && 'id' in s ? String((s as { id: unknown }).id) : '—';
-      const display =
-        typeof s === 'object' && s !== null && 'displayName' in s
-          ? String((s as { displayName: unknown }).displayName)
-          : '—';
-      rows.push({ id, type: 'slack', display, detail: '—' });
     }
 
     this.log(
@@ -57,4 +32,47 @@ export default class IntegrationsList extends NotraCommand {
       }),
     );
   }
+}
+
+function toRows(response: {
+  github: Array<{
+    id: string;
+    displayName: string;
+    owner?: string | null;
+    repo?: string | null;
+  }>;
+  linear: Array<{
+    id: string;
+    displayName: string;
+    linearTeamName?: string | null;
+    linearOrganizationName?: string | null;
+  }>;
+  slack: unknown[];
+}): Row[] {
+  const rows: Row[] = [];
+  for (const g of response.github) {
+    rows.push({
+      id: g.id,
+      type: 'github',
+      display: g.displayName,
+      detail: g.owner && g.repo ? `${g.owner}/${g.repo}` : '—',
+    });
+  }
+  for (const l of response.linear) {
+    rows.push({
+      id: l.id,
+      type: 'linear',
+      display: l.displayName,
+      detail: l.linearTeamName ?? l.linearOrganizationName ?? '—',
+    });
+  }
+  for (const s of response.slack) {
+    const id = typeof s === 'object' && s !== null && 'id' in s ? String((s as { id: unknown }).id) : '—';
+    const display =
+      typeof s === 'object' && s !== null && 'displayName' in s
+        ? String((s as { displayName: unknown }).displayName)
+        : '—';
+    rows.push({ id, type: 'slack', display, detail: '—' });
+  }
+  return rows;
 }

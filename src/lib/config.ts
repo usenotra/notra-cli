@@ -1,3 +1,4 @@
+import { chmodSync } from 'node:fs';
 import Conf from 'conf';
 import type { ConfigKey, ConfigSchema } from '../types/config';
 import { DEFAULT_BASE_URL, DEFAULT_DASHBOARD_URL } from '../types/config';
@@ -13,7 +14,9 @@ function getStore(): Conf<ConfigSchema> {
         baseUrl: { type: 'string', format: 'uri' },
         dashboardUrl: { type: 'string', format: 'uri' },
       },
+      configFileMode: 0o600,
     });
+    chmodConfigFile(store.path);
   }
   return store;
 }
@@ -70,4 +73,13 @@ export function getAllConfig(): ConfigSchema {
 
 export function getConfigPath(): string {
   return getStore().path;
+}
+
+function chmodConfigFile(path: string): void {
+  try {
+    chmodSync(path, 0o600);
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code !== 'ENOENT') throw err;
+  }
 }

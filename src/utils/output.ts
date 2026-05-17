@@ -25,7 +25,7 @@ export function renderTable<T>(rows: ReadonlyArray<T>, opts: TableOptions<T>): s
     style: { head: [], border: shouldUseColor() ? ['gray'] : [] },
   });
   for (const row of rows) {
-    table.push(opts.columns.map((c) => c.get(row)));
+    table.push(opts.columns.map((c) => sanitizeTerminalText(c.get(row))));
   }
   return table.toString();
 }
@@ -35,15 +35,17 @@ export function renderKv(rows: ReadonlyArray<KeyValueRow>): string {
   return rows
     .map(([k, v]) => {
       const label = `${k}:`.padEnd(widest + 2, ' ');
-      return shouldUseColor() ? `${chalk.cyan(label)}${v}` : `${label}${v}`;
+      const value = sanitizeTerminalText(v);
+      return shouldUseColor() ? `${chalk.cyan(label)}${value}` : `${label}${value}`;
     })
     .join('\n');
 }
 
 export function truncate(s: string | null | undefined, max: number): string {
   if (!s) return '';
-  if (s.length <= max) return s;
-  return `${s.slice(0, Math.max(0, max - 1))}…`;
+  const safe = sanitizeTerminalText(s);
+  if (safe.length <= max) return safe;
+  return `${safe.slice(0, Math.max(0, max - 1))}…`;
 }
 
 export function formatDate(iso: string | null | undefined): string {
@@ -55,4 +57,11 @@ export function formatDate(iso: string | null | undefined): string {
 
 export function formatBool(v: boolean): string {
   return v ? 'yes' : 'no';
+}
+
+export function sanitizeTerminalText(value: unknown): string {
+  return String(value)
+    .replace(/\u001b\][\s\S]*?(?:\u0007|\u001b\\)/g, '')
+    .replace(/\u001b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '')
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, '');
 }

@@ -33,22 +33,31 @@ export default class ConfigGet extends NotraCommand {
     }
 
     const all = getAllConfig();
+    const redacted = redact(all);
     if (this.emitJson()) {
-      this.printJson(all);
+      this.printJson(redacted);
       return;
     }
-    const masked = mask(all.apiKey);
     this.log(
       renderKv([
-        ['api-key', masked ?? '(unset)'],
-        ['base-url', all.baseUrl ?? '(default)'],
+        ['api-key', redacted.apiKey ?? '(unset)'],
+        ['base-url', redacted.baseUrl ?? '(default)'],
+        ['dashboard-url', redacted.dashboardUrl ?? '(default)'],
       ]),
     );
   }
 }
 
+function redact(config: {
+  apiKey?: string;
+  baseUrl?: string;
+  dashboardUrl?: string;
+}): { apiKey?: string; baseUrl?: string; dashboardUrl?: string } {
+  return { ...config, apiKey: mask(config.apiKey) };
+}
+
 function mask(key: string | undefined): string | undefined {
   if (!key) return undefined;
   if (key.length <= 8) return '*'.repeat(key.length);
-  return `${key.slice(0, 4)}…${key.slice(-4)}`;
+  return `${key.slice(0, 4)}...${key.slice(-4)}`;
 }

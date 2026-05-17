@@ -2,7 +2,7 @@ import { Command, Flags, type Interfaces } from '@oclif/core';
 import chalk from 'chalk';
 import type { Notra } from '@usenotra/sdk';
 import { buildClient } from './lib/client';
-import { renderJson } from './utils/output';
+import { renderJson, sanitizeTerminalText } from './utils/output';
 import { toFriendlyError } from './utils/errors';
 
 export type BaseFlags<T extends typeof Command> = Interfaces.InferredFlags<
@@ -61,8 +61,8 @@ export abstract class NotraCommand extends Command {
     if (this.emitJson()) {
       this.log(renderJson({ error: friendly.message, detail: friendly.detail }));
     } else {
-      this.logToStderr(chalk.red('✗ ') + friendly.message);
-      if (friendly.detail) this.logToStderr(chalk.dim(friendly.detail));
+      this.logToStderr(chalk.red('✗ ') + sanitizeTerminalText(friendly.message));
+      if (friendly.detail) this.logToStderr(chalk.dim(sanitizeTerminalText(friendly.detail)));
     }
     process.exit(friendly.exitCode);
   }
