@@ -1,6 +1,6 @@
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
-import type { UpdateBrandIdentityRequest } from '../../types/api';
+import { validateUpdateBrandIdentityBody, type UpdateBrandIdentityRequest } from '../../types/api';
 
 const TONE_PROFILES = ['Conversational', 'Professional', 'Casual', 'Formal'] as const;
 
@@ -66,7 +66,7 @@ export default class BrandsUpdate extends NotraCommand {
 
     const response = await this.client().content.updateBrandIdentity({
       brandIdentityId: args.brandIdentityId,
-      body,
+      body: validateUpdateBrandIdentityBody(body),
     });
 
     if (this.emitJson()) {

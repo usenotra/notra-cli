@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
-import type { CreateScheduleRequest } from '../../types/api';
+import { validateCreateScheduleRequest, type CreateScheduleRequest } from '../../types/api';
 
 const FREQUENCIES = ['daily', 'weekly', 'monthly'] as const;
 const OUTPUT_TYPES = ['changelog', 'blog_post', 'linkedin_post', 'twitter_post'] as const;
@@ -80,7 +80,9 @@ export default class SchedulesCreate extends NotraCommand {
       ? await readConfigFile(flags['config-file'])
       : buildRequestFromFlags(flags);
 
-    const response = await this.client().schedules.createSchedule(request);
+    const response = await this.client().schedules.createSchedule(
+      validateCreateScheduleRequest(request),
+    );
     if (this.emitJson()) {
       this.printJson(response);
       return;
@@ -91,7 +93,7 @@ export default class SchedulesCreate extends NotraCommand {
 
 async function readConfigFile(path: string): Promise<CreateScheduleRequest> {
   const raw = path === '-' ? await readStdin() : await readFile(path, 'utf8');
-  return JSON.parse(raw) as CreateScheduleRequest;
+  return validateCreateScheduleRequest(JSON.parse(raw));
 }
 
 async function readStdin(): Promise<string> {

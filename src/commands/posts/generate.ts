@@ -6,6 +6,7 @@ import type {
   GenerationStatus,
   GetPostGenerationResponse,
 } from '../../types/api';
+import { validateCreatePostGenerationRequest } from '../../types/api';
 
 const CONTENT_TYPES = ['changelog', 'blog_post', 'linkedin_post', 'twitter_post'] as const;
 const LOOKBACK_WINDOWS = [
@@ -77,7 +78,9 @@ export default class PostsGenerate extends NotraCommand {
       }
     }
 
-    const created = await this.client().content.createPostGeneration(request);
+    const created = await this.client().content.createPostGeneration(
+      validateCreatePostGenerationRequest(request),
+    );
     const jobId = created.result.job.id;
 
     if (!flags.wait) {
