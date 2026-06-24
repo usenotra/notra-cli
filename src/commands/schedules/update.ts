@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
-import type { UpdateScheduleRequest } from '../../types/api';
+import { validateUpdateScheduleBody } from '../../types/api';
 
 export default class SchedulesUpdate extends NotraCommand {
   static override description = 'Replace a schedule with a new full body (PATCH semantics).';
@@ -27,7 +27,7 @@ export default class SchedulesUpdate extends NotraCommand {
       flags['config-file'] === '-'
         ? await readStdin()
         : await readFile(flags['config-file'], 'utf8');
-    const body = JSON.parse(raw) as UpdateScheduleRequest['body'];
+    const body = validateUpdateScheduleBody(JSON.parse(raw));
 
     const response = await this.client().schedules.updateSchedule({
       scheduleId: args.scheduleId,

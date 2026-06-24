@@ -6,6 +6,7 @@ import type {
   GenerationStatus,
   GetBrandIdentityGenerationResponse,
 } from '../../types/api';
+import { validateCreateBrandIdentityRequest } from '../../types/api';
 
 export default class BrandsGenerate extends NotraCommand {
   static override description = 'Queue an asynchronous brand-identity generation from a website URL.';
@@ -28,7 +29,9 @@ export default class BrandsGenerate extends NotraCommand {
     const request: CreateBrandIdentityRequest = { websiteUrl: flags['website-url'] };
     if (flags.name) request.name = flags.name;
 
-    const created = await this.client().content.createBrandIdentity(request);
+    const created = await this.client().content.createBrandIdentity(
+      validateCreateBrandIdentityRequest(request),
+    );
     const jobId = created.result.job.id;
 
     if (!flags.wait) {

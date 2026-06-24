@@ -1,7 +1,7 @@
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
 import { readMarkdownFromFileOrStdin } from '../../utils/files';
-import type { UpdatePostRequest } from '../../types/api';
+import { validateUpdatePostBody, type UpdatePostRequest } from '../../types/api';
 
 export default class PostsUpdate extends NotraCommand {
   static override description = 'Update a post (title, slug, markdown, status).';
@@ -42,7 +42,10 @@ export default class PostsUpdate extends NotraCommand {
       this.error('Provide at least one field to update.', { exit: 2 });
     }
 
-    const response = await this.client().content.updatePost({ postId: args.postId, body });
+    const response = await this.client().content.updatePost({
+      postId: args.postId,
+      body: validateUpdatePostBody(body),
+    });
 
     if (this.emitJson()) {
       this.printJson(response.result);
