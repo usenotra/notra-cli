@@ -1,6 +1,6 @@
 {
   "name": "notra",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Command-line interface for the Notra API.",
   "type": "module",
   "license": "MIT",
