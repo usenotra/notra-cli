@@ -91,6 +91,8 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+          # Fresh install from the registry to defend against poisoned cache attacks.
+          package-manager-cache: false
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
