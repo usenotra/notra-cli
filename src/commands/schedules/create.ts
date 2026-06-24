@@ -1,18 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import { Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
-import { validateCreateScheduleRequest, type CreateScheduleRequest } from '../../types/api';
-
-const FREQUENCIES = ['daily', 'weekly', 'monthly'] as const;
-const OUTPUT_TYPES = ['changelog', 'blog_post', 'linkedin_post', 'twitter_post'] as const;
-const PUBLISH_DESTINATIONS = ['webflow', 'framer', 'custom'] as const;
-const LOOKBACK_WINDOWS = [
-  'current_day',
-  'yesterday',
-  'last_7_days',
-  'last_14_days',
-  'last_30_days',
-] as const;
+import {
+  CONTENT_TYPES,
+  LOOKBACK_WINDOWS,
+  PUBLISH_DESTINATIONS,
+  SCHEDULE_FREQUENCIES,
+  validateCreateScheduleRequest,
+  type CreateScheduleRequest,
+} from '../../types/api';
 
 export default class SchedulesCreate extends NotraCommand {
   static override description = 'Create a cron-based content-generation schedule.';
@@ -32,7 +28,10 @@ export default class SchedulesCreate extends NotraCommand {
         'Read the request body from a JSON file (or "-" for stdin). All other flags are ignored when set.',
     }),
     name: Flags.string({ description: 'Schedule name.' }),
-    frequency: Flags.string({ description: 'Cron frequency.', options: [...FREQUENCIES] }),
+    frequency: Flags.string({
+      description: 'Cron frequency.',
+      options: [...SCHEDULE_FREQUENCIES],
+    }),
     hour: Flags.integer({ description: 'Hour (0-23).', min: 0, max: 23 }),
     minute: Flags.integer({ description: 'Minute (0-59).', min: 0, max: 59 }),
     'day-of-week': Flags.integer({
@@ -51,7 +50,7 @@ export default class SchedulesCreate extends NotraCommand {
     }),
     'output-type': Flags.string({
       description: 'Output content type.',
-      options: [...OUTPUT_TYPES],
+      options: [...CONTENT_TYPES],
     }),
     'publish-destination': Flags.string({
       description: 'Publish destination.',
@@ -93,7 +92,7 @@ export default class SchedulesCreate extends NotraCommand {
 
 async function readConfigFile(path: string): Promise<CreateScheduleRequest> {
   const raw = path === '-' ? await readStdin() : await readFile(path, 'utf8');
-  return validateCreateScheduleRequest(JSON.parse(raw));
+  return JSON.parse(raw) as CreateScheduleRequest;
 }
 
 async function readStdin(): Promise<string> {

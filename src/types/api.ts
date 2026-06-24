@@ -71,16 +71,52 @@ export const TERMINAL_GENERATION_STATUSES: ReadonlySet<GenerationStatus> = new S
   'failed',
 ]);
 
-const contentTypeSchema = z.enum(['changelog', 'blog_post', 'linkedin_post', 'twitter_post']);
-const lookbackWindowSchema = z.enum([
+export const CONTENT_TYPES = ['changelog', 'blog_post', 'linkedin_post', 'twitter_post'] as const;
+export const LOOKBACK_WINDOWS = [
   'current_day',
   'yesterday',
   'last_7_days',
   'last_14_days',
   'last_30_days',
-]);
-const scheduleFrequencySchema = z.enum(['daily', 'weekly', 'monthly']);
-const publishDestinationSchema = z.enum(['webflow', 'framer', 'custom']);
+] as const;
+export const SCHEDULE_FREQUENCIES = ['daily', 'weekly', 'monthly'] as const;
+export const PUBLISH_DESTINATIONS = ['webflow', 'framer', 'custom'] as const;
+export const TONE_PROFILES = ['Conversational', 'Professional', 'Casual', 'Formal'] as const;
+export const LANGUAGES = [
+  'English',
+  'Spanish',
+  'French',
+  'German',
+  'Portuguese',
+  'Dutch',
+  'Italian',
+  'Japanese',
+  'Korean',
+  'Chinese',
+  'Arabic',
+  'Hindi',
+  'Russian',
+  'Turkish',
+  'Polish',
+  'Swedish',
+  'Danish',
+  'Norwegian',
+  'Finnish',
+  'Czech',
+  'Romanian',
+  'Hungarian',
+  'Greek',
+  'Thai',
+  'Vietnamese',
+  'Indonesian',
+  'Ukrainian',
+  'Hebrew',
+] as const;
+
+const contentTypeSchema = z.enum(CONTENT_TYPES);
+const lookbackWindowSchema = z.enum(LOOKBACK_WINDOWS);
+const scheduleFrequencySchema = z.enum(SCHEDULE_FREQUENCIES);
+const publishDestinationSchema = z.enum(PUBLISH_DESTINATIONS);
 
 const scheduleCronSchema = z
   .object({
@@ -104,6 +140,20 @@ const scheduleCronSchema = z
         code: 'custom',
         path: ['dayOfMonth'],
         message: 'dayOfMonth is required for monthly schedules.',
+      });
+    }
+    if (cron.frequency !== 'weekly' && cron.dayOfWeek !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['dayOfWeek'],
+        message: 'dayOfWeek is only allowed for weekly schedules.',
+      });
+    }
+    if (cron.frequency !== 'monthly' && cron.dayOfMonth !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['dayOfMonth'],
+        message: 'dayOfMonth is only allowed for monthly schedules.',
       });
     }
   });
@@ -199,41 +249,12 @@ const updateBrandIdentityBodySchema = z
     websiteUrl: z.url().optional(),
     companyName: z.string().nullable().optional(),
     companyDescription: z.string().nullable().optional(),
-    toneProfile: z.enum(['Conversational', 'Professional', 'Casual', 'Formal']).nullable().optional(),
+    toneProfile: z.enum(TONE_PROFILES).nullable().optional(),
     customTone: z.string().nullable().optional(),
     customInstructions: z.string().nullable().optional(),
     audience: z.string().nullable().optional(),
     language: z
-      .enum([
-        'English',
-        'Spanish',
-        'French',
-        'German',
-        'Portuguese',
-        'Dutch',
-        'Italian',
-        'Japanese',
-        'Korean',
-        'Chinese',
-        'Arabic',
-        'Hindi',
-        'Russian',
-        'Turkish',
-        'Polish',
-        'Swedish',
-        'Danish',
-        'Norwegian',
-        'Finnish',
-        'Czech',
-        'Romanian',
-        'Hungarian',
-        'Greek',
-        'Thai',
-        'Vietnamese',
-        'Indonesian',
-        'Ukrainian',
-        'Hebrew',
-      ])
+      .enum(LANGUAGES)
       .nullable()
       .optional(),
     isDefault: z.literal(true).optional(),

@@ -1,8 +1,10 @@
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
-import { validateUpdateBrandIdentityBody, type UpdateBrandIdentityRequest } from '../../types/api';
-
-const TONE_PROFILES = ['Conversational', 'Professional', 'Casual', 'Formal'] as const;
+import {
+  TONE_PROFILES,
+  validateUpdateBrandIdentityBody,
+  type UpdateBrandIdentityRequest,
+} from '../../types/api';
 
 export default class BrandsUpdate extends NotraCommand {
   static override description = 'Update a brand identity.';

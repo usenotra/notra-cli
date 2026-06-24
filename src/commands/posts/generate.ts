@@ -6,16 +6,11 @@ import type {
   GenerationStatus,
   GetPostGenerationResponse,
 } from '../../types/api';
-import { validateCreatePostGenerationRequest } from '../../types/api';
-
-const CONTENT_TYPES = ['changelog', 'blog_post', 'linkedin_post', 'twitter_post'] as const;
-const LOOKBACK_WINDOWS = [
-  'current_day',
-  'yesterday',
-  'last_7_days',
-  'last_14_days',
-  'last_30_days',
-] as const;
+import {
+  CONTENT_TYPES,
+  LOOKBACK_WINDOWS,
+  validateCreatePostGenerationRequest,
+} from '../../types/api';
 
 export default class PostsGenerate extends NotraCommand {
   static override description = 'Queue an asynchronous post-generation job.';
