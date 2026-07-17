@@ -2,12 +2,14 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import ora from 'ora';
 import { NotraCommand } from '../../base-command';
+import {
+  AUTH_POLL_INTERVAL_MS,
+  AUTH_POLL_TIMEOUT_MS,
+  AUTH_SESSION_INITIALIZE_TIMEOUT_MS,
+} from '../../constants/auth';
 import { getDashboardUrl, setConfigValue } from '../../lib/config';
 import { openInBrowser } from '../../utils/browser';
 import { createCliAuthSession } from '../../utils/auth-session';
-
-const POLL_INTERVAL_MS = 2000;
-const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
 export default class AuthLogin extends NotraCommand {
   static override description =
@@ -35,15 +37,19 @@ export default class AuthLogin extends NotraCommand {
       /\/+$/,
       '',
     );
-    const { sessionId, pollSecret, pollSecretHash } = createCliAuthSession();
+    const { sessionId, pollSecret, pollSecretHash, verificationCode } =
+      createCliAuthSession();
     await this.initializeSession(dashboardUrl, sessionId, pollSecretHash);
     const authUrl = `${dashboardUrl}/dashboard?cli_session=${sessionId}`;
 
     if (this.emitJson()) {
-      this.printJson({ status: 'pending', sessionId, authUrl });
+      this.printJson({ status: 'pending', sessionId, authUrl, verificationCode });
     } else {
       this.log(chalk.bold('Open this URL to authorize the CLI:'));
       this.log(`  ${chalk.cyan(authUrl)}`);
+      this.log(chalk.bold('\nVerification code:'));
+      this.log(`  ${chalk.cyan(verificationCode)}`);
+      this.log(chalk.dim('Only enter this code on the Notra dashboard page you opened.'));
       if (flags['no-browser']) {
         this.log(chalk.dim('\n--no-browser set; not opening automatically.'));
       } else if (openInBrowser(authUrl)) {
@@ -82,6 +88,7 @@ export default class AuthLogin extends NotraCommand {
         'content-type': 'application/json',
       },
       body: JSON.stringify({ pollSecretHash }),
+      signal: AbortSignal.timeout(AUTH_SESSION_INITIALIZE_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -104,7 +111,7 @@ export default class AuthLogin extends NotraCommand {
 
     const start = Date.now();
     try {
-      while (Date.now() - start < POLL_TIMEOUT_MS) {
+      while (Date.now() - start < AUTH_POLL_TIMEOUT_MS) {
         const res = await fetch(url, {
           headers: {
             accept: 'application/json',
@@ -130,7 +137,7 @@ export default class AuthLogin extends NotraCommand {
           this.error(`Auth flow failed: HTTP ${res.status}`, { exit: 1 });
         }
 
-        await sleep(POLL_INTERVAL_MS);
+        await sleep(AUTH_POLL_INTERVAL_MS);
       }
 
       spinner?.fail('Timed out waiting for authorization.');
