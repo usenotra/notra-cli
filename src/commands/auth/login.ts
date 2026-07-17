@@ -10,6 +10,7 @@ import {
 import { getDashboardUrl, setConfigValue } from '../../lib/config';
 import { openInBrowser } from '../../utils/browser';
 import { createCliAuthSession } from '../../utils/auth-session';
+import { ExitCode } from '../../utils/exit';
 
 export default class AuthLogin extends NotraCommand {
   static override description =
@@ -142,7 +143,7 @@ export default class AuthLogin extends NotraCommand {
 
       spinner?.fail('Timed out waiting for authorization.');
       this.error('Timed out waiting for authorization. Run `notra auth login` again.', {
-        exit: 1,
+        exit: ExitCode.Network,
       });
     } catch (err) {
       spinner?.stop();
