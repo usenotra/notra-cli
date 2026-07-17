@@ -1,10 +1,10 @@
-import { randomBytes } from 'node:crypto';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import ora from 'ora';
 import { NotraCommand } from '../../base-command';
 import { getDashboardUrl, setConfigValue } from '../../lib/config';
 import { openInBrowser } from '../../utils/browser';
+import { createCliAuthSession } from '../../utils/auth-session';
 
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
@@ -35,7 +35,8 @@ export default class AuthLogin extends NotraCommand {
       /\/+$/,
       '',
     );
-    const sessionId = randomBytes(32).toString('base64url');
+    const { sessionId, pollSecret, pollSecretHash } = createCliAuthSession();
+    await this.initializeSession(dashboardUrl, sessionId, pollSecretHash);
     const authUrl = `${dashboardUrl}/dashboard?cli_session=${sessionId}`;
 
     if (this.emitJson()) {
@@ -54,7 +55,7 @@ export default class AuthLogin extends NotraCommand {
       }
     }
 
-    const apiKey = await this.pollForKey(dashboardUrl, sessionId);
+    const apiKey = await this.pollForKey(dashboardUrl, sessionId, pollSecret);
 
     setConfigValue('api-key', apiKey);
     if (flags['dashboard-url']) {
@@ -68,7 +69,33 @@ export default class AuthLogin extends NotraCommand {
     }
   }
 
-  private async pollForKey(dashboardUrl: string, sessionId: string): Promise<string> {
+  private async initializeSession(
+    dashboardUrl: string,
+    sessionId: string,
+    pollSecretHash: string,
+  ): Promise<void> {
+    const url = `${dashboardUrl}/api/cli/sessions/${encodeURIComponent(sessionId)}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ pollSecretHash }),
+    });
+
+    if (!response.ok) {
+      this.error(`Could not initialize CLI authentication (HTTP ${response.status}).`, {
+        exit: 1,
+      });
+    }
+  }
+
+  private async pollForKey(
+    dashboardUrl: string,
+    sessionId: string,
+    pollSecret: string,
+  ): Promise<string> {
     const url = `${dashboardUrl}/api/cli/sessions/${encodeURIComponent(sessionId)}`;
     const useSpinner = !this.emitJson() && Boolean(process.stderr.isTTY);
     const spinner = useSpinner
@@ -78,7 +105,12 @@ export default class AuthLogin extends NotraCommand {
     const start = Date.now();
     try {
       while (Date.now() - start < POLL_TIMEOUT_MS) {
-        const res = await fetch(url, { headers: { accept: 'application/json' } });
+        const res = await fetch(url, {
+          headers: {
+            accept: 'application/json',
+            authorization: `Bearer ${pollSecret}`,
+          },
+        });
 
         if (res.status === 200) {
           const body = (await res.json()) as { status: string; apiKey?: string };
