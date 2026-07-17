@@ -1,13 +1,16 @@
-import { randomBytes } from 'node:crypto';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import ora from 'ora';
 import { NotraCommand } from '../../base-command';
+import {
+  AUTH_POLL_INTERVAL_MS,
+  AUTH_POLL_TIMEOUT_MS,
+  AUTH_SESSION_INITIALIZE_TIMEOUT_MS,
+} from '../../constants/auth';
 import { getDashboardUrl, setConfigValue } from '../../lib/config';
 import { openInBrowser } from '../../utils/browser';
-
-const POLL_INTERVAL_MS = 2000;
-const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+import { createCliAuthSession } from '../../utils/auth-session';
+import { ExitCode } from '../../utils/exit';
 
 export default class AuthLogin extends NotraCommand {
   static override description =
@@ -35,14 +38,19 @@ export default class AuthLogin extends NotraCommand {
       /\/+$/,
       '',
     );
-    const sessionId = randomBytes(32).toString('base64url');
+    const { sessionId, pollSecret, pollSecretHash, verificationCode } =
+      createCliAuthSession();
+    await this.initializeSession(dashboardUrl, sessionId, pollSecretHash);
     const authUrl = `${dashboardUrl}/dashboard?cli_session=${sessionId}`;
 
     if (this.emitJson()) {
-      this.printJson({ status: 'pending', sessionId, authUrl });
+      this.printJson({ status: 'pending', sessionId, authUrl, verificationCode });
     } else {
       this.log(chalk.bold('Open this URL to authorize the CLI:'));
       this.log(`  ${chalk.cyan(authUrl)}`);
+      this.log(chalk.bold('\nVerification code:'));
+      this.log(`  ${chalk.cyan(verificationCode)}`);
+      this.log(chalk.dim('Only enter this code on the Notra dashboard page you opened.'));
       if (flags['no-browser']) {
         this.log(chalk.dim('\n--no-browser set; not opening automatically.'));
       } else if (openInBrowser(authUrl)) {
@@ -54,7 +62,7 @@ export default class AuthLogin extends NotraCommand {
       }
     }
 
-    const apiKey = await this.pollForKey(dashboardUrl, sessionId);
+    const apiKey = await this.pollForKey(dashboardUrl, sessionId, pollSecret);
 
     setConfigValue('api-key', apiKey);
     if (flags['dashboard-url']) {
@@ -68,7 +76,34 @@ export default class AuthLogin extends NotraCommand {
     }
   }
 
-  private async pollForKey(dashboardUrl: string, sessionId: string): Promise<string> {
+  private async initializeSession(
+    dashboardUrl: string,
+    sessionId: string,
+    pollSecretHash: string,
+  ): Promise<void> {
+    const url = `${dashboardUrl}/api/cli/sessions/${encodeURIComponent(sessionId)}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ pollSecretHash }),
+      signal: AbortSignal.timeout(AUTH_SESSION_INITIALIZE_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      this.error(`Could not initialize CLI authentication (HTTP ${response.status}).`, {
+        exit: 1,
+      });
+    }
+  }
+
+  private async pollForKey(
+    dashboardUrl: string,
+    sessionId: string,
+    pollSecret: string,
+  ): Promise<string> {
     const url = `${dashboardUrl}/api/cli/sessions/${encodeURIComponent(sessionId)}`;
     const useSpinner = !this.emitJson() && Boolean(process.stderr.isTTY);
     const spinner = useSpinner
@@ -77,8 +112,13 @@ export default class AuthLogin extends NotraCommand {
 
     const start = Date.now();
     try {
-      while (Date.now() - start < POLL_TIMEOUT_MS) {
-        const res = await fetch(url, { headers: { accept: 'application/json' } });
+      while (Date.now() - start < AUTH_POLL_TIMEOUT_MS) {
+        const res = await fetch(url, {
+          headers: {
+            accept: 'application/json',
+            authorization: `Bearer ${pollSecret}`,
+          },
+        });
 
         if (res.status === 200) {
           const body = (await res.json()) as { status: string; apiKey?: string };
@@ -98,12 +138,12 @@ export default class AuthLogin extends NotraCommand {
           this.error(`Auth flow failed: HTTP ${res.status}`, { exit: 1 });
         }
 
-        await sleep(POLL_INTERVAL_MS);
+        await sleep(AUTH_POLL_INTERVAL_MS);
       }
 
       spinner?.fail('Timed out waiting for authorization.');
       this.error('Timed out waiting for authorization. Run `notra auth login` again.', {
-        exit: 1,
+        exit: ExitCode.Network,
       });
     } catch (err) {
       spinner?.stop();

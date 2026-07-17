@@ -76,6 +76,13 @@ export function toFriendlyError(err: unknown): FriendlyError {
     return { message: err.message, exitCode: ExitCode.Network };
   }
 
+  if (
+    err instanceof Error &&
+    (err.name === 'TimeoutError' || err.name === 'AbortError')
+  ) {
+    return { message: 'Request timed out.', exitCode: ExitCode.Network };
+  }
+
   if (err instanceof Error) {
     const oclifExit = readOclifExit(err);
     return {
