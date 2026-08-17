@@ -2,58 +2,60 @@ import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import ora from 'ora';
 import { NotraCommand } from '../../base-command';
+import { MILLISECONDS_PER_SECOND } from '../../constants/auth';
+import { clearConfigValue, getConfigValue } from '../../lib/config';
 import {
-  AUTH_POLL_INTERVAL_MS,
-  AUTH_POLL_TIMEOUT_MS,
-  AUTH_SESSION_INITIALIZE_TIMEOUT_MS,
-} from '../../constants/auth';
-import { getDashboardUrl, setConfigValue } from '../../lib/config';
+  DeviceAuthorizationError,
+  getWorkosClientId,
+  nextPollIntervalMs,
+  persistAuthentication,
+  pollDeviceAuthorization,
+  requestDeviceAuthorization,
+  slowedDownIntervalSeconds,
+} from '../../lib/workos';
+import type { AuthenticationResponse, DeviceAuthorizationResponse } from '../../types/workos';
 import { openInBrowser } from '../../utils/browser';
-import { createCliAuthSession } from '../../utils/auth-session';
 import { ExitCode } from '../../utils/exit';
 
 export default class AuthLogin extends NotraCommand {
   static override description =
-    'Authenticate the CLI by creating an API key in the dashboard.';
+    'Sign in to Notra by authorizing this device in your browser.';
   static override examples = [
     '<%= config.bin %> auth login',
-    '<%= config.bin %> auth login --dashboard-url https://app.usenotra.com',
     '<%= config.bin %> auth login --no-browser',
   ];
 
   static override flags = {
-    'dashboard-url': Flags.string({
-      description: 'Override the dashboard URL used for the auth handshake.',
-      env: 'NOTRA_DASHBOARD_URL',
-    }),
     'no-browser': Flags.boolean({
       description: 'Print the URL instead of opening it automatically.',
     }),
   };
 
+  protected override requiresFreshAccessToken = false;
+
   public async run(): Promise<void> {
     const { flags } = await this.parse(AuthLogin);
 
-    const dashboardUrl = (flags['dashboard-url'] ?? getDashboardUrl()).replace(
-      /\/+$/,
-      '',
-    );
-    const { sessionId, pollSecret, pollSecretHash, verificationCode } =
-      createCliAuthSession();
-    await this.initializeSession(dashboardUrl, sessionId, pollSecretHash);
-    const authUrl = `${dashboardUrl}/dashboard?cli_session=${sessionId}`;
+    const clientId = getWorkosClientId();
+    const deviceAuth = await requestDeviceAuthorization(clientId);
 
     if (this.emitJson()) {
-      this.printJson({ status: 'pending', sessionId, authUrl, verificationCode });
+      this.printJson({
+        status: 'pending',
+        userCode: deviceAuth.user_code,
+        verificationUri: deviceAuth.verification_uri,
+        verificationUriComplete: deviceAuth.verification_uri_complete,
+        expiresIn: deviceAuth.expires_in,
+      });
     } else {
       this.log(chalk.bold('Open this URL to authorize the CLI:'));
-      this.log(`  ${chalk.cyan(authUrl)}`);
+      this.log(`  ${chalk.cyan(deviceAuth.verification_uri_complete)}`);
       this.log(chalk.bold('\nVerification code:'));
-      this.log(`  ${chalk.cyan(verificationCode)}`);
-      this.log(chalk.dim('Only enter this code on the Notra dashboard page you opened.'));
+      this.log(`  ${chalk.cyan(deviceAuth.user_code)}`);
+      this.log(chalk.dim('Only approve this code if it matches the one in your browser.'));
       if (flags['no-browser']) {
         this.log(chalk.dim('\n--no-browser set; not opening automatically.'));
-      } else if (openInBrowser(authUrl)) {
+      } else if (openInBrowser(deviceAuth.verification_uri_complete)) {
         this.log(chalk.dim('\nBrowser opened. Complete the flow there.'));
       } else {
         this.log(
@@ -62,83 +64,47 @@ export default class AuthLogin extends NotraCommand {
       }
     }
 
-    const apiKey = await this.pollForKey(dashboardUrl, sessionId, pollSecret);
+    const authentication = await this.pollForTokens(clientId, deviceAuth);
 
-    setConfigValue('api-key', apiKey);
-    if (flags['dashboard-url']) {
-      setConfigValue('dashboard-url', dashboardUrl);
+    persistAuthentication(authentication);
+    if (getConfigValue('api-key')) {
+      clearConfigValue('api-key');
     }
 
     if (this.emitJson()) {
-      this.printJson({ status: 'ready' });
-    } else {
-      this.printSuccess('Logged in to Notra. Run `notra config get api-key` to view the full key.');
-    }
-  }
-
-  private async initializeSession(
-    dashboardUrl: string,
-    sessionId: string,
-    pollSecretHash: string,
-  ): Promise<void> {
-    const url = `${dashboardUrl}/api/cli/sessions/${encodeURIComponent(sessionId)}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        accept: 'application/json',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ pollSecretHash }),
-      signal: AbortSignal.timeout(AUTH_SESSION_INITIALIZE_TIMEOUT_MS),
-    });
-
-    if (!response.ok) {
-      this.error(`Could not initialize CLI authentication (HTTP ${response.status}).`, {
-        exit: 1,
+      this.printJson({
+        status: 'ready',
+        organizationId: authentication.organization_id ?? null,
       });
+    } else {
+      const who = authentication.user?.email;
+      this.printSuccess(who ? `Logged in to Notra as ${who}.` : 'Logged in to Notra.');
     }
   }
 
-  private async pollForKey(
-    dashboardUrl: string,
-    sessionId: string,
-    pollSecret: string,
-  ): Promise<string> {
-    const url = `${dashboardUrl}/api/cli/sessions/${encodeURIComponent(sessionId)}`;
+  private async pollForTokens(
+    clientId: string,
+    deviceAuth: DeviceAuthorizationResponse,
+  ): Promise<AuthenticationResponse> {
     const useSpinner = !this.emitJson() && Boolean(process.stderr.isTTY);
     const spinner = useSpinner
       ? ora({ text: 'Waiting for authorization…', stream: process.stderr }).start()
       : undefined;
 
-    const start = Date.now();
+    const deadline = Date.now() + deviceAuth.expires_in * MILLISECONDS_PER_SECOND;
+    let intervalSeconds = deviceAuth.interval;
+
     try {
-      while (Date.now() - start < AUTH_POLL_TIMEOUT_MS) {
-        const res = await fetch(url, {
-          headers: {
-            accept: 'application/json',
-            authorization: `Bearer ${pollSecret}`,
-          },
-        });
-
-        if (res.status === 200) {
-          const body = (await res.json()) as { status: string; apiKey?: string };
-          if (body.status === 'ready' && body.apiKey) {
-            spinner?.stop();
-            return body.apiKey;
-          }
-        } else if (res.status === 410) {
-          spinner?.fail('Session expired.');
-          this.error('Session expired before you authorized. Run `notra auth login` again.', {
-            exit: 3,
-          });
-        } else if (res.status === 202) {
-          // pending
-        } else if (res.status >= 400) {
-          spinner?.fail(`Unexpected response (HTTP ${res.status}).`);
-          this.error(`Auth flow failed: HTTP ${res.status}`, { exit: 1 });
+      while (Date.now() < deadline) {
+        await sleep(nextPollIntervalMs(intervalSeconds));
+        const result = await pollDeviceAuthorization(clientId, deviceAuth.device_code);
+        if (result.status === 'success') {
+          spinner?.stop();
+          return result.authentication;
         }
-
-        await sleep(AUTH_POLL_INTERVAL_MS);
+        if (result.status === 'slow_down') {
+          intervalSeconds = slowedDownIntervalSeconds(intervalSeconds);
+        }
       }
 
       spinner?.fail('Timed out waiting for authorization.');
@@ -146,6 +112,18 @@ export default class AuthLogin extends NotraCommand {
         exit: ExitCode.Network,
       });
     } catch (err) {
+      if (err instanceof DeviceAuthorizationError) {
+        if (err.code === 'access_denied') {
+          spinner?.fail('Authorization denied.');
+          this.error('Authorization was denied in the browser.', { exit: ExitCode.Auth });
+        }
+        if (err.code === 'expired_token') {
+          spinner?.fail('Code expired.');
+          this.error('The verification code expired. Run `notra auth login` again.', {
+            exit: ExitCode.Auth,
+          });
+        }
+      }
       spinner?.stop();
       throw err;
     }

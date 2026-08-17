@@ -1,7 +1,7 @@
 import { Args } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
 import { getAllConfig, getConfigValue } from '../../lib/config';
-import { CONFIG_KEYS, type ConfigKey } from '../../types/config';
+import { CONFIG_KEYS, type ConfigKey, type ConfigSchema } from '../../types/config';
 import { renderKv } from '../../utils/output';
 
 export default class ConfigGet extends NotraCommand {
@@ -18,6 +18,8 @@ export default class ConfigGet extends NotraCommand {
       options: [...CONFIG_KEYS],
     }),
   };
+
+  protected override requiresFreshAccessToken = false;
 
   public async run(): Promise<void> {
     const { args } = await this.parse(ConfigGet);
@@ -42,18 +44,20 @@ export default class ConfigGet extends NotraCommand {
       renderKv([
         ['api-key', redacted.apiKey ?? '(unset)'],
         ['base-url', redacted.baseUrl ?? '(default)'],
-        ['dashboard-url', redacted.dashboardUrl ?? '(default)'],
+        ['organization-id', redacted.organizationId ?? '(unset)'],
+        ['session', all.refreshToken ? 'signed in' : '(signed out)'],
       ]),
     );
   }
 }
 
-function redact(config: {
-  apiKey?: string;
-  baseUrl?: string;
-  dashboardUrl?: string;
-}): { apiKey?: string; baseUrl?: string; dashboardUrl?: string } {
-  return { ...config, apiKey: mask(config.apiKey) };
+function redact(config: ConfigSchema): ConfigSchema {
+  return {
+    ...config,
+    apiKey: mask(config.apiKey),
+    accessToken: mask(config.accessToken),
+    refreshToken: mask(config.refreshToken),
+  };
 }
 
 function mask(key: string | undefined): string | undefined {

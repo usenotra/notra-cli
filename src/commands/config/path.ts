@@ -5,6 +5,8 @@ export default class ConfigPath extends NotraCommand {
   static override description = 'Print the path of the local CLI config file.';
   static override examples = ['<%= config.bin %> config path'];
 
+  protected override requiresFreshAccessToken = false;
+
   public async run(): Promise<void> {
     const p = getConfigPath();
     if (this.emitJson()) this.printJson({ path: p });

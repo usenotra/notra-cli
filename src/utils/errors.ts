@@ -9,6 +9,11 @@ import {
   SDKValidationError,
 } from '@usenotra/sdk/models/errors';
 import { MissingApiKeyError } from '../lib/client';
+import {
+  DeviceAuthorizationError,
+  SessionExpiredError,
+  TokenRefreshError,
+} from '../lib/workos';
 import { ExitCode } from './exit';
 
 export type FriendlyError = {
@@ -18,8 +23,16 @@ export type FriendlyError = {
 };
 
 export function toFriendlyError(err: unknown): FriendlyError {
-  if (err instanceof MissingApiKeyError) {
+  if (err instanceof MissingApiKeyError || err instanceof SessionExpiredError) {
     return { message: err.message, exitCode: ExitCode.Auth };
+  }
+
+  if (err instanceof DeviceAuthorizationError || err instanceof TokenRefreshError) {
+    return {
+      message: err.message,
+      detail: err.code,
+      exitCode: ExitCode.Auth,
+    };
   }
 
   if (err instanceof RateLimitErrorResponse) {
