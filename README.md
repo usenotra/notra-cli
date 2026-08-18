@@ -16,8 +16,10 @@ npm i -g notra
 notra auth login
 ```
 
-Opens the dashboard in your browser, asks you to pick an organization,
-mints an API key, and saves it locally. No copy-pasting tokens.
+Starts an OAuth device authorization flow: the CLI prints a short
+verification code, opens the sign-in page in your browser, and waits for
+you to approve the code. Tokens are saved locally and refreshed
+automatically. No copy-pasting tokens.
 
 ## Commands
 
@@ -45,15 +47,15 @@ Environment overrides:
 
 | Var | Default | Purpose |
 |---|---|---|
-| `NOTRA_API_KEY` | – | API key for requests |
+| `NOTRA_API_KEY` | – | API key for requests (bypasses `auth login`) |
 | `NOTRA_BASE_URL` | `https://api.usenotra.com` | API base URL |
-| `NOTRA_DASHBOARD_URL` | `https://app.usenotra.com` | Dashboard used by `auth login` |
+| `NOTRA_WORKOS_CLIENT_ID` | production client id | Auth client id override for dev/staging |
 
 Or persist them:
 
 ```bash
 notra config set api-key sk_live_xxx
-notra config set dashboard-url http://localhost:3000
+notra config set base-url https://api.usenotra.com
 ```
 
 ## Exit codes

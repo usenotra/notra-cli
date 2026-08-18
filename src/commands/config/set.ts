@@ -19,6 +19,8 @@ export default class ConfigSet extends NotraCommand {
     value: Args.string({ description: 'Value to store.', required: true }),
   };
 
+  protected override requiresFreshAccessToken = false;
+
   public async run(): Promise<void> {
     const { args } = await this.parse(ConfigSet);
     setConfigValue(args.key as ConfigKey, args.value);

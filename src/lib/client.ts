@@ -1,5 +1,5 @@
 import { Notra } from '@usenotra/sdk';
-import { getApiKey, getBaseUrl } from './config';
+import { getApiKey, getBaseUrl, getStoredAuth } from './config';
 
 export type ClientOverrides = {
   apiKey?: string;
@@ -9,18 +9,27 @@ export type ClientOverrides = {
 export class MissingApiKeyError extends Error {
   constructor() {
     super(
-      'No Notra API key configured. Run `notra init`, set `NOTRA_API_KEY`, or pass `--api-key`.',
+      'Not signed in. Run `notra auth login`, set `NOTRA_API_KEY`, or pass `--api-key`.',
     );
     this.name = 'MissingApiKeyError';
   }
 }
 
+export function resolveBearerToken(overrides: ClientOverrides = {}): string | undefined {
+  return (
+    overrides.apiKey ??
+    process.env.NOTRA_API_KEY ??
+    getStoredAuth()?.accessToken ??
+    getApiKey()
+  );
+}
+
 export function buildClient(overrides: ClientOverrides = {}): Notra {
-  const apiKey = overrides.apiKey ?? getApiKey();
-  if (!apiKey) throw new MissingApiKeyError();
+  const bearer = resolveBearerToken(overrides);
+  if (!bearer) throw new MissingApiKeyError();
   const serverURL = overrides.baseUrl ?? getBaseUrl();
   return new Notra({
-    bearerAuth: apiKey,
+    bearerAuth: bearer,
     serverURL,
     userAgent: `notra-cli/${process.env.npm_package_version ?? 'dev'}`,
   });

@@ -2,6 +2,7 @@ import { Command, Flags, type Interfaces } from '@oclif/core';
 import chalk from 'chalk';
 import type { Notra } from '@usenotra/sdk';
 import { buildClient } from './lib/client';
+import { ensureFreshAccessToken } from './lib/workos';
 import { renderJson, sanitizeTerminalText } from './utils/output';
 import { toFriendlyError } from './utils/errors';
 
@@ -27,6 +28,16 @@ export abstract class NotraCommand extends Command {
   };
 
   private _client?: Notra;
+
+  protected requiresFreshAccessToken = true;
+
+  public override async init(): Promise<void> {
+    await super.init();
+    if (!this.requiresFreshAccessToken) return;
+    const overrides = readGlobalArgv();
+    if (overrides.apiKey) return;
+    await ensureFreshAccessToken();
+  }
 
   protected client(): Notra {
     if (!this._client) {

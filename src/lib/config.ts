@@ -1,7 +1,7 @@
 import { chmodSync } from 'node:fs';
 import Conf from 'conf';
-import type { ConfigKey, ConfigSchema } from '../types/config';
-import { DEFAULT_BASE_URL, DEFAULT_DASHBOARD_URL } from '../types/config';
+import type { ConfigKey, ConfigSchema, StoredAuth } from '../types/config';
+import { DEFAULT_BASE_URL } from '../types/config';
 
 let store: Conf<ConfigSchema> | undefined;
 
@@ -12,7 +12,10 @@ function getStore(): Conf<ConfigSchema> {
       schema: {
         apiKey: { type: 'string' },
         baseUrl: { type: 'string', format: 'uri' },
-        dashboardUrl: { type: 'string', format: 'uri' },
+        accessToken: { type: 'string' },
+        refreshToken: { type: 'string' },
+        accessTokenExpiresAt: { type: 'number' },
+        organizationId: { type: 'string' },
       },
       configFileMode: 0o600,
     });
@@ -29,12 +32,41 @@ export function getBaseUrl(): string {
   return process.env.NOTRA_BASE_URL ?? getStore().get('baseUrl') ?? DEFAULT_BASE_URL;
 }
 
-export function getDashboardUrl(): string {
-  return (
-    process.env.NOTRA_DASHBOARD_URL ??
-    getStore().get('dashboardUrl') ??
-    DEFAULT_DASHBOARD_URL
-  );
+export function getStoredAuth(): StoredAuth | undefined {
+  const s = getStore();
+  const accessToken = s.get('accessToken');
+  const refreshToken = s.get('refreshToken');
+  if (!accessToken || !refreshToken) return undefined;
+  return {
+    accessToken,
+    refreshToken,
+    accessTokenExpiresAt: s.get('accessTokenExpiresAt'),
+    organizationId: s.get('organizationId'),
+  };
+}
+
+export function setStoredAuth(auth: StoredAuth): void {
+  const s = getStore();
+  s.set('accessToken', auth.accessToken);
+  s.set('refreshToken', auth.refreshToken);
+  if (auth.accessTokenExpiresAt === undefined) {
+    s.delete('accessTokenExpiresAt');
+  } else {
+    s.set('accessTokenExpiresAt', auth.accessTokenExpiresAt);
+  }
+  if (auth.organizationId === undefined) {
+    s.delete('organizationId');
+  } else {
+    s.set('organizationId', auth.organizationId);
+  }
+}
+
+export function clearStoredAuth(): void {
+  const s = getStore();
+  s.delete('accessToken');
+  s.delete('refreshToken');
+  s.delete('accessTokenExpiresAt');
+  s.delete('organizationId');
 }
 
 export function setConfigValue(key: ConfigKey, value: string): void {
@@ -43,8 +75,6 @@ export function setConfigValue(key: ConfigKey, value: string): void {
     s.set('apiKey', value);
   } else if (key === 'base-url') {
     s.set('baseUrl', value);
-  } else if (key === 'dashboard-url') {
-    s.set('dashboardUrl', value);
   }
 }
 
@@ -54,8 +84,6 @@ export function clearConfigValue(key: ConfigKey): void {
     s.delete('apiKey');
   } else if (key === 'base-url') {
     s.delete('baseUrl');
-  } else if (key === 'dashboard-url') {
-    s.delete('dashboardUrl');
   }
 }
 
@@ -63,7 +91,6 @@ export function getConfigValue(key: ConfigKey): string | undefined {
   const s = getStore();
   if (key === 'api-key') return s.get('apiKey');
   if (key === 'base-url') return s.get('baseUrl');
-  if (key === 'dashboard-url') return s.get('dashboardUrl');
   return undefined;
 }
 
