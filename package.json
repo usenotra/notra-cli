@@ -33,7 +33,7 @@
     "start": "bun ./dist/run.js",
     "build": "bun ./scripts/build.ts",
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
+    "test": "bun test src",
     "prepack": "bun run build",
     "snapshot:run": "bun ./snapshot/run.ts",
     "snapshot:serve": "bun ./snapshot/serve.ts"

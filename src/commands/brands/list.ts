@@ -1,5 +1,5 @@
 import { NotraCommand } from '../../base-command';
-import type { ListBrandIdentitiesBrandIdentity } from '../../types/api';
+import type { ListBrandIdentitiesBrandIdentity } from '@usenotra/sdk/models/operations';
 import { formatBool, formatDate, renderTable, truncate } from '../../utils/output';
 
 export default class BrandsList extends NotraCommand {
@@ -7,6 +7,8 @@ export default class BrandsList extends NotraCommand {
   static override examples = ['<%= config.bin %> brands list', '<%= config.bin %> brands list --json'];
 
   public async run(): Promise<void> {
+    await this.parse(BrandsList);
+
     const response = await this.client().content.listBrandIdentities();
     if (this.emitJson()) {
       this.printJson(response);

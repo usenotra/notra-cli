@@ -1,12 +1,12 @@
 import { Flags } from '@oclif/core';
-import { NotraCommand } from '../../base-command';
-import { pollJob } from '../../utils/poll';
 import type {
   CreateBrandIdentityRequest,
-  GenerationStatus,
   GetBrandIdentityGenerationResponse,
-} from '../../types/api';
-import { validateCreateBrandIdentityRequest } from '../../types/api';
+} from '@usenotra/sdk/models/operations';
+import { NotraCommand } from '../../base-command';
+import { ExitCode } from '../../constants/exit';
+import { validateCreateBrandIdentityRequest } from '../../schemas/brands';
+import { pollJob } from '../../utils/poll';
 
 export default class BrandsGenerate extends NotraCommand {
   static override description = 'Queue an asynchronous brand-identity generation from a website URL.';
@@ -28,10 +28,9 @@ export default class BrandsGenerate extends NotraCommand {
 
     const request: CreateBrandIdentityRequest = { websiteUrl: flags['website-url'] };
     if (flags.name) request.name = flags.name;
+    const validatedRequest = validateCreateBrandIdentityRequest(request);
 
-    const created = await this.client().content.createBrandIdentity(
-      validateCreateBrandIdentityRequest(request),
-    );
+    const created = await this.client().content.createBrandIdentity(validatedRequest);
     const jobId = created.result.job.id;
 
     if (!flags.wait) {
@@ -45,7 +44,7 @@ export default class BrandsGenerate extends NotraCommand {
 
     const final = await pollJob<GetBrandIdentityGenerationResponse>({
       fetch: () => this.client().content.getBrandIdentityGeneration({ jobId }),
-      status: (snap) => snap.job.status as GenerationStatus,
+      status: (snap) => snap.job.status,
       describe: (snap) =>
         `Job ${jobId}: ${snap.job.status}` +
         (snap.job.step ? ` (${snap.job.step} ${snap.job.currentStep}/${snap.job.totalSteps})` : ''),
@@ -54,11 +53,13 @@ export default class BrandsGenerate extends NotraCommand {
       spinnerLabel: `Job ${jobId}: queued`,
     });
 
-    if (this.emitJson()) this.printJson(final);
-    else if (final.job.status === 'completed') {
+    if (this.emitJson()) {
+      this.printJson(final);
+      if (final.job.status === 'failed') process.exitCode = ExitCode.Generic;
+    } else if (final.job.status === 'completed') {
       this.printSuccess(`Created brand identity ${final.job.brandIdentityId}.`);
     } else if (final.job.status === 'failed') {
-      this.error(final.job.error ?? 'Generation failed.', { exit: 1 });
+      this.error(final.job.error ?? 'Generation failed.', { exit: ExitCode.Generic });
     } else this.log(`Final status: ${final.job.status}`);
   }
 }

@@ -8,6 +8,8 @@ export default class ConfigPath extends NotraCommand {
   protected override requiresFreshAccessToken = false;
 
   public async run(): Promise<void> {
+    await this.parse(ConfigPath);
+
     const p = getConfigPath();
     if (this.emitJson()) this.printJson({ path: p });
     else this.log(p);

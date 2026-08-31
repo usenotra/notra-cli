@@ -8,6 +8,8 @@ export default class AuthLogout extends NotraCommand {
   protected override requiresFreshAccessToken = false;
 
   public async run(): Promise<void> {
+    await this.parse(AuthLogout);
+
     const storedAuth = getStoredAuth();
     const legacyKey = getConfigValue('api-key');
     if (!storedAuth && !legacyKey) {

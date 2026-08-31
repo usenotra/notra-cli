@@ -1,5 +1,6 @@
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
+import { ExitCode } from '../../constants/exit';
 import { confirmDestructive } from '../../utils/confirm';
 
 export default class BrandsDelete extends NotraCommand {
@@ -19,7 +20,7 @@ export default class BrandsDelete extends NotraCommand {
     const ok = await confirmDestructive(`Delete brand identity ${args.brandIdentityId}?`, {
       yes: flags.yes,
     });
-    if (!ok) this.error('Aborted.', { exit: 1 });
+    if (!ok) this.error('Aborted.', { exit: ExitCode.Generic });
 
     const response = await this.client().content.deleteBrandIdentity({
       brandIdentityId: args.brandIdentityId,

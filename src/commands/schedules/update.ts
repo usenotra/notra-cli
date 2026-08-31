@@ -1,7 +1,7 @@
-import { readFile } from 'node:fs/promises';
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
-import { validateUpdateScheduleBody } from '../../types/api';
+import { validateUpdateScheduleBody } from '../../schemas/schedules';
+import { readJsonFromFileOrStdin } from '../../utils/files';
 
 export default class SchedulesUpdate extends NotraCommand {
   static override description = 'Replace a schedule with a new full body (PATCH semantics).';
@@ -23,11 +23,11 @@ export default class SchedulesUpdate extends NotraCommand {
 
   public async run(): Promise<void> {
     const { args, flags } = await this.parse(SchedulesUpdate);
-    const raw =
-      flags['config-file'] === '-'
-        ? await readStdin()
-        : await readFile(flags['config-file'], 'utf8');
-    const body = validateUpdateScheduleBody(JSON.parse(raw));
+    const input = await readJsonFromFileOrStdin(
+      flags['config-file'],
+      'Expected schedule JSON via --config-file or piped on stdin.',
+    );
+    const body = validateUpdateScheduleBody(input);
 
     const response = await this.client().schedules.updateSchedule({
       scheduleId: args.scheduleId,
@@ -39,13 +39,4 @@ export default class SchedulesUpdate extends NotraCommand {
     }
     this.printSuccess(`Updated schedule ${response.schedule.id}.`);
   }
-}
-
-async function readStdin(): Promise<string> {
-  if (process.stdin.isTTY) {
-    throw new Error('Expected schedule JSON via --config-file or piped on stdin.');
-  }
-  let data = '';
-  for await (const chunk of process.stdin) data += chunk;
-  return data;
 }

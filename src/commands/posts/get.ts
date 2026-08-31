@@ -1,5 +1,6 @@
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
+import { ExitCode } from '../../constants/exit';
 import { formatDate, renderKv } from '../../utils/output';
 
 export default class PostsGet extends NotraCommand {
@@ -22,14 +23,14 @@ export default class PostsGet extends NotraCommand {
     const response = await this.client().content.getPost({ postId: args.postId });
 
     if (!response.post) {
-      this.error(`Post ${args.postId} not found.`, { exit: 5 });
-    }
-    if (this.emitJson()) {
-      this.printJson(response);
-      return;
+      this.error(`Post ${args.postId} not found.`, { exit: ExitCode.NotFound });
     }
     if (flags.markdown) {
       this.log(response.post.markdown);
+      return;
+    }
+    if (this.emitJson()) {
+      this.printJson(response);
       return;
     }
 

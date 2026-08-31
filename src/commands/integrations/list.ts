@@ -13,6 +13,8 @@ export default class IntegrationsList extends NotraCommand {
   static override examples = ['<%= config.bin %> integrations list'];
 
   public async run(): Promise<void> {
+    await this.parse(IntegrationsList);
+
     const response = await this.client().content.listIntegrations();
     const rows = toRows(response);
     if (this.emitJson()) {
@@ -67,10 +69,10 @@ function toRows(response: {
     });
   }
   for (const s of response.slack) {
-    const id = typeof s === 'object' && s !== null && 'id' in s ? String((s as { id: unknown }).id) : '—';
+    const id = typeof s === 'object' && s !== null && 'id' in s ? String(s.id) : '—';
     const display =
       typeof s === 'object' && s !== null && 'displayName' in s
-        ? String((s as { displayName: unknown }).displayName)
+        ? String(s.displayName)
         : '—';
     rows.push({ id, type: 'slack', display, detail: '—' });
   }

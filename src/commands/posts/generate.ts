@@ -1,16 +1,10 @@
 import { Flags } from '@oclif/core';
+import type { GetPostGenerationResponse } from '@usenotra/sdk/models/operations';
 import { NotraCommand } from '../../base-command';
+import { ExitCode } from '../../constants/exit';
+import { CONTENT_TYPES, LOOKBACK_WINDOWS } from '../../constants/posts';
+import { validateCreatePostGenerationRequest } from '../../schemas/posts';
 import { pollJob } from '../../utils/poll';
-import type {
-  CreatePostGenerationRequest,
-  GenerationStatus,
-  GetPostGenerationResponse,
-} from '../../types/api';
-import {
-  CONTENT_TYPES,
-  LOOKBACK_WINDOWS,
-  validateCreatePostGenerationRequest,
-} from '../../types/api';
 
 export default class PostsGenerate extends NotraCommand {
   static override description = 'Queue an asynchronous post-generation job.';
@@ -55,27 +49,23 @@ export default class PostsGenerate extends NotraCommand {
   public async run(): Promise<void> {
     const { flags } = await this.parse(PostsGenerate);
 
-    const request: CreatePostGenerationRequest = {
-      contentType: flags['content-type'] as CreatePostGenerationRequest['contentType'],
-    };
-    if (flags.brand) request.brandIdentityId = flags.brand;
-    if (flags['brand-voice']) request.brandVoiceId = flags['brand-voice'];
-    if (flags.lookback) {
-      request.lookbackWindow = flags.lookback as CreatePostGenerationRequest['lookbackWindow'];
-    }
+    const requestInput: Record<string, unknown> = { contentType: flags['content-type'] };
+    if (flags.brand) requestInput.brandIdentityId = flags.brand;
+    if (flags['brand-voice']) requestInput.brandVoiceId = flags['brand-voice'];
+    if (flags.lookback) requestInput.lookbackWindow = flags.lookback;
     if (flags['github-integration']?.length || flags['linear-integration']?.length) {
-      request.integrations = {};
+      const integrations: Record<string, string[]> = {};
       if (flags['github-integration']?.length) {
-        request.integrations.github = flags['github-integration'];
+        integrations.github = flags['github-integration'];
       }
       if (flags['linear-integration']?.length) {
-        request.integrations.linear = flags['linear-integration'];
+        integrations.linear = flags['linear-integration'];
       }
+      requestInput.integrations = integrations;
     }
+    const request = validateCreatePostGenerationRequest(requestInput);
 
-    const created = await this.client().content.createPostGeneration(
-      validateCreatePostGenerationRequest(request),
-    );
+    const created = await this.client().content.createPostGeneration(request);
     const jobId = created.result.job.id;
 
     if (!flags.wait) {
@@ -90,7 +80,7 @@ export default class PostsGenerate extends NotraCommand {
 
     const final = await pollJob<GetPostGenerationResponse>({
       fetch: () => this.client().content.getPostGeneration({ jobId }),
-      status: (snap) => snap.job.status as GenerationStatus,
+      status: (snap) => snap.job.status,
       describe: (snap) =>
         `Job ${jobId}: ${snap.job.status}` +
         (snap.events.length > 0 ? ` (${snap.events[snap.events.length - 1]?.type})` : ''),
@@ -101,12 +91,13 @@ export default class PostsGenerate extends NotraCommand {
 
     if (this.emitJson()) {
       this.printJson(final);
+      if (final.job.status === 'failed') process.exitCode = ExitCode.Generic;
       return;
     }
     if (final.job.status === 'completed' && final.job.postId) {
       this.printSuccess(`Created post ${final.job.postId}.`);
     } else if (final.job.status === 'failed') {
-      this.error(final.job.error ?? 'Generation failed.', { exit: 1 });
+      this.error(final.job.error ?? 'Generation failed.', { exit: ExitCode.Generic });
     } else {
       this.log(`Final status: ${final.job.status}`);
     }

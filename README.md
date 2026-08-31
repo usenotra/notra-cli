@@ -35,6 +35,16 @@ notra schedules list
 Run `notra <topic> --help` to see every command and flag. Every command
 accepts `--json` for machine-readable output.
 
+## Output
+
+Commands default to formatted output in a terminal and JSON when stdout is
+redirected. Explicit output flags take precedence over that automatic choice;
+for example, `notra posts get <postId> --markdown` always prints Markdown.
+
+`notra auth login --json` streams newline-delimited JSON (NDJSON), with one
+compact object per line. The `pending` event contains the verification URL and
+code, followed by either a `ready` event or an `error` event.
+
 ## Config
 
 The local config file lives at the OS-standard config path. Show it with:
@@ -79,5 +89,7 @@ bun run dev -- posts list --help
 bun run typecheck
 ```
 
-Source is TypeScript with extensionless imports (`moduleResolution: Bundler`),
-executed directly by Bun via the `dist/run.js` shebang. No build step.
+Source is TypeScript with extensionless imports (`moduleResolution: Bundler`).
+`bun run dev` runs commands through oclif's development mode. For distribution,
+`bun run build` bundles the command entrypoints into `dist`; `prepack` runs that
+build automatically, and the published package contains only `dist`.

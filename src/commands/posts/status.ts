@@ -1,7 +1,8 @@
 import { Args, Flags } from '@oclif/core';
+import type { GetPostGenerationResponse } from '@usenotra/sdk/models/operations';
 import { NotraCommand } from '../../base-command';
+import { ExitCode } from '../../constants/exit';
 import { pollJob } from '../../utils/poll';
-import type { GenerationStatus, GetPostGenerationResponse } from '../../types/api';
 import { formatDate, renderKv } from '../../utils/output';
 
 export default class PostsStatus extends NotraCommand {
@@ -37,7 +38,7 @@ export default class PostsStatus extends NotraCommand {
     if (flags.watch) {
       snapshot = await pollJob<GetPostGenerationResponse>({
         fetch: () => this.client().content.getPostGeneration({ jobId: args.jobId }),
-        status: (snap) => snap.job.status as GenerationStatus,
+        status: (snap) => snap.job.status,
         describe: (snap) => `Job ${args.jobId}: ${snap.job.status}`,
         intervalMs: flags['poll-interval'] * 1000,
         timeoutMs: flags['timeout-mins'] * 60 * 1000,
@@ -47,6 +48,7 @@ export default class PostsStatus extends NotraCommand {
 
     if (this.emitJson()) {
       this.printJson(snapshot);
+      if (flags.watch && snapshot.job.status === 'failed') process.exitCode = ExitCode.Generic;
       return;
     }
 
@@ -68,6 +70,9 @@ export default class PostsStatus extends NotraCommand {
       for (const ev of snapshot.events.slice(-5)) {
         this.log(`  ${formatDate(ev.createdAt)}  ${ev.type}  ${ev.message}`);
       }
+    }
+    if (flags.watch && snapshot.job.status === 'failed') {
+      this.error(snapshot.job.error ?? 'Generation failed.', { exit: ExitCode.Generic });
     }
   }
 }

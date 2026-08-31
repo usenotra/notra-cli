@@ -1,14 +1,10 @@
-import { readFile } from 'node:fs/promises';
-import { Flags } from '@oclif/core';
+import { Errors, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
-import {
-  CONTENT_TYPES,
-  LOOKBACK_WINDOWS,
-  PUBLISH_DESTINATIONS,
-  SCHEDULE_FREQUENCIES,
-  validateCreateScheduleRequest,
-  type CreateScheduleRequest,
-} from '../../types/api';
+import { ExitCode } from '../../constants/exit';
+import { CONTENT_TYPES, LOOKBACK_WINDOWS } from '../../constants/posts';
+import { PUBLISH_DESTINATIONS, SCHEDULE_FREQUENCIES } from '../../constants/schedules';
+import { validateCreateScheduleRequest } from '../../schemas/schedules';
+import { readJsonFromFileOrStdin } from '../../utils/files';
 
 export default class SchedulesCreate extends NotraCommand {
   static override description = 'Create a cron-based content-generation schedule.';
@@ -75,33 +71,21 @@ export default class SchedulesCreate extends NotraCommand {
   public async run(): Promise<void> {
     const { flags } = await this.parse(SchedulesCreate);
 
-    const request = flags['config-file']
-      ? await readConfigFile(flags['config-file'])
+    const input = flags['config-file']
+      ? await readJsonFromFileOrStdin(
+          flags['config-file'],
+          'Expected schedule JSON via --config-file or piped on stdin.',
+        )
       : buildRequestFromFlags(flags);
+    const request = validateCreateScheduleRequest(input);
 
-    const response = await this.client().schedules.createSchedule(
-      validateCreateScheduleRequest(request),
-    );
+    const response = await this.client().schedules.createSchedule(request);
     if (this.emitJson()) {
       this.printJson(response);
       return;
     }
     this.printSuccess(`Created schedule ${response.schedule.id} (${response.schedule.name}).`);
   }
-}
-
-async function readConfigFile(path: string): Promise<CreateScheduleRequest> {
-  const raw = path === '-' ? await readStdin() : await readFile(path, 'utf8');
-  return JSON.parse(raw) as CreateScheduleRequest;
-}
-
-async function readStdin(): Promise<string> {
-  if (process.stdin.isTTY) {
-    throw new Error('Expected schedule JSON via --config-file or piped on stdin.');
-  }
-  let data = '';
-  for await (const chunk of process.stdin) data += chunk;
-  return data;
 }
 
 type CreateFlags = {
@@ -120,10 +104,12 @@ type CreateFlags = {
   'auto-publish'?: boolean;
 };
 
-function buildRequestFromFlags(flags: CreateFlags): CreateScheduleRequest {
+function buildRequestFromFlags(flags: CreateFlags): unknown {
   const required = (value: unknown, name: string): never | void => {
     if (value === undefined || value === null || value === '') {
-      throw new Error(`--${name} is required when --config-file is not used.`);
+      throw new Errors.CLIError(`--${name} is required when --config-file is not used.`, {
+        exit: ExitCode.Usage,
+      });
     }
   };
   required(flags.name, 'name');
@@ -133,46 +119,47 @@ function buildRequestFromFlags(flags: CreateFlags): CreateScheduleRequest {
   required(flags.repository?.length, 'repository');
   required(flags['output-type'], 'output-type');
 
-  const cron: CreateScheduleRequest['sourceConfig']['cron'] = {
-    frequency: flags.frequency as CreateScheduleRequest['sourceConfig']['cron']['frequency'],
-    hour: flags.hour as number,
-    minute: flags.minute as number,
+  const cron: Record<string, unknown> = {
+    frequency: flags.frequency,
+    hour: flags.hour,
+    minute: flags.minute,
   };
   if (flags.frequency === 'weekly') {
     if (flags['day-of-week'] === undefined) {
-      throw new Error('--day-of-week is required for weekly schedules.');
+      throw new Errors.CLIError('--day-of-week is required for weekly schedules.', {
+        exit: ExitCode.Usage,
+      });
     }
     cron.dayOfWeek = flags['day-of-week'];
   }
   if (flags.frequency === 'monthly') {
     if (flags['day-of-month'] === undefined) {
-      throw new Error('--day-of-month is required for monthly schedules.');
+      throw new Errors.CLIError('--day-of-month is required for monthly schedules.', {
+        exit: ExitCode.Usage,
+      });
     }
     cron.dayOfMonth = flags['day-of-month'];
   }
 
-  const request: CreateScheduleRequest = {
-    name: flags.name as string,
+  const request: Record<string, unknown> = {
+    name: flags.name,
     sourceType: 'cron',
     sourceConfig: { cron },
-    targets: { repositoryIds: flags.repository as string[] },
-    outputType: flags[
-      'output-type'
-    ] as CreateScheduleRequest['outputType'],
+    targets: { repositoryIds: flags.repository },
+    outputType: flags['output-type'],
     enabled: flags.enabled ?? true,
   };
   if (flags['auto-publish'] !== undefined) request.autoPublish = flags['auto-publish'];
   if (flags.lookback) {
-    request.lookbackWindow = flags.lookback as CreateScheduleRequest['lookbackWindow'];
+    request.lookbackWindow = flags.lookback;
   }
   if (flags['publish-destination'] || flags['brand-voice']) {
-    request.outputConfig = {};
+    const outputConfig: Record<string, unknown> = {};
     if (flags['publish-destination']) {
-      request.outputConfig.publishDestination = flags[
-        'publish-destination'
-      ] as NonNullable<CreateScheduleRequest['outputConfig']>['publishDestination'];
+      outputConfig.publishDestination = flags['publish-destination'];
     }
-    if (flags['brand-voice']) request.outputConfig.brandVoiceId = flags['brand-voice'];
+    if (flags['brand-voice']) outputConfig.brandVoiceId = flags['brand-voice'];
+    request.outputConfig = outputConfig;
   }
   return request;
 }

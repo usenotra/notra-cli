@@ -1,5 +1,6 @@
 import { Args } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
+import { ExitCode } from '../../constants/exit';
 import { formatBool, formatDate, renderKv } from '../../utils/output';
 
 export default class BrandsGet extends NotraCommand {
@@ -16,7 +17,9 @@ export default class BrandsGet extends NotraCommand {
       brandIdentityId: args.brandIdentityId,
     });
     if (!response.brandIdentity) {
-      this.error(`Brand identity ${args.brandIdentityId} not found.`, { exit: 5 });
+      this.error(`Brand identity ${args.brandIdentityId} not found.`, {
+        exit: ExitCode.NotFound,
+      });
     }
     if (this.emitJson()) {
       this.printJson(response);

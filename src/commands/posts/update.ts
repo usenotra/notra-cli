@@ -1,7 +1,9 @@
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
-import { readMarkdownFromFileOrStdin } from '../../utils/files';
-import { validateUpdatePostBody, type UpdatePostRequest } from '../../types/api';
+import { ExitCode } from '../../constants/exit';
+import { POST_STATUSES } from '../../constants/posts';
+import { validateUpdatePostBody } from '../../schemas/posts';
+import { readTextFromFileOrStdin } from '../../utils/files';
 
 export default class PostsUpdate extends NotraCommand {
   static override description = 'Update a post (title, slug, markdown, status).';
@@ -23,28 +25,32 @@ export default class PostsUpdate extends NotraCommand {
     }),
     status: Flags.string({
       description: 'New status.',
-      options: ['draft', 'published'],
+      options: [...POST_STATUSES],
     }),
   };
 
   public async run(): Promise<void> {
     const { args, flags } = await this.parse(PostsUpdate);
 
-    const body: UpdatePostRequest['body'] = {};
+    const body: Record<string, unknown> = {};
     if (flags.title !== undefined) body.title = flags.title;
     if (flags.slug !== undefined) body.slug = flags.slug === '' ? null : flags.slug;
-    if (flags.status) body.status = flags.status as 'draft' | 'published';
+    if (flags.status) body.status = flags.status;
     if (flags['markdown-file'] !== undefined) {
-      body.markdown = await readMarkdownFromFileOrStdin(flags['markdown-file']);
+      body.markdown = await readTextFromFileOrStdin(
+        flags['markdown-file'],
+        'Expected markdown via --markdown-file or piped on stdin.',
+      );
     }
 
     if (Object.keys(body).length === 0) {
-      this.error('Provide at least one field to update.', { exit: 2 });
+      this.error('Provide at least one field to update.', { exit: ExitCode.Usage });
     }
+    const validatedBody = validateUpdatePostBody(body);
 
     const response = await this.client().content.updatePost({
       postId: args.postId,
-      body: validateUpdatePostBody(body),
+      body: validatedBody,
     });
 
     if (this.emitJson()) {

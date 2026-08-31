@@ -1,8 +1,8 @@
 import { Flags } from '@oclif/core';
 import { input, password } from '@inquirer/prompts';
 import { NotraCommand } from '../base-command';
+import { DEFAULT_BASE_URL } from '../constants/config';
 import { getConfigPath, setConfigValue } from '../lib/config';
-import { DEFAULT_BASE_URL } from '../types/config';
 
 export default class Init extends NotraCommand {
   static override description = 'Configure the CLI with your Notra API key.';
