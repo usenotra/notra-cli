@@ -83,6 +83,9 @@
       },
       "schedules": {
         "description": "Manage scheduled, automated content generation."
+      },
+      "geo": {
+        "description": "Manage GEO projects, tracking, visibility, briefs, and AI traffic."
       }
     },
     "warn-if-update-available": {

@@ -9,6 +9,7 @@ import {
   SDKValidationError,
 } from '@usenotra/sdk/models/errors';
 import { MissingApiKeyError } from '../lib/client';
+import { GeoApiError } from '../lib/geo-client';
 import {
   DeviceAuthorizationError,
   SessionExpiredError,
@@ -36,6 +37,14 @@ export function toFriendlyError(err: unknown): FriendlyError {
       message: `Rate limited (${err.remaining}/${err.limit} remaining).`,
       detail: `Retry after ${resetAt}.`,
       exitCode: ExitCode.RateLimited,
+    };
+  }
+
+  if (err instanceof GeoApiError) {
+    return {
+      message: err.message,
+      detail: err.code ? `HTTP ${err.statusCode} (${err.code})` : `HTTP ${err.statusCode}`,
+      exitCode: mapStatus(err.statusCode),
     };
   }
 

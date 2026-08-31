@@ -2,7 +2,9 @@ import { Command, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import type { Notra } from '@usenotra/sdk';
 import { NOTRA_API_KEY_ENV_VAR, NOTRA_BASE_URL_ENV_VAR } from './constants/config';
-import { buildClient } from './lib/client';
+import { buildClient, resolveBearerToken } from './lib/client';
+import { getBaseUrl } from './lib/config';
+import { GeoClient } from './lib/geo-client';
 import { ensureFreshAccessToken } from './lib/workos';
 import { renderJson, renderNdjson, sanitizeTerminalText } from './utils/output';
 import { toFriendlyError } from './utils/errors';
@@ -26,6 +28,8 @@ export abstract class NotraCommand extends Command {
 
   private _client?: Notra;
 
+  private _geoClient?: GeoClient;
+
   protected requiresFreshAccessToken = true;
 
   protected usesNdjson = false;
@@ -47,6 +51,17 @@ export abstract class NotraCommand extends Command {
       });
     }
     return this._client;
+  }
+
+  protected geo(): GeoClient {
+    if (!this._geoClient) {
+      const overrides = readGlobalArgv();
+      this._geoClient = new GeoClient({
+        apiKey: resolveBearerToken(overrides),
+        baseUrl: overrides.baseUrl ?? getBaseUrl(),
+      });
+    }
+    return this._geoClient;
   }
 
   protected emitJson(): boolean {

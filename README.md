@@ -30,10 +30,17 @@ notra posts generate --content-type changelog --brand <id> --wait
 notra brands list
 notra integrations list
 notra schedules list
+notra geo projects list
+notra geo visibility overview <projectId> --days 30
+notra geo prompts create <projectId> --prompt "Which tools lead this category?"
 ```
 
 Run `notra <topic> --help` to see every command and flag. Every command
 accepts `--json` for machine-readable output.
+
+GEO commands cover projects, settings, prompts, sequences, competitors, scans,
+visibility, content gaps, briefs, agent readiness, and AI traffic. Run
+`notra geo --help` to browse the complete command tree.
 
 ## Output
 
