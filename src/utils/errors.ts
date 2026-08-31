@@ -9,18 +9,14 @@ import {
   SDKValidationError,
 } from '@usenotra/sdk/models/errors';
 import { MissingApiKeyError } from '../lib/client';
+import { GeoApiError } from '../lib/geo-client';
 import {
   DeviceAuthorizationError,
   SessionExpiredError,
   TokenRefreshError,
 } from '../lib/workos';
-import { ExitCode } from './exit';
-
-export type FriendlyError = {
-  message: string;
-  detail?: string;
-  exitCode: ExitCode;
-};
+import { ExitCode } from '../constants/exit';
+import type { FriendlyError } from '../types/errors';
 
 export function toFriendlyError(err: unknown): FriendlyError {
   if (err instanceof MissingApiKeyError || err instanceof SessionExpiredError) {
@@ -41,6 +37,14 @@ export function toFriendlyError(err: unknown): FriendlyError {
       message: `Rate limited (${err.remaining}/${err.limit} remaining).`,
       detail: `Retry after ${resetAt}.`,
       exitCode: ExitCode.RateLimited,
+    };
+  }
+
+  if (err instanceof GeoApiError) {
+    return {
+      message: err.message,
+      detail: err.code ? `HTTP ${err.statusCode} (${err.code})` : `HTTP ${err.statusCode}`,
+      exitCode: mapStatus(err.statusCode),
     };
   }
 
@@ -100,7 +104,7 @@ export function toFriendlyError(err: unknown): FriendlyError {
     const oclifExit = readOclifExit(err);
     return {
       message: err.message,
-      exitCode: (oclifExit as ExitCode | undefined) ?? ExitCode.Generic,
+      exitCode: oclifExit ?? ExitCode.Generic,
     };
   }
 
@@ -108,11 +112,12 @@ export function toFriendlyError(err: unknown): FriendlyError {
 }
 
 function readOclifExit(err: Error): number | undefined {
-  const oclif = (err as Error & { oclif?: { exit?: number } }).oclif;
-  return typeof oclif?.exit === 'number' ? oclif.exit : undefined;
+  if (!('oclif' in err) || !isRecord(err.oclif)) return undefined;
+  const exit = err.oclif.exit;
+  return typeof exit === 'number' ? exit : undefined;
 }
 
-function mapStatus(status: number): ExitCode {
+function mapStatus(status: number): number {
   if (status === 401 || status === 403) return ExitCode.Auth;
   if (status === 404) return ExitCode.NotFound;
   if (status === 429) return ExitCode.RateLimited;
@@ -124,12 +129,16 @@ function parseJsonBody(
 ): { message?: string; error?: string; code?: string } | undefined {
   if (!body) return undefined;
   try {
-    const parsed = JSON.parse(body);
-    if (parsed && typeof parsed === 'object') return parsed as Record<string, string>;
+    const parsed: unknown = JSON.parse(body);
+    if (!isRecord(parsed)) return undefined;
+    return {
+      message: readStringProperty(parsed, 'message'),
+      error: readStringProperty(parsed, 'error'),
+      code: readStringProperty(parsed, 'code'),
+    };
   } catch {
-    // not JSON
+    return undefined;
   }
-  return undefined;
 }
 
 function unwrapErrorField(field: unknown): { message: string; code?: string } {
@@ -138,12 +147,26 @@ function unwrapErrorField(field: unknown): { message: string; code?: string } {
     if (parsed?.message) return { message: parsed.message, code: parsed.code };
     return { message: field };
   }
-  if (field && typeof field === 'object') {
-    const obj = field as { message?: string; code?: string; error?: string };
+  if (isRecord(field)) {
     return {
-      message: obj.message ?? obj.error ?? JSON.stringify(field),
-      code: obj.code,
+      message:
+        readStringProperty(field, 'message') ??
+        readStringProperty(field, 'error') ??
+        JSON.stringify(field),
+      code: readStringProperty(field, 'code'),
     };
   }
   return { message: 'Unknown API error.' };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function readStringProperty(
+  record: Record<string, unknown>,
+  property: string,
+): string | undefined {
+  const value = record[property];
+  return typeof value === 'string' ? value : undefined;
 }

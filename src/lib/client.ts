@@ -1,10 +1,7 @@
 import { Notra } from '@usenotra/sdk';
+import { NOTRA_API_KEY_ENV_VAR } from '../constants/config';
+import type { ClientOverrides } from '../types/client';
 import { getApiKey, getBaseUrl, getStoredAuth } from './config';
-
-export type ClientOverrides = {
-  apiKey?: string;
-  baseUrl?: string;
-};
 
 export class MissingApiKeyError extends Error {
   constructor() {
@@ -18,7 +15,7 @@ export class MissingApiKeyError extends Error {
 export function resolveBearerToken(overrides: ClientOverrides = {}): string | undefined {
   return (
     overrides.apiKey ??
-    process.env.NOTRA_API_KEY ??
+    process.env[NOTRA_API_KEY_ENV_VAR] ??
     getStoredAuth()?.accessToken ??
     getApiKey()
   );

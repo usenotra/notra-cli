@@ -30,10 +30,27 @@ notra posts generate --content-type changelog --brand <id> --wait
 notra brands list
 notra integrations list
 notra schedules list
+notra geo projects list
+notra geo visibility overview <projectId> --days 30
+notra geo prompts create <projectId> --prompt "Which tools lead this category?"
 ```
 
 Run `notra <topic> --help` to see every command and flag. Every command
 accepts `--json` for machine-readable output.
+
+GEO commands cover projects, settings, prompts, sequences, competitors, scans,
+visibility, content gaps, briefs, agent readiness, and AI traffic. Run
+`notra geo --help` to browse the complete command tree.
+
+## Output
+
+Commands default to formatted output in a terminal and JSON when stdout is
+redirected. Explicit output flags take precedence over that automatic choice;
+for example, `notra posts get <postId> --markdown` always prints Markdown.
+
+`notra auth login --json` streams newline-delimited JSON (NDJSON), with one
+compact object per line. The `pending` event contains the verification URL and
+code, followed by either a `ready` event or an `error` event.
 
 ## Config
 
@@ -79,5 +96,7 @@ bun run dev -- posts list --help
 bun run typecheck
 ```
 
-Source is TypeScript with extensionless imports (`moduleResolution: Bundler`),
-executed directly by Bun via the `dist/run.js` shebang. No build step.
+Source is TypeScript with extensionless imports (`moduleResolution: Bundler`).
+`bun run dev` runs commands through oclif's development mode. For distribution,
+`bun run build` bundles the command entrypoints into `dist`; `prepack` runs that
+build automatically, and the published package contains only `dist`.

@@ -1,16 +1,7 @@
+import { setTimeout as sleep } from 'node:timers/promises';
 import ora, { type Ora } from 'ora';
-import type { GenerationStatus } from '../types/api';
-import { TERMINAL_GENERATION_STATUSES } from '../types/api';
-
-export type PollOptions<T> = {
-  fetch: () => Promise<T>;
-  status: (snapshot: T) => GenerationStatus;
-  describe?: (snapshot: T) => string;
-  intervalMs?: number;
-  timeoutMs?: number;
-  spinnerLabel?: string;
-  spinner?: boolean;
-};
+import { TERMINAL_GENERATION_STATUSES } from '../constants/generation';
+import type { PollOptions } from '../types/poll';
 
 export class PollTimeoutError extends Error {
   constructor(elapsedMs: number) {
@@ -52,8 +43,4 @@ export async function pollJob<T>(opts: PollOptions<T>): Promise<T> {
     spinner?.stop();
     throw err;
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

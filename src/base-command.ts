@@ -1,35 +1,38 @@
-import { Command, Flags, type Interfaces } from '@oclif/core';
+import { Command, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import type { Notra } from '@usenotra/sdk';
-import { buildClient } from './lib/client';
+import { NOTRA_API_KEY_ENV_VAR, NOTRA_BASE_URL_ENV_VAR } from './constants/config';
+import { buildClient, resolveBearerToken } from './lib/client';
+import { getBaseUrl } from './lib/config';
+import { GeoClient } from './lib/geo-client';
 import { ensureFreshAccessToken } from './lib/workos';
-import { renderJson, sanitizeTerminalText } from './utils/output';
+import { renderJson, renderNdjson, sanitizeTerminalText } from './utils/output';
 import { toFriendlyError } from './utils/errors';
-
-export type BaseFlags<T extends typeof Command> = Interfaces.InferredFlags<
-  (typeof NotraCommand)['baseFlags'] & T['flags']
->;
 
 export abstract class NotraCommand extends Command {
   static override baseFlags = {
     json: Flags.boolean({
-      description: 'Print machine-readable JSON instead of a formatted table.',
+      description: 'Print machine-readable JSON instead of formatted output.',
     }),
     'api-key': Flags.string({
       description: 'Override the configured Notra API key.',
-      env: 'NOTRA_API_KEY',
+      env: NOTRA_API_KEY_ENV_VAR,
       helpGroup: 'GLOBAL',
     }),
     'base-url': Flags.string({
       description: 'Override the API base URL.',
-      env: 'NOTRA_BASE_URL',
+      env: NOTRA_BASE_URL_ENV_VAR,
       helpGroup: 'GLOBAL',
     }),
   };
 
   private _client?: Notra;
 
+  private _geoClient?: GeoClient;
+
   protected requiresFreshAccessToken = true;
+
+  protected usesNdjson = false;
 
   public override async init(): Promise<void> {
     await super.init();
@@ -50,16 +53,23 @@ export abstract class NotraCommand extends Command {
     return this._client;
   }
 
+  protected geo(): GeoClient {
+    if (!this._geoClient) {
+      const overrides = readGlobalArgv();
+      this._geoClient = new GeoClient({
+        apiKey: resolveBearerToken(overrides),
+        baseUrl: overrides.baseUrl ?? getBaseUrl(),
+      });
+    }
+    return this._geoClient;
+  }
+
   protected emitJson(): boolean {
     return readGlobalArgv().json || !process.stdout.isTTY;
   }
 
   protected printJson(data: unknown): void {
-    this.log(renderJson(data));
-  }
-
-  protected printPretty(text: string): void {
-    this.log(text);
+    this.log(this.usesNdjson ? renderNdjson(data) : renderJson(data));
   }
 
   protected printSuccess(message: string): void {
@@ -70,7 +80,7 @@ export abstract class NotraCommand extends Command {
   public override async catch(err: unknown): Promise<unknown> {
     const friendly = toFriendlyError(err);
     if (this.emitJson()) {
-      this.log(renderJson({ error: friendly.message, detail: friendly.detail }));
+      this.printJson({ error: friendly.message, detail: friendly.detail });
     } else {
       this.logToStderr(chalk.red('✗ ') + sanitizeTerminalText(friendly.message));
       if (friendly.detail) this.logToStderr(chalk.dim(sanitizeTerminalText(friendly.detail)));
@@ -84,8 +94,8 @@ function readGlobalArgv(): { json: boolean; apiKey?: string; baseUrl?: string } 
   const json = argv.includes('--json');
   return {
     json,
-    apiKey: extractFlag(argv, '--api-key') ?? process.env.NOTRA_API_KEY,
-    baseUrl: extractFlag(argv, '--base-url') ?? process.env.NOTRA_BASE_URL,
+    apiKey: extractFlag(argv, '--api-key') ?? process.env[NOTRA_API_KEY_ENV_VAR],
+    baseUrl: extractFlag(argv, '--base-url') ?? process.env[NOTRA_BASE_URL_ENV_VAR],
   };
 }
 

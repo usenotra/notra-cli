@@ -1,5 +1,6 @@
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
+import { ExitCode } from '../../constants/exit';
 import { confirmDestructive } from '../../utils/confirm';
 
 export default class PostsDelete extends NotraCommand {
@@ -20,7 +21,7 @@ export default class PostsDelete extends NotraCommand {
   public async run(): Promise<void> {
     const { args, flags } = await this.parse(PostsDelete);
     const ok = await confirmDestructive(`Delete post ${args.postId}?`, { yes: flags.yes });
-    if (!ok) this.error('Aborted.', { exit: 1 });
+    if (!ok) this.error('Aborted.', { exit: ExitCode.Generic });
     const response = await this.client().content.deletePost({ postId: args.postId });
     if (this.emitJson()) {
       this.printJson(response);

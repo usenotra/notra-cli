@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
+import type { ListPostsPost, ListPostsRequest } from '@usenotra/sdk/models/operations';
 import { NotraCommand } from '../../base-command';
-import type { ListPostsRequest, ListPostsPost } from '../../types/api';
 import { formatDate, renderTable, truncate } from '../../utils/output';
 
 export default class PostsList extends NotraCommand {
@@ -31,7 +31,7 @@ export default class PostsList extends NotraCommand {
     if (flags.brand) request.brandIdentityId = flags.brand;
     if (flags.limit !== undefined) request.limit = flags.limit;
     if (flags.page !== undefined) request.page = flags.page;
-    if (flags.sort) request.sort = flags.sort as 'asc' | 'desc';
+    if (flags.sort === 'asc' || flags.sort === 'desc') request.sort = flags.sort;
 
     const response = await this.client().content.listPosts(request);
 

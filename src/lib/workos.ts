@@ -11,14 +11,15 @@ import {
   WORKOS_CLIENT_ID_ENV_VAR,
   WORKOS_DEVICE_AUTHORIZATION_URL,
 } from '../constants/auth';
-import type {
-  AuthenticationResponse,
-  DeviceAuthorizationResponse,
-} from '../types/workos';
 import {
   authenticationResponseSchema,
   deviceAuthorizationResponseSchema,
   oauthErrorResponseSchema,
+} from '../schemas/workos';
+import type {
+  AuthenticationResponse,
+  DeviceAuthorizationResponse,
+  DevicePollResult,
 } from '../types/workos';
 import { clearStoredAuth, getStoredAuth, setStoredAuth } from './config';
 
@@ -70,11 +71,6 @@ export async function requestDeviceAuthorization(
 
   return deviceAuthorizationResponseSchema.parse(body);
 }
-
-export type DevicePollResult =
-  | { status: 'success'; authentication: AuthenticationResponse }
-  | { status: 'pending' }
-  | { status: 'slow_down' };
 
 export async function pollDeviceAuthorization(
   clientId: string,
@@ -146,7 +142,7 @@ export function getAccessTokenExpiry(accessToken: string): number | undefined {
       Buffer.from(payloadSegment, 'base64url').toString('utf8'),
     );
     if (payload && typeof payload === 'object' && 'exp' in payload) {
-      const { exp } = payload as { exp: unknown };
+      const { exp } = payload;
       if (typeof exp === 'number') return exp * MILLISECONDS_PER_SECOND;
     }
     return undefined;

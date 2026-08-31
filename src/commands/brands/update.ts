@@ -1,10 +1,8 @@
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
-import {
-  TONE_PROFILES,
-  validateUpdateBrandIdentityBody,
-  type UpdateBrandIdentityRequest,
-} from '../../types/api';
+import { TONE_PROFILES } from '../../constants/brands';
+import { ExitCode } from '../../constants/exit';
+import { validateUpdateBrandIdentityBody } from '../../schemas/brands';
 
 export default class BrandsUpdate extends NotraCommand {
   static override description = 'Update a brand identity.';
@@ -36,7 +34,7 @@ export default class BrandsUpdate extends NotraCommand {
   public async run(): Promise<void> {
     const { args, flags } = await this.parse(BrandsUpdate);
 
-    const body: UpdateBrandIdentityRequest['body'] = {};
+    const body: Record<string, unknown> = {};
     if (flags.name !== undefined) body.name = flags.name;
     if (flags['website-url'] !== undefined) body.websiteUrl = flags['website-url'];
     if (flags['company-name'] !== undefined) {
@@ -46,7 +44,7 @@ export default class BrandsUpdate extends NotraCommand {
       body.companyDescription =
         flags['company-description'] === '' ? null : flags['company-description'];
     }
-    if (flags.tone) body.toneProfile = flags.tone as (typeof TONE_PROFILES)[number];
+    if (flags.tone) body.toneProfile = flags.tone;
     if (flags['custom-tone'] !== undefined) {
       body.customTone = flags['custom-tone'] === '' ? null : flags['custom-tone'];
     }
@@ -58,17 +56,18 @@ export default class BrandsUpdate extends NotraCommand {
       body.audience = flags.audience === '' ? null : flags.audience;
     }
     if (flags.language) {
-      body.language = flags.language as UpdateBrandIdentityRequest['body']['language'];
+      body.language = flags.language;
     }
     if (flags.default) body.isDefault = true;
 
     if (Object.keys(body).length === 0) {
-      this.error('Provide at least one field to update.', { exit: 2 });
+      this.error('Provide at least one field to update.', { exit: ExitCode.Usage });
     }
+    const validatedBody = validateUpdateBrandIdentityBody(body);
 
     const response = await this.client().content.updateBrandIdentity({
       brandIdentityId: args.brandIdentityId,
-      body: validateUpdateBrandIdentityBody(body),
+      body: validatedBody,
     });
 
     if (this.emitJson()) {

@@ -1,7 +1,8 @@
 import { Args } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
+import { CONFIG_KEYS } from '../../constants/config';
 import { getAllConfig, getConfigValue } from '../../lib/config';
-import { CONFIG_KEYS, type ConfigKey, type ConfigSchema } from '../../types/config';
+import type { ConfigKey, ConfigSchema } from '../../types/config';
 import { renderKv } from '../../utils/output';
 
 export default class ConfigGet extends NotraCommand {

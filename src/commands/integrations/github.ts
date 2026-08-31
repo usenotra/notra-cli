@@ -1,9 +1,7 @@
 import { Flags } from '@oclif/core';
+import type { CreateGitHubIntegrationRequest } from '@usenotra/sdk/models/operations';
 import { NotraCommand } from '../../base-command';
-import {
-  validateCreateGitHubIntegrationRequest,
-  type CreateGitHubIntegrationRequest,
-} from '../../types/api';
+import { validateCreateGitHubIntegrationRequest } from '../../schemas/integrations';
 
 export default class IntegrationsGithub extends NotraCommand {
   static override description = 'Connect a GitHub repository as an integration.';
@@ -30,10 +28,9 @@ export default class IntegrationsGithub extends NotraCommand {
     };
     if (flags.branch !== undefined) request.branch = flags.branch;
     if (flags.token !== undefined) request.token = flags.token;
+    const validatedRequest = validateCreateGitHubIntegrationRequest(request);
 
-    const response = await this.client().content.createGitHubIntegration(
-      validateCreateGitHubIntegrationRequest(request),
-    );
+    const response = await this.client().content.createGitHubIntegration(validatedRequest);
     if (this.emitJson()) {
       this.printJson(response.result);
       return;

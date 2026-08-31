@@ -1,6 +1,6 @@
 import { Flags } from '@oclif/core';
+import type { ListSchedulesResponse } from '@usenotra/sdk/models/operations';
 import { NotraCommand } from '../../base-command';
-import type { ListSchedulesResponse } from '../../types/api';
 import { formatBool, formatDate, renderTable, truncate } from '../../utils/output';
 
 type Schedule = ListSchedulesResponse['schedules'][number];

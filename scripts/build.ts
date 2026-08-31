@@ -10,9 +10,10 @@ for await (const entry of dist.scan({ cwd: 'dist' })) {
   await rm(`dist/${entry}`, { recursive: true, force: true });
 }
 
-const sources = new Glob('**/*.ts');
+const sources = new Glob('commands/**/*.ts');
 const entrypoints: string[] = [];
 for await (const file of sources.scan({ cwd: 'src', absolute: true })) {
+  if (file.endsWith('.test.ts') || file.endsWith('.spec.ts')) continue;
   entrypoints.push(file);
 }
 

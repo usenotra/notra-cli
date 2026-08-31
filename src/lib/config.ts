@@ -1,7 +1,12 @@
 import { chmodSync } from 'node:fs';
 import Conf from 'conf';
+import {
+  DEFAULT_BASE_URL,
+  NOTRA_API_KEY_ENV_VAR,
+  NOTRA_BASE_URL_ENV_VAR,
+} from '../constants/config';
+import { CONFIG_SCHEMA } from '../schemas/config';
 import type { ConfigKey, ConfigSchema, StoredAuth } from '../types/config';
-import { DEFAULT_BASE_URL } from '../types/config';
 
 let store: Conf<ConfigSchema> | undefined;
 
@@ -9,14 +14,7 @@ function getStore(): Conf<ConfigSchema> {
   if (!store) {
     store = new Conf<ConfigSchema>({
       projectName: 'notra-cli',
-      schema: {
-        apiKey: { type: 'string' },
-        baseUrl: { type: 'string', format: 'uri' },
-        accessToken: { type: 'string' },
-        refreshToken: { type: 'string' },
-        accessTokenExpiresAt: { type: 'number' },
-        organizationId: { type: 'string' },
-      },
+      schema: CONFIG_SCHEMA,
       configFileMode: 0o600,
     });
     chmodConfigFile(store.path);
@@ -25,11 +23,11 @@ function getStore(): Conf<ConfigSchema> {
 }
 
 export function getApiKey(): string | undefined {
-  return process.env.NOTRA_API_KEY ?? getStore().get('apiKey');
+  return process.env[NOTRA_API_KEY_ENV_VAR] ?? getStore().get('apiKey');
 }
 
 export function getBaseUrl(): string {
-  return process.env.NOTRA_BASE_URL ?? getStore().get('baseUrl') ?? DEFAULT_BASE_URL;
+  return process.env[NOTRA_BASE_URL_ENV_VAR] ?? getStore().get('baseUrl') ?? DEFAULT_BASE_URL;
 }
 
 export function getStoredAuth(): StoredAuth | undefined {
@@ -47,26 +45,30 @@ export function getStoredAuth(): StoredAuth | undefined {
 
 export function setStoredAuth(auth: StoredAuth): void {
   const s = getStore();
-  s.set('accessToken', auth.accessToken);
-  s.set('refreshToken', auth.refreshToken);
+  const next = {
+    ...s.store,
+    accessToken: auth.accessToken,
+    refreshToken: auth.refreshToken,
+    accessTokenExpiresAt: auth.accessTokenExpiresAt,
+    organizationId: auth.organizationId,
+  };
   if (auth.accessTokenExpiresAt === undefined) {
-    s.delete('accessTokenExpiresAt');
-  } else {
-    s.set('accessTokenExpiresAt', auth.accessTokenExpiresAt);
+    delete next.accessTokenExpiresAt;
   }
   if (auth.organizationId === undefined) {
-    s.delete('organizationId');
-  } else {
-    s.set('organizationId', auth.organizationId);
+    delete next.organizationId;
   }
+  s.store = next;
 }
 
 export function clearStoredAuth(): void {
   const s = getStore();
-  s.delete('accessToken');
-  s.delete('refreshToken');
-  s.delete('accessTokenExpiresAt');
-  s.delete('organizationId');
+  const next = { ...s.store };
+  delete next.accessToken;
+  delete next.refreshToken;
+  delete next.accessTokenExpiresAt;
+  delete next.organizationId;
+  s.store = next;
 }
 
 export function setConfigValue(key: ConfigKey, value: string): void {
@@ -106,7 +108,8 @@ function chmodConfigFile(path: string): void {
   try {
     chmodSync(path, 0o600);
   } catch (err) {
-    const code = (err as { code?: string }).code;
+    const code =
+      typeof err === 'object' && err !== null && 'code' in err ? err.code : undefined;
     if (code !== 'ENOENT') throw err;
   }
 }

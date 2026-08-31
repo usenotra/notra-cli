@@ -1,8 +1,10 @@
+import { setTimeout as sleep } from 'node:timers/promises';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import ora from 'ora';
 import { NotraCommand } from '../../base-command';
 import { MILLISECONDS_PER_SECOND } from '../../constants/auth';
+import { ExitCode } from '../../constants/exit';
 import { clearConfigValue, getConfigValue } from '../../lib/config';
 import {
   DeviceAuthorizationError,
@@ -15,7 +17,6 @@ import {
 } from '../../lib/workos';
 import type { AuthenticationResponse, DeviceAuthorizationResponse } from '../../types/workos';
 import { openInBrowser } from '../../utils/browser';
-import { ExitCode } from '../../utils/exit';
 
 export default class AuthLogin extends NotraCommand {
   static override description =
@@ -32,6 +33,8 @@ export default class AuthLogin extends NotraCommand {
   };
 
   protected override requiresFreshAccessToken = false;
+
+  protected override usesNdjson = true;
 
   public async run(): Promise<void> {
     const { flags } = await this.parse(AuthLogin);
@@ -55,7 +58,7 @@ export default class AuthLogin extends NotraCommand {
       this.log(chalk.dim('Only approve this code if it matches the one in your browser.'));
       if (flags['no-browser']) {
         this.log(chalk.dim('\n--no-browser set; not opening automatically.'));
-      } else if (openInBrowser(deviceAuth.verification_uri_complete)) {
+      } else if (await openInBrowser(deviceAuth.verification_uri_complete)) {
         this.log(chalk.dim('\nBrowser opened. Complete the flow there.'));
       } else {
         this.log(
@@ -128,8 +131,4 @@ export default class AuthLogin extends NotraCommand {
       throw err;
     }
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

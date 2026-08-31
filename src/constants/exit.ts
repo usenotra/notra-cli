@@ -7,5 +7,3 @@ export const ExitCode = {
   NotFound: 5,
   Network: 6,
 } as const;
-
-export type ExitCode = (typeof ExitCode)[keyof typeof ExitCode];

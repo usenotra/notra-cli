@@ -2,17 +2,17 @@ import Table from 'cli-table3';
 import chalk from 'chalk';
 import type { KeyValueRow, TableOptions } from '../types/output';
 
-export function isTty(): boolean {
-  return Boolean(process.stdout.isTTY);
-}
-
 export function shouldUseColor(): boolean {
   if (process.env.NO_COLOR) return false;
-  return isTty();
+  return Boolean(process.stdout.isTTY);
 }
 
 export function renderJson(data: unknown): string {
   return JSON.stringify(data, null, 2);
+}
+
+export function renderNdjson(data: unknown): string {
+  return JSON.stringify(data);
 }
 
 export function renderTable<T>(rows: ReadonlyArray<T>, opts: TableOptions<T>): string {

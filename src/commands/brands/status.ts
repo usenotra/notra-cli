@@ -1,7 +1,8 @@
 import { Args, Flags } from '@oclif/core';
+import type { GetBrandIdentityGenerationResponse } from '@usenotra/sdk/models/operations';
 import { NotraCommand } from '../../base-command';
+import { ExitCode } from '../../constants/exit';
 import { pollJob } from '../../utils/poll';
-import type { GenerationStatus, GetBrandIdentityGenerationResponse } from '../../types/api';
 import { formatDate, renderKv } from '../../utils/output';
 
 export default class BrandsStatus extends NotraCommand {
@@ -29,7 +30,7 @@ export default class BrandsStatus extends NotraCommand {
     if (flags.watch) {
       snap = await pollJob<GetBrandIdentityGenerationResponse>({
         fetch: () => this.client().content.getBrandIdentityGeneration({ jobId: args.jobId }),
-        status: (s) => s.job.status as GenerationStatus,
+        status: (s) => s.job.status,
         describe: (s) => `Job ${args.jobId}: ${s.job.status}`,
         intervalMs: flags['poll-interval'] * 1000,
         timeoutMs: flags['timeout-mins'] * 60 * 1000,
@@ -39,6 +40,7 @@ export default class BrandsStatus extends NotraCommand {
 
     if (this.emitJson()) {
       this.printJson(snap);
+      if (flags.watch && snap.job.status === 'failed') process.exitCode = ExitCode.Generic;
       return;
     }
     this.log(
@@ -54,5 +56,8 @@ export default class BrandsStatus extends NotraCommand {
         ['Error', snap.job.error ?? '—'],
       ]),
     );
+    if (flags.watch && snap.job.status === 'failed') {
+      this.error(snap.job.error ?? 'Generation failed.', { exit: ExitCode.Generic });
+    }
   }
 }
