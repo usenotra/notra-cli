@@ -44,6 +44,11 @@ export default class Init extends NotraCommand {
       setConfigValue('base-url', baseUrlInput);
     }
 
-    this.printSuccess(`Saved configuration to ${getConfigPath()}`);
+    const path = getConfigPath();
+    if (this.emitJson()) {
+      this.printJson({ status: 'configured', path });
+      return;
+    }
+    this.printSuccess(`Saved configuration to ${path}`);
   }
 }

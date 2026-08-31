@@ -25,6 +25,10 @@ export default class ConfigSet extends NotraCommand {
   public async run(): Promise<void> {
     const { args } = await this.parse(ConfigSet);
     setConfigValue(args.key as ConfigKey, args.value);
+    if (this.emitJson()) {
+      this.printJson({ status: 'set', key: args.key });
+      return;
+    }
     this.printSuccess(`Set ${args.key}.`);
   }
 }
