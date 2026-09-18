@@ -1,5 +1,5 @@
 import { Args, Flags } from '@oclif/core';
-import type { GetBrandIdentityGenerationResponse } from '@usenotra/sdk/models/operations';
+import type { GetBrandIdentityGenerationResponse } from '../../types/brand-identities';
 import { NotraCommand } from '../../base-command';
 import { ExitCode } from '../../constants/exit';
 import { pollJob } from '../../utils/poll';

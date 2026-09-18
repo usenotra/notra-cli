@@ -2,7 +2,7 @@ import { Flags } from '@oclif/core';
 import type {
   CreateBrandIdentityRequest,
   GetBrandIdentityGenerationResponse,
-} from '@usenotra/sdk/models/operations';
+} from '../../types/brand-identities';
 import { NotraCommand } from '../../base-command';
 import { ExitCode } from '../../constants/exit';
 import { validateCreateBrandIdentityRequest } from '../../schemas/brands';

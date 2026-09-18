@@ -1,5 +1,5 @@
 import { Flags } from '@oclif/core';
-import type { ListPostsPost, ListPostsRequest } from '@usenotra/sdk/models/operations';
+import type { ListPostsRequest, Post } from '../../types/posts';
 import { NotraCommand } from '../../base-command';
 import { formatDate, renderTable, truncate } from '../../utils/output';
 
@@ -41,7 +41,7 @@ export default class PostsList extends NotraCommand {
     }
 
     this.log(
-      renderTable<ListPostsPost>(response.posts, {
+      renderTable<Post>(response.posts, {
         columns: [
           { header: 'ID', get: (p) => p.id },
           { header: 'Title', get: (p) => truncate(p.title, 40) },

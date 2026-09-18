@@ -1,15 +1,5 @@
-import {
-  ConnectionError,
-  ErrorResponse,
-  HTTPClientError,
-  NotraError,
-  RateLimitErrorResponse,
-  RequestAbortedError,
-  RequestTimeoutError,
-  SDKValidationError,
-} from '@usenotra/sdk/models/errors';
 import { MissingApiKeyError } from '../lib/client';
-import { GeoApiError } from '../lib/geo-client';
+import { ApiConnectionError, ApiError } from '../lib/http-client';
 import {
   DeviceAuthorizationError,
   SessionExpiredError,
@@ -17,6 +7,7 @@ import {
 } from '../lib/workos';
 import { ExitCode } from '../constants/exit';
 import type { FriendlyError } from '../types/errors';
+import { ApiResponseDecodeError } from './parse-api-response';
 
 export function toFriendlyError(err: unknown): FriendlyError {
   if (err instanceof MissingApiKeyError || err instanceof SessionExpiredError) {
@@ -31,49 +22,16 @@ export function toFriendlyError(err: unknown): FriendlyError {
     };
   }
 
-  if (err instanceof RateLimitErrorResponse) {
-    const resetAt = new Date(err.reset * 1000).toISOString();
-    return {
-      message: `Rate limited (${err.remaining}/${err.limit} remaining).`,
-      detail: `Retry after ${resetAt}.`,
-      exitCode: ExitCode.RateLimited,
-    };
-  }
-
-  if (err instanceof GeoApiError) {
+  if (err instanceof ApiError) {
+    const status = err.code ? `HTTP ${err.statusCode} (${err.code})` : `HTTP ${err.statusCode}`;
     return {
       message: err.message,
-      detail: err.code ? `HTTP ${err.statusCode} (${err.code})` : `HTTP ${err.statusCode}`,
+      detail: err.retryAfter ? `${status}; retry after ${err.retryAfter}` : status,
       exitCode: mapStatus(err.statusCode),
     };
   }
 
-  if (err instanceof ErrorResponse) {
-    const inner = unwrapErrorField(err.error);
-    return {
-      message: inner.message,
-      detail: inner.code ? `HTTP ${err.statusCode} (${inner.code})` : `HTTP ${err.statusCode}`,
-      exitCode: mapStatus(err.statusCode),
-    };
-  }
-
-  if (err instanceof NotraError) {
-    const parsed = parseJsonBody(err.body);
-    return {
-      message:
-        parsed?.message ?? parsed?.error ?? `Notra API error (HTTP ${err.statusCode}).`,
-      detail: parsed?.code
-        ? `HTTP ${err.statusCode} (${parsed.code})`
-        : `HTTP ${err.statusCode}`,
-      exitCode: mapStatus(err.statusCode),
-    };
-  }
-
-  if (err instanceof RequestTimeoutError || err instanceof RequestAbortedError) {
-    return { message: 'Request timed out.', exitCode: ExitCode.Network };
-  }
-
-  if (err instanceof ConnectionError) {
+  if (err instanceof ApiConnectionError) {
     return {
       message: 'Could not reach the Notra API.',
       detail: String(err.cause ?? err.message),
@@ -81,16 +39,12 @@ export function toFriendlyError(err: unknown): FriendlyError {
     };
   }
 
-  if (err instanceof SDKValidationError) {
+  if (err instanceof ApiResponseDecodeError) {
     return {
-      message: 'API returned an unexpected response shape.',
-      detail: err.message,
+      message: err.message,
+      detail: err.issues.join('; '),
       exitCode: ExitCode.Generic,
     };
-  }
-
-  if (err instanceof HTTPClientError) {
-    return { message: err.message, exitCode: ExitCode.Network };
   }
 
   if (
@@ -124,49 +78,6 @@ function mapStatus(status: number): number {
   return ExitCode.Generic;
 }
 
-function parseJsonBody(
-  body: string,
-): { message?: string; error?: string; code?: string } | undefined {
-  if (!body) return undefined;
-  try {
-    const parsed: unknown = JSON.parse(body);
-    if (!isRecord(parsed)) return undefined;
-    return {
-      message: readStringProperty(parsed, 'message'),
-      error: readStringProperty(parsed, 'error'),
-      code: readStringProperty(parsed, 'code'),
-    };
-  } catch {
-    return undefined;
-  }
-}
-
-function unwrapErrorField(field: unknown): { message: string; code?: string } {
-  if (typeof field === 'string') {
-    const parsed = parseJsonBody(field);
-    if (parsed?.message) return { message: parsed.message, code: parsed.code };
-    return { message: field };
-  }
-  if (isRecord(field)) {
-    return {
-      message:
-        readStringProperty(field, 'message') ??
-        readStringProperty(field, 'error') ??
-        JSON.stringify(field),
-      code: readStringProperty(field, 'code'),
-    };
-  }
-  return { message: 'Unknown API error.' };
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function readStringProperty(
-  record: Record<string, unknown>,
-  property: string,
-): string | undefined {
-  const value = record[property];
-  return typeof value === 'string' ? value : undefined;
 }

@@ -1,4 +1,31 @@
-import { Language, ToneProfile } from '@usenotra/sdk/models/operations';
-
-export const LANGUAGES = Object.values(Language);
-export const TONE_PROFILES = Object.values(ToneProfile);
+export const LANGUAGES = [
+  'English',
+  'Spanish',
+  'French',
+  'German',
+  'Portuguese',
+  'Dutch',
+  'Italian',
+  'Japanese',
+  'Korean',
+  'Chinese',
+  'Arabic',
+  'Hindi',
+  'Russian',
+  'Turkish',
+  'Polish',
+  'Swedish',
+  'Danish',
+  'Norwegian',
+  'Finnish',
+  'Czech',
+  'Romanian',
+  'Hungarian',
+  'Greek',
+  'Thai',
+  'Vietnamese',
+  'Indonesian',
+  'Ukrainian',
+  'Hebrew',
+] as const;
+export const TONE_PROFILES = ['Conversational', 'Professional', 'Casual', 'Formal'] as const;

@@ -1,7 +1,2 @@
-import {
-  CreateScheduleFrequencyRequest,
-  CreateSchedulePublishDestinationRequest,
-} from '@usenotra/sdk/models/operations';
-
-export const SCHEDULE_FREQUENCIES = Object.values(CreateScheduleFrequencyRequest);
-export const PUBLISH_DESTINATIONS = Object.values(CreateSchedulePublishDestinationRequest);
+export const SCHEDULE_FREQUENCIES = ['daily', 'weekly', 'monthly', 'custom'] as const;
+export const PUBLISH_DESTINATIONS = ['webflow', 'framer', 'custom'] as const;

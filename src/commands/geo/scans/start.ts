@@ -2,6 +2,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../../base-command';
 import { ExitCode } from '../../../constants/exit';
+import { confirmAction } from '../../../utils/confirm';
 
 export default class GeoScansStart extends NotraCommand {
   static override description = 'Start a GEO scan for a project.';
@@ -11,6 +12,7 @@ export default class GeoScansStart extends NotraCommand {
   };
 
   static override flags = {
+    yes: Flags.boolean({ char: 'y', description: 'Confirm use of AI credits.' }),
     wait: Flags.boolean({ description: 'Wait for the scan to finish before returning.' }),
     'poll-interval': Flags.integer({
       description: 'Polling interval in seconds when --wait is set.',
@@ -26,6 +28,10 @@ export default class GeoScansStart extends NotraCommand {
 
   public async run(): Promise<void> {
     const { args, flags } = await this.parse(GeoScansStart);
+    const confirmed = await confirmAction('Start this billed GEO scan?', { yes: flags.yes });
+    if (!confirmed) {
+      this.error('Confirmation required. Re-run with --yes.', { exit: ExitCode.Usage });
+    }
     const projectId = encodeURIComponent(args.projectId);
     const created = await this.geo().request(
       'POST',

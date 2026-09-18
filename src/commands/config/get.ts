@@ -2,7 +2,7 @@ import { Args } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
 import { CONFIG_KEYS } from '../../constants/config';
 import { getAllConfig, getConfigValue } from '../../lib/config';
-import type { ConfigKey, ConfigSchema } from '../../types/config';
+import type { ConfigSchema } from '../../types/config';
 import { renderKv } from '../../utils/output';
 
 export default class ConfigGet extends NotraCommand {
@@ -26,7 +26,7 @@ export default class ConfigGet extends NotraCommand {
     const { args } = await this.parse(ConfigGet);
 
     if (args.key) {
-      const value = getConfigValue(args.key as ConfigKey);
+      const value = getConfigValue(args.key);
       if (this.emitJson()) {
         this.printJson({ [args.key]: value ?? null });
       } else {

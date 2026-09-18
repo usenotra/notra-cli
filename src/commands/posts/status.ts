@@ -1,5 +1,5 @@
 import { Args, Flags } from '@oclif/core';
-import type { GetPostGenerationResponse } from '@usenotra/sdk/models/operations';
+import type { GetPostGenerationResponse } from '../../types/posts';
 import { NotraCommand } from '../../base-command';
 import { ExitCode } from '../../constants/exit';
 import { pollJob } from '../../utils/poll';

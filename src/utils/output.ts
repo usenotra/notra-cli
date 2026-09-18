@@ -8,11 +8,11 @@ export function shouldUseColor(): boolean {
 }
 
 export function renderJson(data: unknown): string {
-  return JSON.stringify(data, null, 2);
+  return JSON.stringify(data === undefined ? null : data, null, 2);
 }
 
 export function renderNdjson(data: unknown): string {
-  return JSON.stringify(data);
+  return JSON.stringify(data === undefined ? null : data);
 }
 
 export function renderTable<T>(rows: ReadonlyArray<T>, opts: TableOptions<T>): string {

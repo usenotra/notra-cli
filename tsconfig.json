@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@oclif/core": ["./src/cli/core.ts"]
+    },
     "target": "ES2022",
     "module": "Preserve",
     "moduleResolution": "Bundler",

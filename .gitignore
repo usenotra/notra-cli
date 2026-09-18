@@ -140,8 +140,7 @@ dist
 
 # local CLI test snapshots
 snapshot/
+report/
 
-# compiled CLI output (only the entry shebangs are tracked)
-dist/*
-!dist/run.js
-!dist/dev.js
+# compiled CLI output (rebuilt by `bun run build` / prepack)
+dist/

@@ -1,12 +1,6 @@
 import { NotraCommand } from '../../base-command';
 import { renderTable } from '../../utils/output';
-
-type Row = {
-  id: string;
-  type: 'github' | 'slack' | 'linear';
-  display: string;
-  detail: string;
-};
+import type { IntegrationListData, IntegrationListRow } from '../../types/integrations';
 
 export default class IntegrationsList extends NotraCommand {
   static override description = 'List GitHub, Linear, and Slack integrations.';
@@ -23,7 +17,7 @@ export default class IntegrationsList extends NotraCommand {
     }
 
     this.log(
-      renderTable<Row>(rows, {
+      renderTable<IntegrationListRow>(rows, {
         columns: [
           { header: 'ID', get: (r) => r.id },
           { header: 'Type', get: (r) => r.type },
@@ -36,22 +30,8 @@ export default class IntegrationsList extends NotraCommand {
   }
 }
 
-function toRows(response: {
-  github: Array<{
-    id: string;
-    displayName: string;
-    owner?: string | null;
-    repo?: string | null;
-  }>;
-  linear: Array<{
-    id: string;
-    displayName: string;
-    linearTeamName?: string | null;
-    linearOrganizationName?: string | null;
-  }>;
-  slack: unknown[];
-}): Row[] {
-  const rows: Row[] = [];
+function toRows(response: IntegrationListData): IntegrationListRow[] {
+  const rows: IntegrationListRow[] = [];
   for (const g of response.github) {
     rows.push({
       id: g.id,

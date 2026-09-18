@@ -4,6 +4,7 @@ import { ExitCode } from '../../constants/exit';
 import { CONTENT_TYPES, LOOKBACK_WINDOWS } from '../../constants/posts';
 import { PUBLISH_DESTINATIONS, SCHEDULE_FREQUENCIES } from '../../constants/schedules';
 import { validateCreateScheduleRequest } from '../../schemas/schedules';
+import type { ScheduleCreateFlags } from '../../types/schedules';
 import { readJsonFromFileOrStdin } from '../../utils/files';
 
 export default class SchedulesCreate extends NotraCommand {
@@ -39,6 +40,14 @@ export default class SchedulesCreate extends NotraCommand {
       description: 'Day of month (1-31, required for monthly).',
       min: 1,
       max: 31,
+    }),
+    'interval-days': Flags.integer({
+      description: 'Interval in days (required for custom schedules).',
+      min: 2,
+      max: 90,
+    }),
+    'anchor-date': Flags.string({
+      description: 'Optional anchor date for custom schedules (YYYY-MM-DD).',
     }),
     repository: Flags.string({
       description: 'Repository ID. Repeatable.',
@@ -88,23 +97,7 @@ export default class SchedulesCreate extends NotraCommand {
   }
 }
 
-type CreateFlags = {
-  name?: string;
-  frequency?: string;
-  hour?: number;
-  minute?: number;
-  'day-of-week'?: number;
-  'day-of-month'?: number;
-  repository?: string[];
-  'output-type'?: string;
-  'publish-destination'?: string;
-  'brand-voice'?: string;
-  lookback?: string;
-  enabled?: boolean;
-  'auto-publish'?: boolean;
-};
-
-function buildRequestFromFlags(flags: CreateFlags): unknown {
+function buildRequestFromFlags(flags: ScheduleCreateFlags): unknown {
   const required = (value: unknown, name: string): never | void => {
     if (value === undefined || value === null || value === '') {
       throw new Errors.CLIError(`--${name} is required when --config-file is not used.`, {
@@ -139,6 +132,15 @@ function buildRequestFromFlags(flags: CreateFlags): unknown {
       });
     }
     cron.dayOfMonth = flags['day-of-month'];
+  }
+  if (flags.frequency === 'custom') {
+    if (flags['interval-days'] === undefined) {
+      throw new Errors.CLIError('--interval-days is required for custom schedules.', {
+        exit: ExitCode.Usage,
+      });
+    }
+    cron.intervalDays = flags['interval-days'];
+    if (flags['anchor-date']) cron.anchorDate = flags['anchor-date'];
   }
 
   const request: Record<string, unknown> = {

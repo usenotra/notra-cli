@@ -1,5 +1,5 @@
 import { NotraCommand } from '../../base-command';
-import type { ListBrandIdentitiesBrandIdentity } from '@usenotra/sdk/models/operations';
+import type { BrandIdentity } from '../../types/brand-identities';
 import { formatBool, formatDate, renderTable, truncate } from '../../utils/output';
 
 export default class BrandsList extends NotraCommand {
@@ -15,7 +15,7 @@ export default class BrandsList extends NotraCommand {
       return;
     }
     this.log(
-      renderTable<ListBrandIdentitiesBrandIdentity>(response.brandIdentities, {
+      renderTable<BrandIdentity>(response.brandIdentities, {
         columns: [
           { header: 'ID', get: (b) => b.id },
           { header: 'Name', get: (b) => truncate(b.name, 30) },

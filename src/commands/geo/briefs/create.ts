@@ -1,5 +1,7 @@
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../../base-command';
+import { ExitCode } from '../../../constants/exit';
+import { confirmAction } from '../../../utils/confirm';
 import { readJsonFromFileOrStdin } from '../../../utils/files';
 
 export default class GeoBriefsCreate extends NotraCommand {
@@ -10,6 +12,7 @@ export default class GeoBriefsCreate extends NotraCommand {
   };
 
   static override flags = {
+    yes: Flags.boolean({ char: 'y', description: 'Confirm the billed brief research.' }),
     'config-file': Flags.string({
       description: 'Read the request body from a JSON file (or "-" for stdin).',
       exclusive: [
@@ -42,7 +45,13 @@ export default class GeoBriefsCreate extends NotraCommand {
   public async run(): Promise<void> {
     const { args, flags } = await this.parse(GeoBriefsCreate);
     if (!flags['config-file'] && !flags.topic) {
-      this.error('--topic is required when --config-file is not used.');
+      this.error('--topic is required when --config-file is not used.', { exit: ExitCode.Usage });
+    }
+    const confirmed = await confirmAction('Research this billed GEO content brief?', {
+      yes: flags.yes,
+    });
+    if (!confirmed) {
+      this.error('Confirmation required. Re-run with --yes.', { exit: ExitCode.Usage });
     }
 
     const body = flags['config-file']

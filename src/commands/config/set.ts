@@ -2,7 +2,6 @@ import { Args } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
 import { CONFIG_KEYS } from '../../constants/config';
 import { setConfigValue } from '../../lib/config';
-import type { ConfigKey } from '../../types/config';
 
 export default class ConfigSet extends NotraCommand {
   static override description = 'Set a CLI configuration value.';
@@ -24,7 +23,7 @@ export default class ConfigSet extends NotraCommand {
 
   public async run(): Promise<void> {
     const { args } = await this.parse(ConfigSet);
-    setConfigValue(args.key as ConfigKey, args.value);
+    setConfigValue(args.key, args.value);
     if (this.emitJson()) {
       this.printJson({ status: 'set', key: args.key });
       return;

@@ -26,6 +26,9 @@ export default class PostsGet extends NotraCommand {
       this.error(`Post ${args.postId} not found.`, { exit: ExitCode.NotFound });
     }
     if (flags.markdown) {
+      if (response.post.markdown === null) {
+        this.error('This post has no Markdown source.', { exit: ExitCode.NotFound });
+      }
       this.log(response.post.markdown);
       return;
     }
