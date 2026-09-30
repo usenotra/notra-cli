@@ -13,7 +13,6 @@ const commandsRoot = join(root, 'commands');
 const argv = process.argv.slice(2);
 
 if (argv.includes('--version') || argv.includes('-v')) {
-  console.log(VERSION);
   process.exit(0);
 }
 
@@ -89,11 +88,6 @@ async function printTopicHelp(topic: string): Promise<void> {
   console.log('Commands:');
   for (const command of commands) console.log(`  ${command}`);
   console.log('\nGlobal flags:');
-  console.log('  --api-key <value>   Override the configured API key');
-  console.log('  --base-url <value>  Override the API base URL');
-  console.log('  --json              Print machine-readable JSON');
-  console.log('  --help, -h          Show help');
-  console.log('  --version, -v       Show version');
 }
 
 function rootEntries(commands: ReadonlyArray<string>): string[] {
@@ -171,7 +165,6 @@ function printCommandHelp(name: string, command: typeof Command): void {
   if (args.length > 0) {
     console.log('Arguments:');
     for (const [arg, definition] of args) console.log(`  ${arg.padEnd(20)} ${definition.description ?? ''}`);
-    console.log();
   }
   if (Object.keys(flags).length > 0) {
     console.log('Flags:');
