@@ -66,6 +66,10 @@ jobs:
         if: steps.version.outputs.changed == 'true'
         run: bun run typecheck
 
+      - name: Test source and packaged CLI
+        if: steps.version.outputs.changed == 'true'
+        run: bun run test
+
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest

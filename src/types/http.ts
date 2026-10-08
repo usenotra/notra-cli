@@ -9,6 +9,7 @@ export type ApiRequestOptions = {
   body?: unknown;
   timeoutMs?: number;
   headers?: Record<string, string>;
+  signal?: AbortSignal;
 };
 
 export type DecodedApiRequestOptions<Output> = ApiRequestOptions & {

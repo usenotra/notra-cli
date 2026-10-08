@@ -5,6 +5,8 @@ import { ExitCode } from '../../constants/exit';
 import { CONTENT_TYPES, LOOKBACK_WINDOWS } from '../../constants/posts';
 import { validateCreatePostGenerationRequest } from '../../schemas/posts';
 import { pollJob } from '../../utils/poll';
+import { readJsonFromFileOrStdin } from '../../utils/files';
+import { isRecord } from '../../utils/records';
 
 export default class PostsGenerate extends NotraCommand {
   static override description = 'Queue an asynchronous post-generation job.';
@@ -16,7 +18,6 @@ export default class PostsGenerate extends NotraCommand {
   static override flags = {
     'content-type': Flags.string({
       description: 'Type of content to generate.',
-      required: true,
       options: [...CONTENT_TYPES],
     }),
     brand: Flags.string({ description: 'Brand identity ID to use.' }),
@@ -33,6 +34,8 @@ export default class PostsGenerate extends NotraCommand {
       description: 'Linear integration ID. Repeatable.',
       multiple: true,
     }),
+    timezone: Flags.string({ description: 'IANA timezone for source activity.' }),
+    'body-file': Flags.string({ description: 'Full generation request as JSON, or "-" for stdin. Flags override it.' }),
     wait: Flags.boolean({ description: 'Wait for the job to finish before returning.' }),
     'poll-interval': Flags.integer({
       description: 'Polling interval in seconds when --wait is set.',
@@ -49,17 +52,26 @@ export default class PostsGenerate extends NotraCommand {
   public async run(): Promise<void> {
     const { flags } = await this.parse(PostsGenerate);
 
-    const requestInput: Record<string, unknown> = { contentType: flags['content-type'] };
+    const input: unknown = flags['body-file']
+      ? await readJsonFromFileOrStdin(flags['body-file'], 'Expected a JSON generation request.') : {};
+    if (!isRecord(input)) this.error('Request body must be a JSON object.', { exit: ExitCode.Usage });
+    const requestInput: Record<string, unknown> = { ...input };
+    if (flags['content-type']) requestInput.contentType = flags['content-type'];
+    if (flags.timezone) requestInput.timezone = flags.timezone;
     if (flags.brand) requestInput.brandIdentityId = flags.brand;
     if (flags['brand-voice']) requestInput.brandVoiceId = flags['brand-voice'];
     if (flags.lookback) requestInput.lookbackWindow = flags.lookback;
     if (flags['github-integration']?.length || flags['linear-integration']?.length) {
-      const integrations: Record<string, string[]> = {};
+      const integrations: Record<string, unknown> = isRecord(requestInput.integrations)
+        ? { ...requestInput.integrations } : {};
       if (flags['github-integration']?.length) {
         integrations.github = flags['github-integration'];
+        delete requestInput.repositoryIds;
+        delete requestInput.github;
       }
       if (flags['linear-integration']?.length) {
         integrations.linear = flags['linear-integration'];
+        delete requestInput.linearIntegrationIds;
       }
       requestInput.integrations = integrations;
     }

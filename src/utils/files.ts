@@ -1,4 +1,16 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+
+export async function writeTextFileAtomically(filePath: URL, contents: string): Promise<void> {
+  const temporary = new URL(filePath);
+  temporary.pathname += `.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporary, contents, { flag: 'wx' });
+    await rename(temporary, filePath);
+  } finally {
+    await rm(temporary, { force: true });
+  }
+}
 
 export async function readTextFromFileOrStdin(
   filePath: string | undefined,

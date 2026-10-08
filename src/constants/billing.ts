@@ -6,4 +6,8 @@ export const BILLABLE_OPERATION_IDS: ReadonlySet<string> = new Set([
   'createGeoScan',
   'planGeoContentBrief',
   'runGeoSequence',
+  'createChat',
+  'postChatMessage',
+  'createAgentSession',
+  'sendAgentSessionMessage',
 ]);

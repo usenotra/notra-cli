@@ -1,0 +1,2 @@
+export const GEO_SNAPSHOT_ITEM_LIMIT = 5;
+export const GEO_SNAPSHOT_OPTIONAL_TIMEOUT_MS = 5_000;
