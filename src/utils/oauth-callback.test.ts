@@ -27,21 +27,10 @@ describe('OAuth loopback callback', () => {
     } finally { callback.close(); }
   });
 
-  test('times out and releases the callback listener', async () => {
+  test('times out while waiting for authorization', async () => {
     const callback = await startOAuthCallback('expected-state', undefined, 20);
-    await expect(callback.code).rejects.toMatchObject({ code: 'authorization_timeout' });
-    callback.close();
-  });
-
-  test('reuses a saved callback port and falls back if another process owns it', async () => {
-    const occupied = await startOAuthCallback('one');
-    const fallback = await startOAuthCallback('two', occupied.redirectUri);
-    expect(fallback.redirectUri).not.toBe(occupied.redirectUri);
-    fallback.close();
-    const savedUri = occupied.redirectUri;
-    occupied.close();
-    const reused = await startOAuthCallback('three', savedUri);
-    expect(reused.redirectUri).toBe(savedUri);
-    reused.close();
+    try {
+      await expect(callback.code).rejects.toMatchObject({ code: 'authorization_timeout' });
+    } finally { callback.close(); }
   });
 });

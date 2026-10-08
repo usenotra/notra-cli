@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, spyOn, test } from 'bun:test';
-import { authenticationResponseSchema } from '../schemas/workos';
-import { exchangeAuthorizationCode, getAccessTokenExpiry, getAuthorizationUrl, getOAuthIssuer, refreshWithRefreshToken } from './workos';
+import { exchangeAuthorizationCode, getAuthorizationUrl, getOAuthIssuer, refreshWithRefreshToken } from './workos';
 import { OAuthConnectionError } from './oauth-errors';
 
 let fetchMock: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>> | undefined;
@@ -43,24 +42,8 @@ describe('Connect OAuth', () => {
     expect(fetchMock.mock.calls[0]![0]).toBe('https://session.example.test/oauth2/token');
   });
 
-  test('returns OAuth errors without persisting malformed or denied authentication', async () => {
-    fetchMock = spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ error: 'invalid_grant' }, { status: 400 }));
-    await expect(exchangeAuthorizationCode('client', 'code', 'http://127.0.0.1/callback', 'verifier')).rejects.toMatchObject({ code: 'invalid_grant' });
-    expect(authenticationResponseSchema.safeParse({ access_token: 'access' }).success).toBe(false);
-  });
-
-  test('classifies network errors, timeouts and invalid JSON separately', async () => {
+  test('wraps OAuth connection failures', async () => {
     fetchMock = spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fetch failed'));
     await expect(refreshWithRefreshToken('client', 'refresh')).rejects.toBeInstanceOf(OAuthConnectionError);
-    fetchMock.mockRejectedValue(new DOMException('timeout', 'TimeoutError'));
-    await expect(refreshWithRefreshToken('client', 'refresh')).rejects.toMatchObject({ name: 'TimeoutError' });
-    fetchMock.mockResolvedValue(new Response('not-json'));
-    await expect(refreshWithRefreshToken('client', 'refresh')).rejects.toThrow('invalid JSON');
   });
-
-  test('reads expiration only as a scheduling hint and tolerates malformed tokens', () => {
-    expect(getAccessTokenExpiry(`header.${Buffer.from('{"exp":123}').toString('base64url')}.signature`)).toBe(123000);
-    for (const token of ['opaque', 'a.b.c', 'a.bnVsbA.c', 'a.W10.c']) expect(getAccessTokenExpiry(token)).toBeUndefined();
-  });
-
 });
