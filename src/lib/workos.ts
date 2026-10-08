@@ -174,7 +174,7 @@ export function persistAuthentication(authentication: AuthenticationResponse, cl
   // Unverified JWT claims are only local display/refresh hints. The API verifies
   // the signature, issuer, audience and workspace before granting access.
   const payload = readTokenPayload(authentication.access_token);
-  const organization = payload?.[OAUTH_WORKSPACE_CLAIM] ?? payload?.org_id ?? authentication.organization_id;
+  const organization = payload?.[OAUTH_WORKSPACE_CLAIM] ?? authentication.organization_id ?? payload?.org_id;
   setStoredAuth({
     accessToken: authentication.access_token,
     refreshToken: authentication.refresh_token,
@@ -211,7 +211,7 @@ export async function ensureFreshAccessToken(): Promise<void> {
       );
       persistAuthentication({
         ...authentication,
-        organization_id: authentication.organization_id ?? stored.organizationId,
+        organization_id: stored.organizationId ?? authentication.organization_id,
       }, stored.clientId, stored.issuer);
     } catch (err) {
       if (err instanceof TokenRefreshError && err.code === 'invalid_grant') {

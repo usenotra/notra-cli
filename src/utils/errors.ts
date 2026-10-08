@@ -9,10 +9,17 @@ import { ExitCode } from '../constants/exit';
 import type { FriendlyError } from '../types/errors';
 import { ApiResponseDecodeError } from './parse-api-response';
 import { OAuthConnectionError } from '../lib/oauth-errors';
+import { sanitizeTerminalText } from './output';
 
 export function toFriendlyError(err: unknown): FriendlyError {
   if (err instanceof OAuthConnectionError) {
-    return { message: err.message, exitCode: ExitCode.Network };
+    const cause = err.cause instanceof Error && err.cause.cause instanceof Error
+      ? err.cause.cause : err.cause;
+    return {
+      message: err.message,
+      detail: cause instanceof Error ? sanitizeTerminalText(String(cause)) : undefined,
+      exitCode: ExitCode.Network,
+    };
   }
   if (err instanceof MissingApiKeyError || err instanceof SessionExpiredError) {
     return { message: err.message, exitCode: ExitCode.Auth };

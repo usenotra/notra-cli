@@ -7,6 +7,11 @@ describe('friendly errors', () => {
   test('classifies OAuth connection failures as network errors', () => {
     expect(toFriendlyError(new OAuthConnectionError(new TypeError('fetch failed')))).toEqual({
       message: 'Could not reach the Notra OAuth server.', exitCode: 6,
+      detail: 'TypeError: fetch failed',
+    });
+    const cause = new Error('getaddrinfo ENOTFOUND oauth.usenotra.com');
+    expect(toFriendlyError(new OAuthConnectionError(new TypeError('fetch failed', { cause })))).toMatchObject({
+      detail: 'Error: getaddrinfo ENOTFOUND oauth.usenotra.com', exitCode: 6,
     });
   });
   test('keeps rate-limit retry guidance', () => {

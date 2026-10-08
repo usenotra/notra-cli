@@ -52,13 +52,17 @@ describe('Connect OAuth', () => {
     await expect(refreshWithRefreshToken('client', 'refresh')).rejects.toBeInstanceOf(OAuthConnectionError);
   });
 
-  test('parallel CLI processes refresh a rotating token only once', async () => {
+  test('parallel refresh rotates only once and preserves the saved workspace', async () => {
     const home = await mkdtemp(join(tmpdir(), 'notra-refresh-'));
     let refreshes = 0;
     const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch() {
       if (++refreshes > 1) return Response.json({ error: 'invalid_grant' }, { status: 400 });
       await sleep(200);
-      return Response.json({ access_token: 'new-access', refresh_token: 'new-refresh', expires_in: 3600 });
+      const payload = Buffer.from(JSON.stringify({ org_id: 'workos_org' })).toString('base64url');
+      return Response.json({
+        access_token: `header.${payload}.signature`, refresh_token: 'new-refresh',
+        expires_in: 3600, organization_id: 'workos_org',
+      });
     } });
     const env = { ...process.env, HOME: home, XDG_CONFIG_HOME: home, NOTRA_API_KEY: undefined };
     const run = (args: string[]) => {
@@ -74,13 +78,16 @@ describe('Connect OAuth', () => {
       const path = JSON.parse(config.stdout).path;
       await writeFile(path, JSON.stringify({
         accessToken: 'old-access', refreshToken: 'old-refresh', accessTokenExpiresAt: 0,
+        organizationId: 'workspace_test',
         authClientId: 'client_test', authIssuer: server.url.origin,
       }));
       const args = ['--eval', 'import { ensureFreshAccessToken } from "./src/lib/workos.ts"; await ensureFreshAccessToken();'];
       const results = await Promise.all([run(args), run(args)]);
       expect(results.map(result => result.code)).toEqual([0, 0]);
       expect(refreshes).toBe(1);
-      expect(JSON.parse(await readFile(path, 'utf8')).refreshToken).toBe('new-refresh');
+      expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({
+        refreshToken: 'new-refresh', organizationId: 'workspace_test',
+      });
     } finally {
       server.stop(true);
       await rm(home, { recursive: true, force: true });
