@@ -31,17 +31,16 @@ export function getBaseUrl(): string {
 }
 
 export function getStoredAuth(): StoredAuth | undefined {
-  const s = getStore();
-  const accessToken = s.get('accessToken');
-  const refreshToken = s.get('refreshToken');
+  const s = getStore().store;
+  const { accessToken, refreshToken } = s;
   if (!accessToken || !refreshToken) return undefined;
   return {
     accessToken,
     refreshToken,
-    accessTokenExpiresAt: s.get('accessTokenExpiresAt'),
-    organizationId: s.get('organizationId'),
-    clientId: s.get('authClientId'),
-    issuer: s.get('authIssuer'),
+    accessTokenExpiresAt: s.accessTokenExpiresAt,
+    organizationId: s.organizationId,
+    clientId: s.authClientId,
+    issuer: s.authIssuer,
   };
 }
 

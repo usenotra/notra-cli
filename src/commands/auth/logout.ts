@@ -1,8 +1,9 @@
 import { NotraCommand } from '../../base-command';
 import { clearConfigValue, clearStoredAuth, getConfigValue, getStoredAuth } from '../../lib/config';
+import { withAuthLock } from '../../utils/auth-lock';
 
 export default class AuthLogout extends NotraCommand {
-  static override description = 'Sign out and remove stored credentials.';
+  static override description = 'Remove locally stored credentials; does not revoke server-side access.';
   static override examples = ['<%= config.bin %> auth logout'];
 
   protected override requiresFreshAccessToken = false;
@@ -10,24 +11,20 @@ export default class AuthLogout extends NotraCommand {
   public async run(): Promise<void> {
     await this.parse(AuthLogout);
 
-    const storedAuth = getStoredAuth();
-    const legacyKey = getConfigValue('api-key');
-    if (!storedAuth && !legacyKey) {
-      if (this.emitJson()) {
-        this.printJson({ status: 'no-op' });
-      } else {
-        this.log('No credentials were stored.');
-      }
-      return;
-    }
-    clearStoredAuth();
-    if (legacyKey) {
-      clearConfigValue('api-key');
-    }
+    const cleared = await withAuthLock(() => {
+      const storedAuth = getStoredAuth();
+      const legacyKey = getConfigValue('api-key');
+      if (!storedAuth && !legacyKey) return false;
+      clearStoredAuth();
+      if (legacyKey) clearConfigValue('api-key');
+      return true;
+    });
     if (this.emitJson()) {
-      this.printJson({ status: 'cleared' });
+      this.printJson({ status: cleared ? 'cleared' : 'no-op' });
+    } else if (cleared) {
+      this.printSuccess('Cleared local credentials. Server-side access has not been revoked.');
     } else {
-      this.printSuccess('Logged out. Cleared stored credentials.');
+      this.log('No credentials were stored.');
     }
   }
 }

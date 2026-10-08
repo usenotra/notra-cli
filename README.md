@@ -34,6 +34,13 @@ context with Notra's Standalone Connect login, so the CLI uses the same
 authorization-code flow as MCP clients rather than sending you to that page.
 Sessions from the old AuthKit device flow require signing in again.
 
+Credential updates are serialized across CLI processes so parallel commands
+cannot reuse the same rotating refresh token, and a delayed refresh cannot restore
+credentials after logout.
+`notra auth logout` only clears local credentials; it does not revoke server-side
+access. Connect's current revocation endpoint requires a client secret even for
+public clients, which the CLI must not embed.
+
 ## Commands
 
 ```bash

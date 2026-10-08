@@ -23,6 +23,7 @@ import { clearStoredAuth, getOAuthClientId, getStoredAuth, setOAuthClientId, set
 import { fetchOAuthJson } from '../utils/oauth-request';
 import { readTokenPayload } from '../utils/token-payload';
 import type { OAuthAuthorizationParameters } from '../types/oauth';
+import { withAuthLock } from '../utils/auth-lock';
 
 export class OAuthAuthorizationError extends Error {
   readonly code: string;
@@ -85,7 +86,7 @@ export async function getWorkosClientId(redirectUri: string): Promise<string> {
     );
   }
   const client = oauthClientResponseSchema.parse(body);
-  setOAuthClientId(issuer, client.client_id, redirectUri);
+  await withAuthLock(() => setOAuthClientId(issuer, client.client_id, redirectUri));
   return client.client_id;
 }
 
@@ -186,36 +187,40 @@ export function persistAuthentication(authentication: AuthenticationResponse, cl
 }
 
 export async function ensureFreshAccessToken(): Promise<void> {
-  const stored = getStoredAuth();
-  if (!stored) return;
+  if (!getStoredAuth()) return;
+  await withAuthLock(async () => {
+    // A different CLI process may have refreshed or logged out while we waited.
+    const stored = getStoredAuth();
+    if (!stored) return;
 
-  if (!stored.clientId || !stored.issuer) {
-    clearStoredAuth();
-    throw new SessionExpiredError();
-  }
-
-  const expiresAt = stored.accessTokenExpiresAt;
-  const stillFresh =
-    expiresAt !== undefined && Date.now() < expiresAt - ACCESS_TOKEN_REFRESH_LEEWAY_MS;
-  if (stillFresh) return;
-
-  try {
-    const authentication = await refreshWithRefreshToken(
-      stored.clientId,
-      stored.refreshToken,
-      stored.issuer,
-    );
-    persistAuthentication({
-      ...authentication,
-      organization_id: authentication.organization_id ?? stored.organizationId,
-    }, stored.clientId, stored.issuer);
-  } catch (err) {
-    if (err instanceof TokenRefreshError && err.code === 'invalid_grant') {
+    if (!stored.clientId || !stored.issuer) {
       clearStoredAuth();
       throw new SessionExpiredError();
     }
-    throw err;
-  }
+
+    const expiresAt = stored.accessTokenExpiresAt;
+    const stillFresh =
+      expiresAt !== undefined && Date.now() < expiresAt - ACCESS_TOKEN_REFRESH_LEEWAY_MS;
+    if (stillFresh) return;
+
+    try {
+      const authentication = await refreshWithRefreshToken(
+        stored.clientId,
+        stored.refreshToken,
+        stored.issuer,
+      );
+      persistAuthentication({
+        ...authentication,
+        organization_id: authentication.organization_id ?? stored.organizationId,
+      }, stored.clientId, stored.issuer);
+    } catch (err) {
+      if (err instanceof TokenRefreshError && err.code === 'invalid_grant') {
+        clearStoredAuth();
+        throw new SessionExpiredError();
+      }
+      throw err;
+    }
+  });
 }
 
 export class SessionExpiredError extends Error {

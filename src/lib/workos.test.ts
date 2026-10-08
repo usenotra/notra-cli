@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, spyOn, test } from 'bun:test';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { exchangeAuthorizationCode, getAuthorizationUrl, getOAuthIssuer, refreshWithRefreshToken } from './workos';
 import { OAuthConnectionError } from './oauth-errors';
+import { readCliProcess } from '../utils/cli-test';
 
 let fetchMock: ReturnType<typeof spyOn<typeof globalThis, 'fetch'>> | undefined;
 afterEach(() => fetchMock?.mockRestore());
@@ -45,5 +50,40 @@ describe('Connect OAuth', () => {
   test('wraps OAuth connection failures', async () => {
     fetchMock = spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fetch failed'));
     await expect(refreshWithRefreshToken('client', 'refresh')).rejects.toBeInstanceOf(OAuthConnectionError);
+  });
+
+  test('parallel CLI processes refresh a rotating token only once', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'notra-refresh-'));
+    let refreshes = 0;
+    const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch() {
+      if (++refreshes > 1) return Response.json({ error: 'invalid_grant' }, { status: 400 });
+      await sleep(200);
+      return Response.json({ access_token: 'new-access', refresh_token: 'new-refresh', expires_in: 3600 });
+    } });
+    const env = { ...process.env, HOME: home, XDG_CONFIG_HOME: home, NOTRA_API_KEY: undefined };
+    const run = (args: string[]) => {
+      const child = Bun.spawn(['bun', ...args], {
+        cwd: join(import.meta.dir, '../..'), env, stdin: 'pipe', stdout: 'pipe', stderr: 'pipe',
+      });
+      child.stdin.end();
+      return readCliProcess(child);
+    };
+    try {
+      const config = await run(['src/run.ts', 'config', 'path', '--json']);
+      expect(config.code, config.stderr).toBe(0);
+      const path = JSON.parse(config.stdout).path;
+      await writeFile(path, JSON.stringify({
+        accessToken: 'old-access', refreshToken: 'old-refresh', accessTokenExpiresAt: 0,
+        authClientId: 'client_test', authIssuer: server.url.origin,
+      }));
+      const args = ['--eval', 'import { ensureFreshAccessToken } from "./src/lib/workos.ts"; await ensureFreshAccessToken();'];
+      const results = await Promise.all([run(args), run(args)]);
+      expect(results.map(result => result.code)).toEqual([0, 0]);
+      expect(refreshes).toBe(1);
+      expect(JSON.parse(await readFile(path, 'utf8')).refreshToken).toBe('new-refresh');
+    } finally {
+      server.stop(true);
+      await rm(home, { recursive: true, force: true });
+    }
   });
 });

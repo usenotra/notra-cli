@@ -14,6 +14,7 @@ import {
 } from '../../lib/workos';
 import { openInBrowser } from '../../utils/browser';
 import { startOAuthCallback } from '../../utils/oauth-callback';
+import { withAuthLock } from '../../utils/auth-lock';
 
 export default class AuthLogin extends NotraCommand {
   static override description =
@@ -78,10 +79,10 @@ export default class AuthLogin extends NotraCommand {
       const authentication = await exchangeAuthorizationCode(clientId, code, callback.redirectUri, codeVerifier);
       spinner?.stop();
 
-      persistAuthentication(authentication, clientId, issuer);
-      if (getConfigValue('api-key')) {
-        clearConfigValue('api-key');
-      }
+      await withAuthLock(() => {
+        persistAuthentication(authentication, clientId, issuer);
+        if (getConfigValue('api-key')) clearConfigValue('api-key');
+      });
 
       if (this.emitJson()) {
         this.printJson({
