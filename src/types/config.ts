@@ -7,6 +7,11 @@ export type ConfigSchema = {
   refreshToken?: string;
   accessTokenExpiresAt?: number;
   organizationId?: string;
+  authClientId?: string;
+  authIssuer?: string;
+  oauthClientId?: string;
+  oauthIssuer?: string;
+  oauthRedirectUri?: string;
 };
 
 export type StoredAuth = {
@@ -14,6 +19,8 @@ export type StoredAuth = {
   refreshToken: string;
   accessTokenExpiresAt?: number;
   organizationId?: string;
+  clientId?: string;
+  issuer?: string;
 };
 
 export type ConfigKey = (typeof CONFIG_KEYS)[number];

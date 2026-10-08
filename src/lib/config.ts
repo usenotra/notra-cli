@@ -40,6 +40,8 @@ export function getStoredAuth(): StoredAuth | undefined {
     refreshToken,
     accessTokenExpiresAt: s.get('accessTokenExpiresAt'),
     organizationId: s.get('organizationId'),
+    clientId: s.get('authClientId'),
+    issuer: s.get('authIssuer'),
   };
 }
 
@@ -51,6 +53,8 @@ export function setStoredAuth(auth: StoredAuth): void {
     refreshToken: auth.refreshToken,
     accessTokenExpiresAt: auth.accessTokenExpiresAt,
     organizationId: auth.organizationId,
+    authClientId: auth.clientId,
+    authIssuer: auth.issuer,
   };
   if (auth.accessTokenExpiresAt === undefined) {
     delete next.accessTokenExpiresAt;
@@ -58,6 +62,8 @@ export function setStoredAuth(auth: StoredAuth): void {
   if (auth.organizationId === undefined) {
     delete next.organizationId;
   }
+  if (auth.clientId === undefined) delete next.authClientId;
+  if (auth.issuer === undefined) delete next.authIssuer;
   s.store = next;
 }
 
@@ -68,7 +74,25 @@ export function clearStoredAuth(): void {
   delete next.refreshToken;
   delete next.accessTokenExpiresAt;
   delete next.organizationId;
+  delete next.authClientId;
+  delete next.authIssuer;
   s.store = next;
+}
+
+export function getOAuthClientId(issuer: string, redirectUri: string): string | undefined {
+  const s = getStore();
+  return s.get('oauthIssuer') === issuer && s.get('oauthRedirectUri') === redirectUri
+    ? s.get('oauthClientId') : undefined;
+}
+
+export function getOAuthRedirectUri(issuer: string): string | undefined {
+  const s = getStore();
+  return s.get('oauthIssuer') === issuer ? s.get('oauthRedirectUri') : undefined;
+}
+
+export function setOAuthClientId(issuer: string, clientId: string, redirectUri: string): void {
+  const s = getStore();
+  s.store = { ...s.store, oauthIssuer: issuer, oauthClientId: clientId, oauthRedirectUri: redirectUri };
 }
 
 export function setConfigValue(key: ConfigKey, value: string): void {
