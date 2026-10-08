@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import * as z from 'zod';
 import { ApiConnectionError, ApiError, HttpClient } from './http-client';
 import { startInterruptedStreamServer } from '../utils/http-test';
+import { MAX_NDJSON_EVENT_BYTES } from '../constants/http';
 
 const server = Bun.serve({
   port: 0,
@@ -15,6 +16,19 @@ const server = Bun.serve({
       return new Response(new ReadableStream({ start(controller) {
         for (let offset = 0; offset < bytes.length; offset += 3) controller.enqueue(bytes.slice(offset, offset + 3));
         controller.close();
+      } }));
+    }
+    if (url.pathname === '/invalid-events') {
+      return new Response('{"type":"pending"}\n' + (url.searchParams.has('final') ? '{"broken":' : 'not-json\n'));
+    }
+    if (url.pathname === '/max-event') {
+      return new Response(JSON.stringify({ text: 'a'.repeat(MAX_NDJSON_EVENT_BYTES - 11) }) + '\n');
+    }
+    if (url.pathname === '/oversized-event') {
+      const bytes = new TextEncoder().encode(JSON.stringify({ text: '🌍'.repeat(MAX_NDJSON_EVENT_BYTES / 4) }));
+      return new Response(new ReadableStream({ start(controller) {
+        for (let offset = 0; offset < bytes.length; offset += 1024) controller.enqueue(bytes.slice(offset, offset + 1024));
+        // Deliberately never close: the size guard must fail before EOF/timeout.
       } }));
     }
     if (url.pathname === '/slow-body') {
@@ -91,6 +105,24 @@ describe('HttpClient', () => {
     const events = [];
     for await (const event of client.stream('GET', '/stream')) events.push(event);
     expect(events).toEqual([{ text: 'Hallo 🌍' }, { done: true }]);
+  });
+
+  test('rejects malformed complete lines and truncated final events after valid output', async () => {
+    for (const path of ['/invalid-events', '/invalid-events?final=1']) {
+      const stream = client.stream('GET', path);
+      expect(await stream.next()).toEqual({ value: { type: 'pending' }, done: false });
+      await expect(stream.next()).rejects.toMatchObject({ name: 'ApiResponseDecodeError' });
+    }
+  });
+
+  test('accepts the event-size boundary and rejects oversized UTF-8 before EOF', async () => {
+    const stream = client.stream('GET', '/max-event');
+    const event = await stream.next();
+    expect(z.object({ text: z.string() }).parse(event.value).text).toHaveLength(MAX_NDJSON_EVENT_BYTES - 11);
+    expect((await stream.next()).done).toBe(true);
+    await expect(client.stream('GET', '/oversized-event', { timeoutMs: 1000 }).next()).rejects.toMatchObject({
+      name: 'ApiResponseDecodeError', issues: [`Event exceeds the ${MAX_NDJSON_EVENT_BYTES} byte limit.`],
+    });
   });
 
   test('stream errors retain their API status', async () => {

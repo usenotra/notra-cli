@@ -5,6 +5,7 @@ import type {
   DecodedApiRequestOptions,
 } from '../types/http';
 import { isRecord } from '../utils/records';
+import { NdjsonParser } from '../utils/ndjson';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
@@ -59,20 +60,15 @@ export class HttpClient {
     if (!response.ok) assertResponseOk(response, parseResponse(await this.transfer(() => response.text())));
     if (!response.body) return;
     const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let pending = '';
+    const parser = new NdjsonParser();
     try {
       while (true) {
         const { value, done } = await this.transfer(() => reader.read());
-        pending += decoder.decode(value, { stream: !done });
-        const lines = pending.split('\n');
-        pending = lines.pop() ?? '';
-        for (const line of lines) {
-          if (line.trim()) yield parseResponse(line.trim());
-        }
         if (done) break;
+        yield* parser.push(value);
       }
-      if (pending.trim()) yield parseResponse(pending.trim());
+      const final = parser.finish();
+      if (final !== undefined) yield final;
     } finally {
       await reader.cancel().catch(() => {});
       reader.releaseLock();

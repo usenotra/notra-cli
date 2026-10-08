@@ -99,9 +99,15 @@ or continuing durable agent sessions also require confirmation because they use
 AI credits and their tools may act on data or external services.
 
 Chat commands return `{ "chatId": "…", "text": "…" }` after reading the reply
-stream. Their default timeout is 300 seconds. `agents events` prints live NDJSON,
+stream. When tools need approval, `pendingApprovals` includes their IDs, tool-call
+IDs, and available tool inputs so you can inspect them before sending
+`--approvals '[{"id":"approval_123","approved":true}]'` to `chats message`.
+Automatic or already-answered approvals are not reported as pending.
+Their default timeout is 300 seconds. `agents events` prints live NDJSON,
 supports `--start-index` for replay, and stops after `--timeout` seconds (default
-30). Pending tool approvals or questions can be answered with `--body-file` on
+30). Each event is limited to 1 MiB of UTF-8 JSON; malformed or oversized events
+fail the command rather than being returned as strings. Pending tool approvals
+or questions can be answered with `--body-file` on
 `chats message` or `agents message`.
 
 `posts generate --body-file` accepts full source selection, including GitHub

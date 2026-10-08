@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { API_COMMAND_FIXTURES, POST_GENERATION_RESPONSE } from '../constants/api-command-fixtures';
 import { readCliProcess } from '../utils/cli-test';
 import { startInterruptedStreamServer } from '../utils/http-test';
+import { MAX_NDJSON_EVENT_BYTES } from '../constants/http';
+import type { PendingChatApproval } from '../types/chats';
 
 describe('curated API commands end to end', () => {
   let directory: string;
@@ -15,7 +17,9 @@ describe('curated API commands end to end', () => {
   let lastAuthorization: string | null;
   let serveSnapshot = false;
   let chatError = false;
+  let chatApproval = false;
   let streamHang = false;
+  let streamPayload: string | undefined;
   const root = join(import.meta.dir, '../..');
 
   beforeAll(async () => {
@@ -39,6 +43,7 @@ describe('curated API commands end to end', () => {
         }
         if (url.pathname === '/v1/posts/generate') return Response.json(POST_GENERATION_RESPONSE);
         if (url.pathname.endsWith('/stream')) {
+          if (streamPayload !== undefined) return new Response('{"type":"pending"}\n' + streamPayload);
           if (streamHang) return new Response(new ReadableStream({ start(controller) {
             controller.enqueue(new TextEncoder().encode('{"type":"pending"}\n'));
           } }));
@@ -46,6 +51,12 @@ describe('curated API commands end to end', () => {
         }
         if ((url.pathname === '/v1/chats' || url.pathname === '/v1/chats/chat_1') && request.method === 'POST') {
           if (chatError) return new Response('data: {"type":"error","errorText":"No credits"}\n\n');
+          if (chatApproval) return new Response([
+            { type: 'start', messageMetadata: { chatId: 'chat_1' } },
+            { type: 'text-delta', delta: 'Please approve publishing.' },
+            { type: 'tool-input-available', toolCallId: 'call_1', toolName: 'publishPost', input: { postId: 'post_1' } },
+            { type: 'tool-approval-request', approvalId: 'approval_1', toolCallId: 'call_1' },
+          ].map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join('') + 'data: [DONE]\n\n');
           return new Response('data: {"type":"start","messageMetadata":{"chatId":"chat_1"}}\n\ndata: {"type":"text-delta","delta":"Hallo "}\n\ndata: {"type":"text-delta","textDelta":"Welt"}\n\ndata: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } });
         }
         return Response.json({ method: request.method, path: url.pathname, query: Object.fromEntries(url.searchParams), body, authorization: request.headers.get('authorization') });
@@ -124,6 +135,27 @@ describe('curated API commands end to end', () => {
     const agent = await run(['agents', 'message', 'session_1', '--body-file', '-', '--yes'], false, JSON.stringify(responses));
     expect(agent.code, agent.stdout).toBe(0);
     expect(lastBody).toEqual(responses);
+  });
+
+  test('source and packaged chat replies expose approvals that can be sent back', async () => {
+    chatApproval = true;
+    try {
+      for (const built of [false, true]) {
+        const reply = await run(['chats', 'create', '--message', 'Publish this post', '--yes'], built);
+        expect(reply.code, reply.stdout).toBe(0);
+        const result = JSON.parse(reply.stdout);
+        expect(result).toEqual({
+          chatId: 'chat_1', text: 'Please approve publishing.',
+          pendingApprovals: [{ id: 'approval_1', toolCallId: 'call_1', toolName: 'publishPost', input: { postId: 'post_1' } }],
+        });
+        chatApproval = false;
+        const approvals = result.pendingApprovals.map(({ id }: PendingChatApproval) => ({ id, approved: true }));
+        const continued = await run(['chats', 'message', result.chatId, '--approvals', JSON.stringify(approvals), '--yes'], built);
+        expect(continued.code, continued.stdout).toBe(0);
+        expect(lastBody).toEqual({ approvals });
+        chatApproval = true;
+      }
+    } finally { chatApproval = false; }
   });
 
   test('skill content files and post markdown stdin are accepted', async () => {
@@ -257,6 +289,23 @@ describe('curated API commands end to end', () => {
       expect(lines[0]).toEqual({ type: 'pending' });
       expect(lines[1].error).toBe('Request timed out.');
     } finally { streamHang = false; }
+  });
+
+  test('source and packaged event streams fail on malformed and oversized events', async () => {
+    try {
+      for (const payload of ['not-json\n', '{"type":"partial"', 'x'.repeat(MAX_NDJSON_EVENT_BYTES + 1)]) {
+        streamPayload = payload;
+        for (const built of [false, true]) {
+          const result = await run(['agents', 'events', 'session_1'], built);
+          expect(result.code, result.stdout).toBe(1);
+          expect(result.stderr).toBe('');
+          const lines = result.stdout.trim().split('\n').map((line) => JSON.parse(line));
+          expect(lines).toHaveLength(2);
+          expect(lines[0]).toEqual({ type: 'pending' });
+          expect(lines[1].error).toBe('The Notra API returned an invalid NDJSON event.');
+        }
+      }
+    } finally { streamPayload = undefined; }
   });
 
   test('source and packaged event streams exit with a network error after a disconnect', async () => {
