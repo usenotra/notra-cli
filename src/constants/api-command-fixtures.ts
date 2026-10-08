@@ -1,7 +1,7 @@
 import type { ApiCommandFixture } from '../types/cli-test';
 
 export const API_COMMAND_FIXTURES: ReadonlyArray<ApiCommandFixture> = [
-  { command: 'posts create', path: '/v1/posts', method: 'POST', args: ['--title', 'Ship notes', '--content-type', 'blog_post', '--markdown', '# Shipped'], body: { title: 'Ship notes', contentType: 'blog_post', markdown: '# Shipped', status: 'draft' } },
+  { command: 'posts create', path: '/v1/posts', method: 'POST', args: ['--title', 'Ship notes', '--content-type', 'blog_post', '--slug', 'ship-notes', '--markdown', '# Shipped'], body: { title: 'Ship notes', contentType: 'blog_post', slug: 'ship-notes', markdown: '# Shipped', status: 'draft' } },
   { command: 'posts schedule', path: '/v1/posts/post_1/schedule', method: 'POST', args: ['post_1', '--scheduled-at', '2027-01-01T08:00:00Z', '--time-zone', 'Europe/Berlin'], body: { scheduledAt: '2027-01-01T08:00:00Z', timeZone: 'Europe/Berlin', destinations: [] } },
   { command: 'posts schedule-get', path: '/v1/posts/post_1/schedule', args: ['post_1'] },
   { command: 'posts schedule-cancel', path: '/v1/posts/post_1/schedule', method: 'DELETE', args: ['post_1'] },

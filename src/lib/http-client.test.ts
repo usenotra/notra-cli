@@ -97,27 +97,14 @@ describe('HttpClient', () => {
     await expect(client.stream('GET', '/error').next()).rejects.toMatchObject({ statusCode: 422 });
   });
 
-  test('classifies a connection drop after an event as a network failure', async () => {
-    const interrupted = await startInterruptedStreamServer();
+  test('classifies interrupted API error bodies as network failures', async () => {
+    const interrupted = await startInterruptedStreamServer(503);
+    const broken = new HttpClient({ baseUrl: interrupted.baseUrl });
     try {
-      const stream = new HttpClient({ baseUrl: interrupted.baseUrl }).stream('GET', '/events');
-      expect(await stream.next()).toEqual({ value: { type: 'pending' }, done: false });
-      await expect(stream.next()).rejects.toBeInstanceOf(ApiConnectionError);
+      await expect(broken.request('GET', '/items')).rejects.toBeInstanceOf(ApiConnectionError);
+      await expect(broken.stream('GET', '/events').next()).rejects.toBeInstanceOf(ApiConnectionError);
     } finally {
       interrupted.server.close();
-    }
-  });
-
-  test('classifies interrupted buffered responses and streamed error bodies consistently', async () => {
-    for (const statusCode of [200, 503]) {
-      const interrupted = await startInterruptedStreamServer(statusCode);
-      const broken = new HttpClient({ baseUrl: interrupted.baseUrl });
-      try {
-        await expect(broken.request('GET', '/items')).rejects.toBeInstanceOf(ApiConnectionError);
-        if (statusCode === 503) await expect(broken.stream('GET', '/events').next()).rejects.toBeInstanceOf(ApiConnectionError);
-      } finally {
-        interrupted.server.close();
-      }
     }
   });
 

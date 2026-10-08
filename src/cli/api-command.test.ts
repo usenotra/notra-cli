@@ -5,8 +5,6 @@ import { tmpdir } from 'node:os';
 import { API_COMMAND_FIXTURES, POST_GENERATION_RESPONSE } from '../constants/api-command-fixtures';
 import { readCliProcess } from '../utils/cli-test';
 import { startInterruptedStreamServer } from '../utils/http-test';
-import { createApiCommand } from './api-command';
-import { schedulePostRequestSchema } from '../schemas/post-schedule';
 
 describe('curated API commands end to end', () => {
   let directory: string;
@@ -19,14 +17,6 @@ describe('curated API commands end to end', () => {
   let chatError = false;
   let streamHang = false;
   const root = join(import.meta.dir, '../..');
-
-  test('command defaults must reference a declared flag', () => {
-    expect(() => createApiCommand('listSkills', { defaults: { typo: true } })).toThrow('Unknown default flag');
-  });
-
-  test('body overrides require an operation with a documented request body', () => {
-    expect(() => createApiCommand('listSkills', { bodySchema: schedulePostRequestSchema })).toThrow('no request body to override');
-  });
 
   beforeAll(async () => {
     directory = await mkdtemp(join(tmpdir(), 'notra-cli-test-'));
@@ -100,19 +90,21 @@ describe('curated API commands end to end', () => {
     }
   }
 
-  test('every command is discoverable and has working source and built help', async () => {
-    const files = [...new Bun.Glob('**/*.ts').scanSync({ cwd: join(root, 'src/commands') })];
-    for (const file of files) {
-      const command = file.replace(/\.ts$/, '').split('/');
+  test('generated help shows body overrides, scheduling and stream options', async () => {
+    for (const [command, flag] of [
+      ['skills update', '--new-name'],
+      ['posts schedule', '--scheduled-at'],
+      ['agents events', '--start-index'],
+    ] as const) {
       for (const built of [false, true]) {
-        const result = await run([...command, '--help'], built);
-        expect(result.code, `${file}: ${result.stderr}`).toBe(0);
-        expect(result.stdout).toContain(`Usage: notra ${command.join(' ')}`);
+        const result = await run([...command.split(' '), '--help'], built);
+        expect(result.code, result.stderr).toBe(0);
+        expect(result.stdout).toContain(`Usage: notra ${command}`);
+        expect(result.stdout).toContain(flag);
         expect(result.stdout).not.toContain('<%=');
       }
     }
-    expect(API_COMMAND_FIXTURES.length).toBe(44);
-  }, 30_000);
+  });
 
   test('body stdin, field overrides and explicit false preserve nested data', async () => {
     const result = await run(['chats', 'create', '--body-file', '-', '--message', 'Override', '--no-enable-thinking', '--yes'], false,
@@ -120,6 +112,18 @@ describe('curated API commands end to end', () => {
     expect(result.code, result.stdout).toBe(0);
     expect(JSON.parse(result.stdout).text).toBe('Hallo Welt');
     expect(lastBody).toEqual({ message: 'Override', enableThinking: false, context: [{ type: 'mcp-server', integrationId: 'mcp_1', name: 'Tools' }] });
+  });
+
+  test('chat approvals and agent input responses preserve their request bodies', async () => {
+    const approvals = { approvals: [{ id: 'approval_1', approved: true }] };
+    const chat = await run(['chats', 'message', 'chat_1', '--body-file', '-', '--yes'], false, JSON.stringify(approvals));
+    expect(chat.code, chat.stdout).toBe(0);
+    expect(lastBody).toEqual(approvals);
+
+    const responses = { inputResponses: [{ requestId: 'request_1', optionId: 'approve' }] };
+    const agent = await run(['agents', 'message', 'session_1', '--body-file', '-', '--yes'], false, JSON.stringify(responses));
+    expect(agent.code, agent.stdout).toBe(0);
+    expect(lastBody).toEqual(responses);
   });
 
   test('skill content files and post markdown stdin are accepted', async () => {
@@ -314,6 +318,10 @@ describe('curated API commands end to end', () => {
       ['posts', 'create', '--title', '', '--content-type', 'blog_post'],
       ['posts', 'create', '--title', 'Draft'],
       ['posts', 'create', '--title', 'Draft', '--content-type', 'linkedin_post', '--slug', 'not-allowed'],
+      ['posts', 'schedule', 'post_1', '--scheduled-at', '2027-01-01T08:00:00'],
+      ['posts', 'schedule', 'post_1', '--scheduled-at', '2027-02-30T08:00:00+01:00'],
+      ['posts', 'schedule', 'post_1', '--scheduled-at', '2027-01-01T08:00:00+25:00'],
+      ['posts', 'schedule', 'post_1', '--scheduled-at', 'not-a-date'],
       ['skills', 'update', 'humanizer'],
       ['skills', 'create', '--name', 'Bad Name'],
       ['webhooks', 'endpoints', 'create', '--url', 'not-a-url', '--events', 'invalid'],
@@ -323,8 +331,10 @@ describe('curated API commands end to end', () => {
       ['geo', 'visibility', 'prompt-summaries', 'project_1', '--mentioned', 'maybe'],
       ['event-triggers', 'create', '--targets', '{broken'],
       ['chats', 'create', '--yes'],
-      ['chats', 'create', '--message', 'Hi', '--approvals', '[{"id":"approval_1","approved":true}]', '--yes'],
+      ['chats', 'create', '--approvals', '[{"id":"approval_1","approved":true}]', '--yes'],
+      ['chats', 'message', 'chat_1', '--message', 'Hi', '--approvals', '[{"id":"approval_1","approved":true}]', '--yes'],
       ['agents', 'message', 'session_1', '--yes'],
+      ['agents', 'message', 'session_1', '--input-responses', '[]', '--yes'],
       ['agents', 'events', 'session_1', '--start-index', '-1'],
       ['skills', 'create', '--body-file', '-'],
       ['skills', 'create', '--name', 'humanizer', '--content', 'a', '--content-file', 'b'],

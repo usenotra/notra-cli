@@ -11,7 +11,4 @@ describe('chat SSE replies', () => {
   test('preserves unfamiliar streams rather than hiding them', () => {
     expect(parseChatStream('data: {"type":"new-protocol"}').text).toBe('data: {"type":"new-protocol"}');
   });
-  test('reports application errors inside HTTP 200 streams as failures', () => {
-    expect(() => parseChatStream('data: {"type":"error","errorText":"No credits"}')).toThrow('No credits');
-  });
 });

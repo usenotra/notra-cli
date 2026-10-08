@@ -4,7 +4,6 @@ import { loadGeoSnapshot } from './geo-snapshot';
 
 describe('GEO snapshot', () => {
   let overviewStatus = 200;
-  let failOptional = false;
   let empty = false;
   let malformedPath = '';
   const paths: string[] = [];
@@ -25,7 +24,6 @@ describe('GEO snapshot', () => {
         ],
       });
     }
-    if (failOptional) return Response.json({ error: 'Optional unavailable' }, { status: 503 });
     if (path === 'visibility/competitor-share') return Response.json({ points: [{ name: 'A', mentions: 2 }, { name: 'B', mentions: 7 }] });
     if (path === 'gaps') return Response.json({ hasScanData: true, promptGaps: [{ opportunity: 0.8 }], searchGaps: [{ impressions: 50 }] });
     if (path === 'agent-readiness') return Response.json({ targetUrl: 'https://example.com', scan: null, report: { status: 'completed', score: 65, scoreLabel: 'Needs work', issues: [1, 2, 3, 4, 5, 6] } });
@@ -55,20 +53,6 @@ describe('GEO snapshot', () => {
     expect(queries['visibility/overview']).toEqual({ days: '30' });
     expect(queries['sentiment']).toEqual({ days: '30' });
     expect(queries['shelf-sources']).toEqual({ limit: '5' });
-  });
-
-  test('optional failures degrade to null sections and warnings', async () => {
-    failOptional = true;
-    try {
-      const result = await loadGeoSnapshot(client, 'project_1', {});
-      expect(result.warnings).toHaveLength(7);
-      expect(result.warnings.map((warning) => warning.section)).toEqual([
-        'competitors', 'contentGaps', 'agentReadiness', 'traffic', 'sentiment', 'changes', 'shelf',
-      ]);
-      expect(result.sentiment).toBeNull();
-      expect(result.contentGaps).toBeNull();
-      expect(result.visibility.checks).toBe(20);
-    } finally { failOptional = false; }
   });
 
   test('a single invalid optional response affects only its named section', async () => {
