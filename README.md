@@ -16,10 +16,30 @@ npm i -g notra
 notra auth login
 ```
 
-Starts an OAuth device authorization flow: the CLI prints a short
-verification code, opens the sign-in page in your browser, and waits for
-you to approve the code. Tokens are saved locally and refreshed
-automatically. No copy-pasting tokens.
+Starts a WorkOS Connect authorization-code flow with PKCE: the CLI opens
+the sign-in and consent page in your browser, where you choose a workspace
+and access level. A temporary callback listens only on `127.0.0.1` and
+checks the login state before exchanging the code. Tokens are saved locally
+with owner-only file permissions and refreshed automatically. No copy-pasting
+tokens or embedding client secrets.
+
+The CLI automatically registers and caches a public Connect client. No WorkOS
+dashboard setup is needed when dynamic client registration is enabled.
+Use `notra auth login --no-browser` to open the printed URL manually **on the
+same computer**. For SSH/headless use, forward the printed callback port or
+use an organization-scoped API key. The callback closes after ten minutes.
+
+The hosted device-code page currently does not preserve the external-auth
+context with Notra's Standalone Connect login, so the CLI uses the same
+authorization-code flow as MCP clients rather than sending you to that page.
+Sessions from the old AuthKit device flow require signing in again.
+
+Credential updates are serialized across CLI processes so parallel commands
+cannot reuse the same rotating refresh token, and a delayed refresh cannot restore
+credentials after logout.
+`notra auth logout` only clears local credentials; it does not revoke server-side
+access. Connect's current revocation endpoint requires a client secret even for
+public clients, which the CLI must not embed.
 
 ## Commands
 
@@ -169,8 +189,9 @@ for example, `notra posts get <postId> --markdown` always prints Markdown.
 `--json` never adds tables, spinners, success text, or ANSI styling to stdout.
 
 `notra auth login --json` streams newline-delimited JSON (NDJSON), with one
-compact object per line. The `pending` event contains the verification URL and
-code, followed by either a `ready` event or an `error` event.
+compact object per line. The `pending` event contains `flow: "authorization_code"`,
+`authorizationUrl` and `expiresIn`, followed by either a `ready` event or an
+`error` event. JSON mode does not open the browser automatically.
 
 ## Config
 
@@ -186,7 +207,8 @@ Environment overrides:
 |---|---|---|
 | `NOTRA_API_KEY` | – | API key for requests (bypasses `auth login`) |
 | `NOTRA_BASE_URL` | `https://api.usenotra.com` | API base URL |
-| `NOTRA_WORKOS_CLIENT_ID` | production client id | Auth client id override for dev/staging |
+| `NOTRA_WORKOS_CLIENT_ID` | automatically registered | Optional public **Connect application** client ID, not the WorkOS environment client ID; its redirect settings must permit the loopback callback |
+| `NOTRA_OAUTH_ISSUER` | `https://oauth.usenotra.com` | Connect authorization server for dev/staging; HTTPS required except for loopback test servers |
 
 Or persist them:
 

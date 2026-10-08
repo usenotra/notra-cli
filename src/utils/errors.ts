@@ -1,20 +1,31 @@
 import { MissingApiKeyError } from '../lib/client';
 import { ApiConnectionError, ApiError } from '../lib/http-client';
 import {
-  DeviceAuthorizationError,
+  OAuthAuthorizationError,
   SessionExpiredError,
   TokenRefreshError,
 } from '../lib/workos';
 import { ExitCode } from '../constants/exit';
 import type { FriendlyError } from '../types/errors';
 import { ApiResponseDecodeError } from './parse-api-response';
+import { OAuthConnectionError } from '../lib/oauth-errors';
+import { sanitizeTerminalText } from './output';
 
 export function toFriendlyError(err: unknown): FriendlyError {
+  if (err instanceof OAuthConnectionError) {
+    const cause = err.cause instanceof Error && err.cause.cause instanceof Error
+      ? err.cause.cause : err.cause;
+    return {
+      message: err.message,
+      detail: cause instanceof Error ? sanitizeTerminalText(String(cause)) : undefined,
+      exitCode: ExitCode.Network,
+    };
+  }
   if (err instanceof MissingApiKeyError || err instanceof SessionExpiredError) {
     return { message: err.message, exitCode: ExitCode.Auth };
   }
 
-  if (err instanceof DeviceAuthorizationError || err instanceof TokenRefreshError) {
+  if (err instanceof OAuthAuthorizationError || err instanceof TokenRefreshError) {
     return {
       message: err.message,
       detail: err.code,

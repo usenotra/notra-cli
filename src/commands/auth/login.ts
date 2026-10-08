@@ -1,26 +1,24 @@
-import { setTimeout as sleep } from 'node:timers/promises';
+import { createHash, randomBytes } from 'node:crypto';
 import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import ora from 'ora';
 import { NotraCommand } from '../../base-command';
-import { MILLISECONDS_PER_SECOND } from '../../constants/auth';
-import { ExitCode } from '../../constants/exit';
-import { clearConfigValue, getConfigValue } from '../../lib/config';
+import { MILLISECONDS_PER_SECOND, OAUTH_LOGIN_TIMEOUT_MS } from '../../constants/auth';
+import { clearConfigValue, getConfigValue, getOAuthRedirectUri, getStoredAuth } from '../../lib/config';
 import {
-  DeviceAuthorizationError,
+  exchangeAuthorizationCode,
+  getAuthorizationUrl,
   getWorkosClientId,
-  nextPollIntervalMs,
+  getOAuthIssuer,
   persistAuthentication,
-  pollDeviceAuthorization,
-  requestDeviceAuthorization,
-  slowedDownIntervalSeconds,
 } from '../../lib/workos';
-import type { AuthenticationResponse, DeviceAuthorizationResponse } from '../../types/workos';
 import { openInBrowser } from '../../utils/browser';
+import { startOAuthCallback } from '../../utils/oauth-callback';
+import { withAuthLock } from '../../utils/auth-lock';
 
 export default class AuthLogin extends NotraCommand {
   static override description =
-    'Sign in to Notra by authorizing this device in your browser.';
+    'Sign in to Notra in your browser using OAuth with PKCE.';
   static override examples = [
     '<%= config.bin %> auth login',
     '<%= config.bin %> auth login --no-browser',
@@ -39,96 +37,65 @@ export default class AuthLogin extends NotraCommand {
   public async run(): Promise<void> {
     const { flags } = await this.parse(AuthLogin);
 
-    const clientId = getWorkosClientId();
-    const deviceAuth = await requestDeviceAuthorization(clientId);
-
-    if (this.emitJson()) {
-      this.printJson({
-        status: 'pending',
-        userCode: deviceAuth.user_code,
-        verificationUri: deviceAuth.verification_uri,
-        verificationUriComplete: deviceAuth.verification_uri_complete,
-        expiresIn: deviceAuth.expires_in,
-      });
-    } else {
-      this.log(chalk.bold('Open this URL to authorize the CLI:'));
-      this.log(`  ${chalk.cyan(deviceAuth.verification_uri_complete)}`);
-      this.log(chalk.bold('\nVerification code:'));
-      this.log(`  ${chalk.cyan(deviceAuth.user_code)}`);
-      this.log(chalk.dim('Only approve this code if it matches the one in your browser.'));
-      if (flags['no-browser']) {
-        this.log(chalk.dim('\n--no-browser set; not opening automatically.'));
-      } else if (await openInBrowser(deviceAuth.verification_uri_complete)) {
-        this.log(chalk.dim('\nBrowser opened. Complete the flow there.'));
-      } else {
-        this.log(
-          chalk.yellow('\nCould not open browser automatically — open the URL above manually.'),
-        );
-      }
-    }
-
-    const authentication = await this.pollForTokens(clientId, deviceAuth);
-
-    persistAuthentication(authentication);
-    if (getConfigValue('api-key')) {
-      clearConfigValue('api-key');
-    }
-
-    if (this.emitJson()) {
-      this.printJson({
-        status: 'ready',
-        organizationId: authentication.organization_id ?? null,
-      });
-    } else {
-      const who = authentication.user?.email;
-      this.printSuccess(who ? `Logged in to Notra as ${who}.` : 'Logged in to Notra.');
-    }
-  }
-
-  private async pollForTokens(
-    clientId: string,
-    deviceAuth: DeviceAuthorizationResponse,
-  ): Promise<AuthenticationResponse> {
+    const issuer = getOAuthIssuer();
+    const state = randomBytes(32).toString('base64url');
+    const codeVerifier = randomBytes(32).toString('base64url');
+    const callback = await startOAuthCallback(state, getOAuthRedirectUri(issuer));
     const useSpinner = !this.emitJson() && Boolean(process.stderr.isTTY);
-    const spinner = useSpinner
-      ? ora({ text: 'Waiting for authorization…', stream: process.stderr }).start()
-      : undefined;
-
-    const deadline = Date.now() + deviceAuth.expires_in * MILLISECONDS_PER_SECOND;
-    let intervalSeconds = deviceAuth.interval;
-
+    let spinner: ReturnType<typeof ora> | undefined;
     try {
-      while (Date.now() < deadline) {
-        await sleep(nextPollIntervalMs(intervalSeconds));
-        const result = await pollDeviceAuthorization(clientId, deviceAuth.device_code);
-        if (result.status === 'success') {
-          spinner?.stop();
-          return result.authentication;
-        }
-        if (result.status === 'slow_down') {
-          intervalSeconds = slowedDownIntervalSeconds(intervalSeconds);
+      const clientId = await getWorkosClientId(callback.redirectUri);
+      const authorizationUrl = getAuthorizationUrl({
+        clientId,
+        redirectUri: callback.redirectUri,
+        state,
+        nonce: randomBytes(32).toString('base64url'),
+        codeChallenge: createHash('sha256').update(codeVerifier).digest('base64url'),
+      });
+
+      if (this.emitJson()) {
+        this.printJson({
+          status: 'pending',
+          flow: 'authorization_code',
+          authorizationUrl,
+          expiresIn: OAUTH_LOGIN_TIMEOUT_MS / MILLISECONDS_PER_SECOND,
+        });
+      } else {
+        this.log(chalk.bold('Open this URL to authorize the CLI:'));
+        this.log(`  ${chalk.cyan(authorizationUrl)}`);
+        if (flags['no-browser']) {
+          this.log(chalk.dim('\n--no-browser set; not opening automatically.'));
+        } else if (await openInBrowser(authorizationUrl)) {
+          this.log(chalk.dim('\nBrowser opened. Complete the flow there.'));
+        } else {
+          this.log(
+            chalk.yellow('\nCould not open browser automatically — open the URL above manually.'),
+          );
         }
       }
 
-      spinner?.fail('Timed out waiting for authorization.');
-      this.error('Timed out waiting for authorization. Run `notra auth login` again.', {
-        exit: ExitCode.Network,
-      });
-    } catch (err) {
-      if (err instanceof DeviceAuthorizationError) {
-        if (err.code === 'access_denied') {
-          spinner?.fail('Authorization denied.');
-          this.error('Authorization was denied in the browser.', { exit: ExitCode.Auth });
-        }
-        if (err.code === 'expired_token') {
-          spinner?.fail('Code expired.');
-          this.error('The verification code expired. Run `notra auth login` again.', {
-            exit: ExitCode.Auth,
-          });
-        }
-      }
+      if (useSpinner) spinner = ora({ text: 'Waiting for authorization…', stream: process.stderr }).start();
+      const code = await callback.code;
+      const authentication = await exchangeAuthorizationCode(clientId, code, callback.redirectUri, codeVerifier);
       spinner?.stop();
-      throw err;
+
+      await withAuthLock(() => {
+        persistAuthentication(authentication, clientId, issuer);
+        if (getConfigValue('api-key')) clearConfigValue('api-key');
+      });
+
+      if (this.emitJson()) {
+        this.printJson({
+          status: 'ready',
+          organizationId: getStoredAuth()?.organizationId ?? null,
+        });
+      } else {
+        const who = authentication.user?.email;
+        this.printSuccess(who ? `Logged in to Notra as ${who}.` : 'Logged in to Notra.');
+      }
+    } finally {
+      spinner?.stop();
+      callback.close();
     }
   }
 }

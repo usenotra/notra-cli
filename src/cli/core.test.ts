@@ -56,6 +56,15 @@ describe('parseArgv', () => {
     ).toThrow('--file cannot be used with --name');
   });
 
+  test('recognizes explicitly named no-prefix flags without negating them', () => {
+    expect(parseArgv(['--no-browser'], {}, {
+      'no-browser': Flags.boolean(),
+    }).flags).toEqual({ 'no-browser': true });
+    expect(() => parseArgv(['--no-browser'], {}, {
+      browser: Flags.boolean(),
+    })).toThrow('does not support');
+  });
+
   test('infers command argument and flag types', async () => {
     const result = await new TypedCommand(['item_1', 'markdown', '--tag', 'news']).values();
     expectTypeOf(result.args.id).toEqualTypeOf<string>();
