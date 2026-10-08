@@ -16,6 +16,12 @@ import {
 } from "../constants/posts";
 import { parseApiRequest } from "../utils/parse-api-request";
 import { deletionResponseSchema, organizationSchema } from "./common";
+import { operationBodySchema } from './api-command';
+
+export const createPostRequestSchema = operationBodySchema('createPost').refine(
+  (body) => !body.slug || body.contentType === 'blog_post' || body.contentType === 'changelog',
+  'Slugs are only accepted for blog posts and changelogs.',
+);
 
 const postSchema = z
   .object({
@@ -111,6 +117,7 @@ export const postGenerationResponseSchema = z
 const createPostGenerationSchema = z
   .object({
     contentType: z.enum(CONTENT_TYPES),
+    timezone: z.string().min(1).max(100).optional(),
     lookbackWindow: z.enum(LOOKBACK_WINDOWS).optional(),
     brandVoiceId: z.string().min(1).optional(),
     brandIdentityId: z.string().min(1).nullable().optional(),
@@ -118,8 +125,8 @@ const createPostGenerationSchema = z
     linearIntegrationIds: z.array(z.string().min(1)).optional(),
     integrations: z
       .object({
-        github: z.array(z.string().min(1)).optional(),
-        linear: z.array(z.string().min(1)).optional(),
+        github: z.array(z.string().min(1)).min(1).optional(),
+        linear: z.array(z.string().min(1)).min(1).optional(),
       })
       .strict()
       .optional(),
@@ -129,7 +136,7 @@ const createPostGenerationSchema = z
           z
             .object({ owner: z.string().min(1), repo: z.string().min(1) })
             .strict(),
-        ),
+        ).min(1),
       })
       .strict()
       .optional(),
@@ -148,7 +155,7 @@ const createPostGenerationSchema = z
         pullRequestNumbers: z
           .array(
             z
-              .object({ repositoryId: z.string().min(1), number: z.int() })
+              .object({ repositoryId: z.string().min(1), number: z.int().min(1) })
               .strict(),
           )
           .optional(),
@@ -179,7 +186,28 @@ const createPostGenerationSchema = z
       .strict()
       .optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((request, context) => {
+    const githubSelectors = [
+      request.repositoryIds,
+      request.integrations?.github,
+      request.github?.repositories,
+    ].filter((items) => items?.length).length;
+    if (githubSelectors > 1) {
+      context.addIssue({
+        code: 'custom',
+        path: ['integrations'],
+        message: 'Provide only one GitHub source selector: integrations.github, github.repositories, or repositoryIds.',
+      });
+    }
+    if (request.linearIntegrationIds?.length && request.integrations?.linear?.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['integrations'],
+        message: 'Provide only one Linear source selector: integrations.linear or linearIntegrationIds.',
+      });
+    }
+  });
 
 const updatePostBodySchema = z
   .object({

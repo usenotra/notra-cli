@@ -1,0 +1,2 @@
+export const MAX_NDJSON_EVENT_BYTES = 1024 * 1024;
+export const NDJSON_INITIAL_BUFFER_BYTES = 1024;
