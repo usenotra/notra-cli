@@ -117,6 +117,11 @@ export function parseArgv(
       definition.char ? [[definition.char, name] as const] : [],
     ),
   );
+  const aliases = new Map(
+    Object.entries(flagDefinitions).flatMap(([name, definition]) =>
+      (definition.aliases ?? []).map((alias) => [alias, name] as const),
+    ),
+  );
 
   for (const [name, definition] of Object.entries(flagDefinitions)) {
     if (definition.default !== undefined) flags[name] = definition.default;
@@ -137,9 +142,10 @@ export function parseArgv(
     }
 
     const equals = token.indexOf('=');
-    const rawName = token.startsWith('--')
-      ? token.slice(2, equals === -1 ? undefined : equals)
-      : chars.get(token.slice(1, equals === -1 ? undefined : equals));
+    const longName = token.startsWith('--') ? token.slice(2, equals === -1 ? undefined : equals) : undefined;
+    const rawName = longName === undefined
+      ? chars.get(token.slice(1, equals === -1 ? undefined : equals))
+      : aliases.get(longName) ?? longName;
     if (!rawName) throw new Errors.CLIError(`Unknown flag: ${token}`, { exit: 2 });
     const negated = !flagDefinitions[rawName] && rawName.startsWith('no-');
     const name = negated ? rawName.slice(3) : rawName;

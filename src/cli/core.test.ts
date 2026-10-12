@@ -77,4 +77,9 @@ describe('parseArgv', () => {
     expect(result.flags.tag).toEqual(['news']);
     expect('force' in result.flags).toBe(false);
   });
+  test('resolves long flag aliases to the canonical flag', () => {
+    const flags = { org: Flags.string({ aliases: ['organization-id'] }) };
+    expect(parseArgv(['--organization-id', 'acme'], {}, flags).flags).toEqual({ org: 'acme' });
+    expect(parseArgv(['--organization-id=acme', '--org', 'beta'], {}, flags).flags).toEqual({ org: 'beta' });
+  });
 });

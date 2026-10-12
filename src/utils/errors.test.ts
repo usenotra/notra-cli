@@ -19,4 +19,14 @@ describe('friendly errors', () => {
       detail: 'HTTP 429 (RATE_LIMITED); retry after 15',
     });
   });
+  test('turns account-key workspace 403s into selection guidance', () => {
+    const required = new ApiError(
+      'Organization selection required: send X-Notra-Organization-Id for the workspace this request should act on', 403,
+    );
+    expect(toFriendlyError(required)).toMatchObject({
+      message: 'This API key works in several workspaces. Choose the workspace to act on.', exitCode: 3,
+    });
+    expect(toFriendlyError(new ApiError('Workspace access revoked', 403)).detail).toContain('notra workspaces use');
+    expect(toFriendlyError(new ApiError('Forbidden', 403))).toMatchObject({ message: 'Forbidden', detail: 'HTTP 403' });
+  });
 });

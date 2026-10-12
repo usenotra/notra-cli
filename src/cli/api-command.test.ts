@@ -72,7 +72,7 @@ describe('curated API commands end to end', () => {
   function run(args: string[], built = false, input?: string, authenticated = true, baseUrl = server.url.href) {
     const child = Bun.spawn([built ? 'node' : 'bun', built ? 'dist/run.js' : 'src/run.ts', ...args, '--base-url', baseUrl, '--json'], {
       cwd: root, stdin: 'pipe', stdout: 'pipe', stderr: 'pipe',
-      env: { ...process.env, HOME: directory, XDG_CONFIG_HOME: directory, NOTRA_API_KEY: authenticated ? 'test_key' : undefined, NOTRA_BASE_URL: undefined },
+      env: { ...process.env, HOME: directory, XDG_CONFIG_HOME: directory, NOTRA_API_KEY: authenticated ? 'test_key' : undefined, NOTRA_BASE_URL: undefined, NOTRA_ORGANIZATION_ID: undefined },
     });
     if (input !== undefined) child.stdin.write(input);
     child.stdin.end();

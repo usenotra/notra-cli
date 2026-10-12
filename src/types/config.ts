@@ -12,6 +12,7 @@ export type ConfigSchema = {
   oauthClientId?: string;
   oauthIssuer?: string;
   oauthRedirectUri?: string;
+  selectedOrganizationId?: string;
 };
 
 export type StoredAuth = {
