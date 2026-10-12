@@ -1,4 +1,4 @@
-import { NOTRA_API_KEY_ENV_VAR } from '../constants/config';
+import { NOTRA_API_KEY_ENV_VAR, NOTRA_ORGANIZATION_ID_ENV_VAR } from '../constants/config';
 import { VERSION } from '../constants/version';
 import {
   brandIdentityDeleteResponseSchema,
@@ -57,7 +57,7 @@ import type {
   ScheduleResponse,
 } from '../types/schedules';
 import type { ClientOverrides } from '../types/client';
-import { getApiKey, getBaseUrl, getStoredAuth } from './config';
+import { getApiKey, getBaseUrl, getConfigValue, getStoredAuth } from './config';
 import { HttpClient } from './http-client';
 import { apiResponseDecoder } from '../utils/parse-api-response';
 
@@ -77,17 +77,37 @@ export function resolveBearerToken(overrides: ClientOverrides = {}): string | un
   );
 }
 
+// Precedence: --org (alias --organization-id), then NOTRA_ORGANIZATION_ID, then the
+// persisted `organization-id` config value. Each may hold a workspace ID or slug;
+// the API resolves it. Empty values count as unset.
+export function resolveOrganizationId(overrides: ClientOverrides = {}): string | undefined {
+  const candidates = [
+    overrides.organizationId,
+    process.env[NOTRA_ORGANIZATION_ID_ENV_VAR],
+    getConfigValue('organization-id'),
+  ];
+  return candidates.map((value) => value?.trim()).find((value) => Boolean(value));
+}
+
+export function usesOAuthSession(overrides: ClientOverrides = {}): boolean {
+  return !overrides.apiKey && !process.env[NOTRA_API_KEY_ENV_VAR] && Boolean(getStoredAuth());
+}
+
 export function buildClient(overrides: ClientOverrides = {}): NotraClient {
   const bearer = resolveBearerToken(overrides);
   if (!bearer) throw new MissingApiKeyError();
-  return new NotraClient({ apiKey: bearer, baseUrl: overrides.baseUrl ?? getBaseUrl() });
+  return new NotraClient({
+    apiKey: bearer,
+    baseUrl: overrides.baseUrl ?? getBaseUrl(),
+    organizationId: resolveOrganizationId(overrides),
+  });
 }
 
 export class NotraClient extends HttpClient {
   readonly content = new ContentClient(this);
   readonly schedules = new SchedulesClient(this);
 
-  constructor(options: { apiKey?: string; baseUrl: string }) {
+  constructor(options: { apiKey?: string; baseUrl: string; organizationId?: string }) {
     super({ ...options, userAgent: `notra-cli/${VERSION}` });
   }
 }

@@ -20,5 +20,6 @@ export type ApiClientOptions = {
   apiKey?: string;
   baseUrl: string;
   userAgent?: string;
+  organizationId?: string;
 };
 export type ApiHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";

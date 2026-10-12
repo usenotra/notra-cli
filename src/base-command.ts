@@ -1,11 +1,17 @@
 import { Command, Flags } from '@oclif/core';
 import chalk from 'chalk';
-import { NOTRA_API_KEY_ENV_VAR, NOTRA_BASE_URL_ENV_VAR } from './constants/config';
+import {
+  NOTRA_API_KEY_ENV_VAR,
+  NOTRA_BASE_URL_ENV_VAR,
+  NOTRA_ORGANIZATION_ID_ENV_VAR,
+} from './constants/config';
 import { VERSION } from './constants/version';
 import {
   buildClient,
   MissingApiKeyError,
   resolveBearerToken,
+  resolveOrganizationId,
+  usesOAuthSession,
   type NotraClient,
 } from './lib/client';
 import { getBaseUrl } from './lib/config';
@@ -13,6 +19,8 @@ import { HttpClient } from './lib/http-client';
 import { ensureFreshAccessToken } from './lib/workos';
 import { renderJson, renderNdjson, sanitizeTerminalText } from './utils/output';
 import { toFriendlyError } from './utils/errors';
+import type { ClientOverrides } from './types/client';
+import type { CommandConstructor, ParsedCommand } from './types/cli';
 
 export abstract class NotraCommand extends Command {
   static override baseFlags = {
@@ -29,11 +37,22 @@ export abstract class NotraCommand extends Command {
       env: NOTRA_BASE_URL_ENV_VAR,
       helpGroup: 'GLOBAL',
     }),
+    org: Flags.string({
+      description: 'Workspace ID or slug to act on with an account API key (alias: --organization-id).',
+      aliases: ['organization-id'],
+      helpValue: '<id|slug>',
+      env: NOTRA_ORGANIZATION_ID_ENV_VAR,
+      helpGroup: 'GLOBAL',
+    }),
   };
 
   private _client?: NotraClient;
 
   private _apiClient?: HttpClient;
+
+  // From the parsed flags (which also apply NOTRA_ORGANIZATION_ID), never from
+  // raw argv: values of other flags, like a title of "--org=x", must not pick it.
+  private _organizationId?: string;
 
   protected requiresFreshAccessToken = true;
 
@@ -47,15 +66,24 @@ export abstract class NotraCommand extends Command {
     await ensureFreshAccessToken();
   }
 
+  protected override async parse<const Constructor extends CommandConstructor>(
+    command: Constructor,
+  ): Promise<ParsedCommand<Constructor>> {
+    const parsed = await super.parse(command);
+    const { org } = parsed.flags as Record<string, unknown>;
+    this._organizationId = typeof org === 'string' ? org : undefined;
+    return parsed;
+  }
+
   protected client(): NotraClient {
     if (!this._client) {
-      const overrides = readGlobalArgv();
-      this._client = buildClient({
-        apiKey: overrides.apiKey,
-        baseUrl: overrides.baseUrl,
-      });
+      this._client = buildClient(this.clientOverrides());
     }
     return this._client;
+  }
+
+  private clientOverrides(): ClientOverrides {
+    return { ...readGlobalArgv(), organizationId: this._organizationId };
   }
 
   protected geo(): HttpClient {
@@ -69,14 +97,21 @@ export abstract class NotraCommand extends Command {
 
   protected api(): HttpClient {
     if (!this._apiClient) {
-      const overrides = readGlobalArgv();
-      this._apiClient = new HttpClient({
-        apiKey: resolveBearerToken(overrides),
-        baseUrl: overrides.baseUrl ?? getBaseUrl(),
-        userAgent: `notra-cli/${VERSION}`,
-      });
+      this._apiClient = createHttpClient(this.clientOverrides(), true);
     }
     return this._apiClient;
+  }
+
+  // For workspace discovery: a stale selected workspace must not block
+  // listing the workspaces the credentials can still reach.
+  protected unscopedAuthenticatedApi(): HttpClient {
+    const overrides = readGlobalArgv();
+    if (!resolveBearerToken(overrides)) throw new MissingApiKeyError();
+    return createHttpClient(overrides, false);
+  }
+
+  protected usesOAuthSession(): boolean {
+    return usesOAuthSession(readGlobalArgv());
   }
 
   protected emitJson(): boolean {
@@ -104,7 +139,16 @@ export abstract class NotraCommand extends Command {
   }
 }
 
-function readGlobalArgv(): { json: boolean; apiKey?: string; baseUrl?: string } {
+function createHttpClient(overrides: ClientOverrides, scoped: boolean): HttpClient {
+  return new HttpClient({
+    apiKey: resolveBearerToken(overrides),
+    baseUrl: overrides.baseUrl ?? getBaseUrl(),
+    userAgent: `notra-cli/${VERSION}`,
+    organizationId: scoped ? resolveOrganizationId(overrides) : undefined,
+  });
+}
+
+function readGlobalArgv(): ClientOverrides & { json: boolean } {
   const argv = process.argv.slice(2);
   const json = argv.includes('--json');
   return {

@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { ResolvedCommand } from "../types/cli";
+import { GLOBAL_VALUE_FLAGS } from "../constants/cli";
 
 const COMMAND_SEGMENT = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -40,14 +41,13 @@ function commandCandidates(
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
     if (!value) continue;
-    if (value === "--api-key" || value === "--base-url") {
+    if (GLOBAL_VALUE_FLAGS.some((flag) => value === flag)) {
       index += 1;
       continue;
     }
     if (
       value === "--json" ||
-      value.startsWith("--api-key=") ||
-      value.startsWith("--base-url=")
+      GLOBAL_VALUE_FLAGS.some((flag) => value.startsWith(`${flag}=`))
     ) {
       continue;
     }

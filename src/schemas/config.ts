@@ -13,4 +13,5 @@ export const CONFIG_SCHEMA = {
   oauthClientId: { type: 'string' },
   oauthIssuer: { type: 'string', format: 'uri' },
   oauthRedirectUri: { type: 'string', format: 'uri' },
+  selectedOrganizationId: { type: 'string' },
 } satisfies Schema<ConfigSchema>;

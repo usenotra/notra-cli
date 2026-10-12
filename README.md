@@ -52,6 +52,7 @@ notra posts schedule <postId> --scheduled-at 2027-01-01T08:00:00Z --time-zone Eu
 notra posts schedule-get <postId>
 notra whoami
 notra workspaces list
+notra workspaces use <id|slug>
 notra brands list
 notra integrations list
 notra schedules list
@@ -91,10 +92,29 @@ content gaps, briefs, agent readiness, and AI traffic. Run
 | `skills` | List, get, create, update or rename, delete |
 | `feedback` | List, get, update triage status, submit with a key or to a public organization URL |
 | `agents` | List durable sessions, create, send messages or input responses, stream events |
-| `whoami`, `workspaces list` | Inspect the current workspace and discover accepted or pending memberships |
+| `whoami`, `workspaces list`, `workspaces use` | Inspect the current workspace, discover accepted or pending memberships, pick the workspace for an account API key |
 
-Workspace discovery does not switch credentials. To use another workspace,
-authenticate for that workspace or pass its organization-scoped API key.
+Workspace discovery does not switch an OAuth session or an organization API
+key: those stay bound to one workspace. To use another workspace with them,
+sign in again for that workspace or pass its organization API key.
+
+Account API keys (also `ntra_…`) belong to your user and work in every
+workspace you are a member of. If you belong to more than one, choose the
+workspace the CLI acts on:
+
+```bash
+notra workspaces list --api-key ntra_xxx
+notra workspaces use acme                # saves the workspace (ID or slug)
+notra posts list --org acme              # one-off override (ID or slug)
+NOTRA_ORGANIZATION_ID=acme notra posts list
+notra workspaces use --clear             # forget the saved workspace
+```
+
+`--org` (long form `--organization-id`) wins over `NOTRA_ORGANIZATION_ID`, which
+wins over the saved `organization-id` config value. Each accepts a workspace ID
+or slug. The CLI sends the choice as the `X-Notra-Organization-Id` header.
+An organization key only accepts its own workspace there (any other gives a
+403), and OAuth tokens ignore it.
 
 New commands with JSON bodies accept individual field flags or `--body-file` with a JSON
 object; field flags override values in that file. Use `--body-file -` for stdin.
@@ -207,6 +227,7 @@ Environment overrides:
 |---|---|---|
 | `NOTRA_API_KEY` | – | API key for requests (bypasses `auth login`) |
 | `NOTRA_BASE_URL` | `https://api.usenotra.com` | API base URL |
+| `NOTRA_ORGANIZATION_ID` | – | Workspace ID or slug an account API key acts on (same as `--org`) |
 | `NOTRA_WORKOS_CLIENT_ID` | automatically registered | Optional public **Connect application** client ID, not the WorkOS environment client ID; its redirect settings must permit the loopback callback |
 | `NOTRA_OAUTH_ISSUER` | `https://oauth.usenotra.com` | Connect authorization server for dev/staging; HTTPS required except for loopback test servers |
 
@@ -215,6 +236,7 @@ Or persist them:
 ```bash
 notra config set api-key sk_live_xxx
 notra config set base-url https://api.usenotra.com
+notra config set organization-id acme
 ```
 
 ## Exit codes

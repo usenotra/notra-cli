@@ -11,6 +11,8 @@ export type FlagDefinition<Value = unknown> = {
   min?: number;
   max?: number;
   char?: string;
+  aliases?: readonly string[];
+  helpValue?: string;
   env?: string;
   allowNo?: boolean;
   exclusive?: readonly string[];

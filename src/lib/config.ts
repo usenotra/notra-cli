@@ -10,6 +10,14 @@ import type { ConfigKey, ConfigSchema, StoredAuth } from '../types/config';
 
 let store: Conf<ConfigSchema> | undefined;
 
+// Kept apart from the OAuth session's organizationId: that one mirrors the
+// token's workspace claim and is rewritten on every login and refresh.
+const CONFIG_KEY_FIELDS = {
+  'api-key': 'apiKey',
+  'base-url': 'baseUrl',
+  'organization-id': 'selectedOrganizationId',
+} as const satisfies Record<ConfigKey, keyof ConfigSchema>;
+
 function getStore(): Conf<ConfigSchema> {
   if (!store) {
     store = new Conf<ConfigSchema>({
@@ -95,28 +103,15 @@ export function setOAuthClientId(issuer: string, clientId: string, redirectUri: 
 }
 
 export function setConfigValue(key: ConfigKey, value: string): void {
-  const s = getStore();
-  if (key === 'api-key') {
-    s.set('apiKey', value);
-  } else if (key === 'base-url') {
-    s.set('baseUrl', value);
-  }
+  getStore().set(CONFIG_KEY_FIELDS[key], value);
 }
 
 export function clearConfigValue(key: ConfigKey): void {
-  const s = getStore();
-  if (key === 'api-key') {
-    s.delete('apiKey');
-  } else if (key === 'base-url') {
-    s.delete('baseUrl');
-  }
+  getStore().delete(CONFIG_KEY_FIELDS[key]);
 }
 
 export function getConfigValue(key: ConfigKey): string | undefined {
-  const s = getStore();
-  if (key === 'api-key') return s.get('apiKey');
-  if (key === 'base-url') return s.get('baseUrl');
-  return undefined;
+  return getStore().get(CONFIG_KEY_FIELDS[key]);
 }
 
 export function getAllConfig(): ConfigSchema {

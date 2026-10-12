@@ -23,5 +23,7 @@ describe('command resolution', () => {
       .toMatchObject({ name: 'geo projects list', commandIndices: [0, 2, 3] });
     expect(resolveCommand(['--api-key', 'secret', 'posts', 'list'], commandsRoot, '.ts'))
       .toMatchObject({ name: 'posts list', commandIndices: [2, 3] });
+    expect(resolveCommand(['--org', 'acme', 'posts', '--organization-id=beta', 'list'], commandsRoot, '.ts'))
+      .toMatchObject({ name: 'posts list', commandIndices: [2, 4] });
   });
 });

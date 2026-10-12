@@ -9,6 +9,7 @@ export default class ConfigSet extends NotraCommand {
   static override examples = [
     '<%= config.bin %> config set api-key sk_live_xxx',
     '<%= config.bin %> config set base-url https://api.usenotra.com',
+    '<%= config.bin %> config set organization-id acme',
   ];
 
   static override args = {

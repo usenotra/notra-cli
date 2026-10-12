@@ -6,6 +6,7 @@ import type {
 } from '../types/http';
 import { isRecord } from '../utils/records';
 import { NdjsonParser } from '../utils/ndjson';
+import { ORGANIZATION_ID_HEADER } from '../constants/http';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
@@ -85,6 +86,7 @@ export class HttpClient {
     const headers = new Headers({ Accept: 'application/json', ...options.headers });
     if (this.options.apiKey) headers.set('Authorization', `Bearer ${this.options.apiKey}`);
     if (this.options.userAgent) headers.set('User-Agent', this.options.userAgent);
+    if (this.options.organizationId) headers.set(ORGANIZATION_ID_HEADER, this.options.organizationId);
     if (options.body !== undefined) headers.set('Content-Type', 'application/json');
 
     const body = options.body === undefined ? undefined : JSON.stringify(options.body);

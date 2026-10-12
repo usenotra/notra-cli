@@ -45,11 +45,16 @@ export default class ConfigGet extends NotraCommand {
       renderKv([
         ['api-key', redacted.apiKey ?? '(unset)'],
         ['base-url', redacted.baseUrl ?? '(default)'],
-        ['organization-id', redacted.organizationId ?? '(unset)'],
-        ['session', all.refreshToken ? 'signed in' : '(signed out)'],
+        ['organization-id', all.selectedOrganizationId ?? '(unset)'],
+        ['session', describeSession(all)],
       ]),
     );
   }
+}
+
+function describeSession(config: ConfigSchema): string {
+  if (!config.refreshToken) return '(signed out)';
+  return config.organizationId ? `signed in (workspace ${config.organizationId})` : 'signed in';
 }
 
 function redact(config: ConfigSchema): ConfigSchema {

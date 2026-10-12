@@ -89,11 +89,12 @@ async function printTopicHelp(topic: string): Promise<void> {
   console.log('Commands:');
   for (const command of commands) console.log(`  ${command}`);
   console.log('\nGlobal flags:');
-  console.log('  --api-key <value>   Override the configured API key');
-  console.log('  --base-url <value>  Override the API base URL');
-  console.log('  --json              Print machine-readable JSON');
-  console.log('  --help, -h          Show help');
-  console.log('  --version, -v       Show version');
+  console.log('  --api-key <value>          Override the configured API key');
+  console.log('  --base-url <value>         Override the API base URL');
+  console.log('  --org <id|slug>            Workspace for an account API key (alias: --organization-id)');
+  console.log('  --json                     Print machine-readable JSON');
+  console.log('  --help, -h                 Show help');
+  console.log('  --version, -v              Show version');
 }
 
 function rootEntries(commands: ReadonlyArray<string>): string[] {
@@ -177,8 +178,8 @@ function printCommandHelp(name: string, command: typeof Command): void {
     console.log('Flags:');
     for (const [flag, definition] of Object.entries(flags)) {
       const short = definition.char ? `-${definition.char}, ` : '    ';
-      const value = definition.kind === 'boolean' ? '' : ' <value>';
-      console.log(`  ${short}--${flag}${value}`.padEnd(30) + (definition.description ?? ''));
+      const value = definition.kind === 'boolean' ? '' : ` ${definition.helpValue ?? '<value>'}`;
+      console.log(`${`  ${short}--${flag}${value}`.padEnd(31)} ${definition.description ?? ''}`);
     }
   }
   if (command.examples?.length) {
