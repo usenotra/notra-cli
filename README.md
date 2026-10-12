@@ -112,8 +112,9 @@ notra workspaces use --clear             # forget the saved workspace
 
 `--org` (long form `--organization-id`) wins over `NOTRA_ORGANIZATION_ID`, which
 wins over the saved `organization-id` config value. Each accepts a workspace ID
-or slug. The CLI sends the choice as the `X-Notra-Organization-Id` header;
-organization keys and OAuth tokens ignore it.
+or slug. The CLI sends the choice as the `X-Notra-Organization-Id` header.
+An organization key only accepts its own workspace there (any other gives a
+403), and OAuth tokens ignore it.
 
 New commands with JSON bodies accept individual field flags or `--body-file` with a JSON
 object; field flags override values in that file. Use `--body-file -` for stdin.
