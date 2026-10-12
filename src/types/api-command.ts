@@ -12,6 +12,8 @@ export type ApiCommandOptions = {
   description?: string;
   defaults?: Record<string, QueryValue>;
   public?: boolean;
+  // Skip the selected-workspace header, e.g. so a stale selection cannot block discovery.
+  unscoped?: boolean;
   response?: 'json' | 'chat' | 'ndjson';
   bodySchema?: ZodObject;
 };

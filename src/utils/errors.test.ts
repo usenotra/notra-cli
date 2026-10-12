@@ -27,6 +27,8 @@ describe('friendly errors', () => {
       message: 'This API key works in several workspaces. Choose the workspace to act on.', exitCode: 3,
     });
     expect(toFriendlyError(new ApiError('Workspace access revoked', 403)).detail).toContain('notra workspaces use');
+    expect(toFriendlyError(new ApiError('workspace access revoked for this key.', 403)).message)
+      .toBe('Your credentials no longer have access to the selected workspace.');
     expect(toFriendlyError(new ApiError('Forbidden', 403))).toMatchObject({ message: 'Forbidden', detail: 'HTTP 403' });
   });
 });

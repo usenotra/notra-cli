@@ -81,5 +81,7 @@ describe('parseArgv', () => {
     const flags = { org: Flags.string({ aliases: ['organization-id'] }) };
     expect(parseArgv(['--organization-id', 'acme'], {}, flags).flags).toEqual({ org: 'acme' });
     expect(parseArgv(['--organization-id=acme', '--org', 'beta'], {}, flags).flags).toEqual({ org: 'beta' });
+    const toggle = { color: Flags.boolean({ aliases: ['colour'], allowNo: true }) };
+    expect(parseArgv(['--no-colour'], {}, toggle).flags).toEqual({ color: false });
   });
 });

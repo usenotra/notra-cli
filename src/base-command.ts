@@ -20,6 +20,7 @@ import { ensureFreshAccessToken } from './lib/workos';
 import { renderJson, renderNdjson, sanitizeTerminalText } from './utils/output';
 import { toFriendlyError } from './utils/errors';
 import type { ClientOverrides } from './types/client';
+import type { CommandConstructor, ParsedCommand } from './types/cli';
 
 export abstract class NotraCommand extends Command {
   static override baseFlags = {
@@ -49,6 +50,10 @@ export abstract class NotraCommand extends Command {
 
   private _apiClient?: HttpClient;
 
+  // From the parsed flags (which also apply NOTRA_ORGANIZATION_ID), never from
+  // raw argv: values of other flags, like a title of "--org=x", must not pick it.
+  private _organizationId?: string;
+
   protected requiresFreshAccessToken = true;
 
   protected usesNdjson = false;
@@ -61,12 +66,24 @@ export abstract class NotraCommand extends Command {
     await ensureFreshAccessToken();
   }
 
+  protected override async parse<const Constructor extends CommandConstructor>(
+    command: Constructor,
+  ): Promise<ParsedCommand<Constructor>> {
+    const parsed = await super.parse(command);
+    const { org } = parsed.flags as Record<string, unknown>;
+    this._organizationId = typeof org === 'string' ? org : undefined;
+    return parsed;
+  }
+
   protected client(): NotraClient {
     if (!this._client) {
-      const overrides = readGlobalArgv();
-      this._client = buildClient(overrides);
+      this._client = buildClient(this.clientOverrides());
     }
     return this._client;
+  }
+
+  private clientOverrides(): ClientOverrides {
+    return { ...readGlobalArgv(), organizationId: this._organizationId };
   }
 
   protected geo(): HttpClient {
@@ -80,7 +97,7 @@ export abstract class NotraCommand extends Command {
 
   protected api(): HttpClient {
     if (!this._apiClient) {
-      this._apiClient = createHttpClient(readGlobalArgv(), true);
+      this._apiClient = createHttpClient(this.clientOverrides(), true);
     }
     return this._apiClient;
   }
@@ -138,19 +155,15 @@ function readGlobalArgv(): ClientOverrides & { json: boolean } {
     json,
     apiKey: extractFlag(argv, '--api-key') ?? process.env[NOTRA_API_KEY_ENV_VAR],
     baseUrl: extractFlag(argv, '--base-url') ?? process.env[NOTRA_BASE_URL_ENV_VAR],
-    organizationId: extractFlag(argv, '--org', '--organization-id'),
   };
 }
 
-// The last occurrence wins, across a flag and its aliases.
-function extractFlag(argv: ReadonlyArray<string>, ...names: string[]): string | undefined {
+function extractFlag(argv: ReadonlyArray<string>, name: string): string | undefined {
   let found: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    for (const name of names) {
-      if (arg === name) found = argv[i + 1];
-      else if (arg && arg.startsWith(`${name}=`)) found = arg.slice(name.length + 1);
-    }
+    if (arg === name) found = argv[i + 1];
+    else if (arg && arg.startsWith(`${name}=`)) found = arg.slice(name.length + 1);
   }
   return found;
 }

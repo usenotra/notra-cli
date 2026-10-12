@@ -85,6 +85,25 @@ describe('workspace selection for account API keys', () => {
     ]);
   });
 
+  test('global workspace flags before the command still resolve it', async () => {
+    const result = await run(['--org', 'acme', 'skills', '--organization-id=beta', 'list']);
+    expect(result.code, result.stdout).toBe(0);
+    expect(headers).toEqual([{ path: '/v1/skills', organizationId: 'beta' }]);
+  });
+
+  test('flag values that look like --org do not pick the workspace', async () => {
+    const result = await run(['skills', 'create', '--org', 'acme', '--name', 'natural', '--description', '--org=beta', '--content', 'x']);
+    expect(result.code, result.stdout).toBe(0);
+    expect(headers).toEqual([{ path: '/v1/skills', organizationId: 'acme' }]);
+  });
+
+  test('workspaces list ignores a stale selection so a replacement can be found', async () => {
+    const result = await run(['workspaces', 'list', '--org', 'org_gone']);
+    expect(result.code, result.stdout).toBe(0);
+    expect(JSON.parse(result.stdout).workspaces).toHaveLength(2);
+    expect(headers).toEqual([{ path: '/v1/me/workspaces', organizationId: null }]);
+  });
+
   test('passes a workspace slug through unchanged', async () => {
     await run(['skills', 'list', '--org', 'acme']);
     await run(['skills', 'list'], { NOTRA_ORGANIZATION_ID: 'beta' });
@@ -127,6 +146,18 @@ describe('workspace selection for account API keys', () => {
     expect(result.code).toBe(2);
     expect(JSON.parse(result.stdout).error).toContain('notra auth login');
     expect(headers).toEqual([]);
+  });
+
+  test('workspaces use --clear needs no token refresh', async () => {
+    const { path } = JSON.parse((await run(['config', 'path'])).stdout);
+    await Bun.write(path, JSON.stringify({
+      accessToken: 'oauth_token', refreshToken: 'refresh', accessTokenExpiresAt: 0,
+      authClientId: 'client', authIssuer: server.url.origin, selectedOrganizationId: 'org_beta',
+    }));
+    const result = await run(['workspaces', 'use', '--clear'], { NOTRA_API_KEY: undefined });
+    expect(result.code, result.stdout).toBe(0);
+    expect(headers).toEqual([]);
+    expect(JSON.parse((await run(['config', 'get', 'organization-id'])).stdout)).toEqual({ 'organization-id': null });
   });
 
   test('explains a selected workspace the key can no longer reach', async () => {

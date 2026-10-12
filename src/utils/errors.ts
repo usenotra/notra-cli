@@ -8,7 +8,7 @@ import {
 import { ExitCode } from '../constants/exit';
 import {
   ORGANIZATION_SELECTION_REQUIRED_PREFIX,
-  WORKSPACE_ACCESS_REVOKED_MESSAGE,
+  WORKSPACE_ACCESS_REVOKED_PREFIX,
 } from '../constants/http';
 import { WORKSPACE_SELECTION_HINT } from '../constants/workspaces';
 import type { FriendlyError } from '../types/errors';
@@ -85,14 +85,15 @@ export function toFriendlyError(err: unknown): FriendlyError {
 
 function toWorkspaceSelectionError(err: ApiError): FriendlyError | undefined {
   if (err.statusCode !== 403) return undefined;
-  if (err.message.startsWith(ORGANIZATION_SELECTION_REQUIRED_PREFIX)) {
+  const message = err.message.trim().toLowerCase();
+  if (message.startsWith(ORGANIZATION_SELECTION_REQUIRED_PREFIX)) {
     return {
       message: 'This API key works in several workspaces. Choose the workspace to act on.',
       detail: `HTTP 403. ${WORKSPACE_SELECTION_HINT}`,
       exitCode: ExitCode.Auth,
     };
   }
-  if (err.message === WORKSPACE_ACCESS_REVOKED_MESSAGE) {
+  if (message.startsWith(WORKSPACE_ACCESS_REVOKED_PREFIX)) {
     return {
       message: 'Your credentials no longer have access to the selected workspace.',
       detail: `HTTP 403. ${WORKSPACE_SELECTION_HINT}`,

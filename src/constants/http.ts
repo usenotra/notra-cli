@@ -5,5 +5,7 @@ export const NDJSON_INITIAL_BUFFER_BYTES = 1024;
 // the workspace per request. Organization keys and OAuth tokens ignore it.
 export const ORGANIZATION_ID_HEADER = 'X-Notra-Organization-Id';
 
-export const ORGANIZATION_SELECTION_REQUIRED_PREFIX = 'Organization selection required';
-export const WORKSPACE_ACCESS_REVOKED_MESSAGE = 'Workspace access revoked';
+// Matched case-insensitively against the API's 403 messages, as prefixes, so
+// added detail after them keeps the CLI hint working.
+export const ORGANIZATION_SELECTION_REQUIRED_PREFIX = 'organization selection required';
+export const WORKSPACE_ACCESS_REVOKED_PREFIX = 'workspace access revoked';

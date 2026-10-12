@@ -148,7 +148,7 @@ export function parseArgv(
       : aliases.get(longName) ?? longName;
     if (!rawName) throw new Errors.CLIError(`Unknown flag: ${token}`, { exit: 2 });
     const negated = !flagDefinitions[rawName] && rawName.startsWith('no-');
-    const name = negated ? rawName.slice(3) : rawName;
+    const name = negated ? aliases.get(rawName.slice(3)) ?? rawName.slice(3) : rawName;
     const definition = flagDefinitions[name];
     if (!definition) throw new Errors.CLIError(`Unknown flag: --${rawName}`, { exit: 2 });
 

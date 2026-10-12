@@ -26,6 +26,10 @@ export default class WorkspacesUse extends NotraCommand {
     clear: Flags.boolean({ description: 'Forget the saved workspace.' }),
   };
 
+  // Clearing is local, and OAuth sessions are refused before any request, so a
+  // failing token refresh must not block this command.
+  protected override requiresFreshAccessToken = false;
+
   public async run(): Promise<void> {
     const { args, flags } = await this.parse(WorkspacesUse);
 
@@ -67,7 +71,7 @@ export default class WorkspacesUse extends NotraCommand {
     this.printSuccess(sanitizeTerminalText(`Using workspace ${target.name} (${target.slug}, ${target.id}).`));
     const envOverride = process.env[NOTRA_ORGANIZATION_ID_ENV_VAR]?.trim();
     if (envOverride && envOverride !== target.id) {
-      this.log(chalk.yellow(`${NOTRA_ORGANIZATION_ID_ENV_VAR} is set to ${envOverride} and takes precedence over this choice.`));
+      this.log(chalk.yellow(`${NOTRA_ORGANIZATION_ID_ENV_VAR} is set to ${sanitizeTerminalText(envOverride)} and takes precedence over this choice.`));
     }
   }
 }

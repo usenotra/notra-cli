@@ -46,7 +46,9 @@ export function createApiCommand(id: string, options: ApiCommandOptions = {}): t
           this.error('Confirmation required. Re-run with --yes.', { exit: ExitCode.Usage });
         }
       }
-      const client = options.public ? this.api() : this.authenticatedApi();
+      const client = options.public
+        ? this.api()
+        : options.unscoped ? this.unscopedAuthenticatedApi() : this.authenticatedApi();
       const request = { ...prepared, timeoutMs: Number(flags.timeout) * 1000 };
       if (response === 'ndjson') {
         for await (const event of client.stream(spec.operation.method, prepared.path, request)) {
