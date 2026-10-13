@@ -10,6 +10,9 @@ bun add -g notra
 npm i -g notra
 ```
 
+The CLI runs on Node.js 22.12 or newer. Bun can also run it directly with
+`bunx --bun notra`.
+
 ## Preview a local site
 
 From your Notra Sites folder, run:
@@ -18,12 +21,20 @@ From your Notra Sites folder, run:
 notra dev
 ```
 
+Or run it without a global installation:
+
+```bash
+npx notra@latest dev
+bunx --bun notra@latest dev
+```
+
 The folder must contain `blog.json`, `blog/`, or `changelog/`; `blog.json` is
 optional. The preview runs at `http://localhost:4321` with live reload for
 content, components, CSS, assets, and configuration. It includes drafts and
 does not load analytics integrations. No login, API key, or deployment is
-required. The first run downloads the pinned Sites renderer through Bun;
-subsequent runs reuse its package cache. You need Bun installed to run the CLI.
+required. The first run downloads the pinned Sites renderer through npm when
+running on Node, or through Bun when running on Bun. Subsequent runs reuse the
+selected package manager's cache. Node users do not need Bun installed.
 
 ```bash
 notra dev --source ./hosted-site --port 4400
