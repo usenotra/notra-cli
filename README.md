@@ -10,6 +10,39 @@ bun add -g notra
 npm i -g notra
 ```
 
+The CLI runs on Node.js 22.12 or newer. Bun can also run it directly with
+`bunx --bun notra`.
+
+## Preview a local site
+
+From your Notra Sites folder, run:
+
+```bash
+notra dev
+```
+
+Or run it without a global installation:
+
+```bash
+npx notra@latest dev
+bunx --bun notra@latest dev
+```
+
+The folder must contain `blog.json`, `blog/`, or `changelog/`; `blog.json` is
+optional. The preview runs at `http://localhost:4321` with live reload for
+content, components, CSS, assets, and configuration. It includes drafts and
+does not load analytics integrations. No login, API key, or deployment is
+required. The first run downloads the pinned Sites renderer through npm when
+running on Node, or through Bun when running on Bun. Subsequent runs reuse the
+selected package manager's cache. Node users do not need Bun installed.
+
+```bash
+notra dev --source ./hosted-site --port 4400
+```
+
+Both `/blog` and `/changelog` are served; `/` redirects to `/blog`. Stop with
+Ctrl+C. `dev` prints server logs rather than JSON.
+
 ## Sign in
 
 ```bash
@@ -72,7 +105,7 @@ notra api operations --tag GEO
 notra api call getGeoSentiment --param projectId=project_123
 ```
 
-Run `notra <topic> --help` to see every command and flag. Every command
+Run `notra <topic> --help` to see every command and flag. Every API command
 accepts `--json` for machine-readable output.
 
 GEO commands cover projects, settings, prompts, sequences, competitors, scans,
