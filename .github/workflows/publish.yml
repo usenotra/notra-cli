@@ -94,6 +94,7 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
+          check-latest: true
           registry-url: https://registry.npmjs.org
           # Do not set the cache input in this privileged OIDC publish job.
           # Fresh installs from the registry reduce cache poisoning risk.
@@ -104,5 +105,8 @@ jobs:
       - name: Verify dependency signatures
         run: npm audit signatures
 
-      - name: Publish
-        run: npm publish --provenance --access public
+      - name: Install npm with staged publishing
+        run: npm install -g npm@12.2.0
+
+      - name: Stage publish
+        run: npm stage publish . --provenance --access public
