@@ -1,0 +1,84 @@
+---
+import type { BlogEntry, ChangelogEntry as ChangelogEntryData } from "../../types/entries";
+import type { TagPageProps as Props } from "../../types/tags";
+import BackLink from "../../components/BackLink.astro";
+import ChangelogEntry from "../../components/ChangelogEntry.astro";
+import PostCard from "../../components/PostCard.astro";
+import Base from "../../layouts/Base.astro";
+import { cardImages } from "../../lib/cards";
+import { getAreaEntries } from "../../lib/entries";
+import { absoluteUrl, areaTitle, config, href, params } from "../../lib/params";
+import { breadcrumbs, pageTitle } from "../../lib/seo";
+import { collectTags, entryCount, tagsHref } from "../../lib/tags";
+
+export async function getStaticPaths() {
+  const entries: (BlogEntry | ChangelogEntryData)[] = await getAreaEntries();
+  const tags = collectTags(entries);
+  if (tags.length === 0) {
+    return [];
+  }
+  return [
+    { params: { tag: undefined }, props: { kind: "index" as const, tags } },
+    ...tags.map((tag) => ({ params: { tag: tag.slug }, props: { kind: "tag" as const, tag } })),
+  ];
+}
+
+const props = Astro.props;
+const area = areaTitle(params.area);
+const noindex = config.seo.indexing !== "all";
+const title = props.kind === "index" ? "Tags" : props.tag.name;
+const url = absoluteUrl(props.kind === "index" ? tagsHref() : props.tag.href);
+const description =
+  props.kind === "index" ? `Every tag on ${area}.` : `${entryCount(props.tag.entries.length)} tagged ${props.tag.name}.`;
+const posts = props.kind === "tag" ? props.tag.entries.filter((entry): entry is BlogEntry => entry.collection === "blog") : [];
+const updates = props.kind === "tag" ? props.tag.entries.filter((entry): entry is ChangelogEntryData => entry.collection === "changelog") : [];
+const images = cardImages(posts);
+const jsonLd = [
+  { "@type": "CollectionPage", "@id": `${url}#page`, url, name: title, description, inLanguage: "en" },
+  breadcrumbs(title, url),
+];
+---
+
+<Base page="tag" title={pageTitle(props.kind === "index" ? `Tags · ${area}` : `${title} · ${area}`)} description={description} jsonLd={jsonLd} noindex={noindex}>
+  <div class:list={["mx-auto flex flex-col gap-10 pt-0 sm:pt-2 lg:pt-4", params.area === "blog" ? "max-w-(--layout-index)" : "max-w-(--layout-reading)"]}>
+    <header>
+      {props.kind === "index" ? <BackLink href={href()} label={area} /> : <BackLink href={tagsHref()} label="All tags" />}
+      <h1 id="page-title" class="mt-8 font-heading text-3xl leading-tight font-(--font-heading-weight) tracking-[-0.03em] sm:text-4xl">{title}</h1>
+      {props.kind === "tag" && <p class="mt-2 text-muted-foreground tabular-nums">{entryCount(props.tag.entries.length)}</p>}
+    </header>
+    {
+      props.kind === "index" && (
+        <ul class="divide-y divide-border border-y border-border">
+          {props.tags.map((tag) => (
+            <li>
+              <a href={tag.href} class="group flex items-baseline justify-between gap-4 py-4">
+                <span class="font-medium decoration-foreground/25 decoration-1 underline-offset-[0.2em] group-hover:underline">{tag.name}</span>
+                <span class="text-sm text-muted-foreground tabular-nums">{entryCount(tag.entries.length)}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+    {
+      posts.length > 0 && (
+        <ul class="grid grid-cols-1 gap-x-8 gap-y-12 max-sm:gap-y-0 max-sm:divide-y max-sm:divide-border sm:grid-cols-2 lg:grid-cols-3">
+          {posts.map((entry) => (
+            <li class="h-full max-sm:py-6">
+              <PostCard entry={entry} images={images} />
+            </li>
+          ))}
+        </ul>
+      )
+    }
+    {
+      updates.length > 0 && (
+        <div class="divide-y divide-border border-y border-border">
+          {updates.map((entry) => (
+            <ChangelogEntry entry={entry} layout="compact" />
+          ))}
+        </div>
+      )
+    }
+  </div>
+</Base>

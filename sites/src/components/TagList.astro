@@ -1,0 +1,17 @@
+---
+import type { TagListProps as Props } from "../types/tags";
+
+const { tags, class: className, overlay = false } = Astro.props;
+---
+
+{
+  tags.length > 0 && (
+    <ul aria-label="Tags" class:list={["flex flex-wrap gap-1.5", overlay && "relative z-20", className]}>
+      {tags.map((tag) => (
+        <li>
+          {tag.href ? <a href={tag.href} class="post-tag inline-block">{tag.name}</a> : <span class="post-tag inline-block">{tag.name}</span>}
+        </li>
+      ))}
+    </ul>
+  )
+}

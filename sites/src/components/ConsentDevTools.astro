@@ -1,0 +1,32 @@
+---
+import { params } from "../lib/params";
+
+const prompt = params.consent?.options.presentation.prompt;
+const promptOnTop = prompt && "position" in prompt && prompt.position?.startsWith("top");
+const position = promptOnTop ? "bottom-right" : "top-right";
+---
+
+<div hidden data-notra-c15t-devtools={position}></div>
+
+<script>
+  import { getConsentClient } from "@c15t/astro/client";
+
+  const MAX_ATTEMPTS = 120;
+  const mount = async (attempt: number) => {
+    const client = getConsentClient();
+    if (!client) {
+      if (attempt < MAX_ATTEMPTS) {
+        requestAnimationFrame(() => mount(attempt + 1));
+      }
+      return;
+    }
+    const position = document.querySelector<HTMLElement>("[data-notra-c15t-devtools]")?.dataset.notraC15tDevtools;
+    const { createDevTools } = await import("@c15t/dev-tools");
+    createDevTools({
+      kernel: client.runtime.kernel,
+      clearRecords: () => client.runtime.clearRecords(),
+      position: position === "bottom-right" ? "bottom-right" : "top-right",
+    });
+  };
+  mount(0);
+</script>

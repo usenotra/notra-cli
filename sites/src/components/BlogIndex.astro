@@ -1,0 +1,98 @@
+---
+import { cardImages } from "../lib/cards";
+import { blogCategories, blogSearchText, entryCategorySlugs } from "../lib/categories";
+import { getBlogEntries } from "../lib/entries";
+import { splitFeatured } from "../lib/featured";
+import { blogOptions } from "../lib/options";
+import { areaDescription, areaTitle } from "../lib/params";
+import { slotArea, slotSite } from "../lib/slot-data";
+import AreaHero from "./AreaHero.astro";
+import CategoryBar from "./CategoryBar.astro";
+import PostCard from "./PostCard.astro";
+import SiteSlot from "./SiteSlot.astro";
+
+const entries = await getBlogEntries();
+const { layout, featured: featuredSetting } = blogOptions;
+const split = splitFeatured(entries, featuredSetting);
+const lead = layout === "magazine" && split.featured.length === 0 ? splitFeatured(entries, "latest") : split;
+const { featured, rest } = lead;
+const images = cardImages(entries);
+const categories = blogCategories(entries);
+const filterable = entries.length > 0 && (categories.length > 0 || blogOptions.search);
+const twoColumns = !filterable && rest.length % 3 !== 0 && rest.length % 2 === 0;
+const pinnedAbove = filterable && (layout === "grid" || layout === "magazine") && featured.length > 0;
+const inGrid = pinnedAbove ? [] : featured;
+const categoriesOf = (entry: (typeof entries)[number]) => (filterable ? entryCategorySlugs(entry, categories) : undefined);
+const searchTextOf = (entry: (typeof entries)[number]) => (blogOptions.search ? blogSearchText(entry) : undefined);
+---
+
+<div class="blog-index flex flex-col items-center gap-10 md:gap-14">
+  <SiteSlot name="blog-hero" data={{ site: slotSite(), area: slotArea() }} class="w-full">
+    <AreaHero title={areaTitle("blog")} description={areaDescription("blog")} />
+  </SiteSlot>
+
+  {
+    pinnedAbove && (
+      <ul data-category-featured class="grid w-full max-w-(--layout-index) grid-cols-1 gap-y-12">
+        {featured.map((entry, index) => (
+          <li class="h-full">
+            <PostCard entry={entry} variant="feature" featured={layout === "grid" || split.featured.length > 0} images={images} priority={index === 0} />
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  {filterable && <CategoryBar categories={categories} search={blogOptions.search} class="-mb-4 md:-mb-6" />}
+
+  {
+    entries.length === 0 ? (
+      <div class="w-full max-w-(--layout-index) rounded-2xl border border-dashed border-border px-6 py-16 text-center">
+        <h2 class="font-heading text-lg font-(--font-heading-weight) tracking-[-0.015em]">No posts yet</h2>
+        <p class="mt-2 text-sm leading-6 text-muted-foreground">Add a Markdown file to blog/ and push.</p>
+      </div>
+    ) : layout === "cards" ? (
+      <ul data-category-list class="blog-cards grid w-full max-w-(--layout-index) grid-cols-1 gap-6 sm:grid-cols-2">
+        {[...featured, ...rest].map((entry) => (
+          <li class="h-full" data-categories={categoriesOf(entry)} data-search={searchTextOf(entry)}>
+            <PostCard entry={entry} variant="box" featured={featured.includes(entry)} />
+          </li>
+        ))}
+      </ul>
+    ) : layout === "list" ? (
+      <ul data-category-list class:list={["w-full max-w-(--layout-index) divide-y divide-border border-border", !filterable && "border-t"]}>
+        {[...featured, ...rest].map((entry) => (
+          <li data-categories={categoriesOf(entry)} data-search={searchTextOf(entry)}>
+            <PostCard entry={entry} variant="row" featured={featured.includes(entry)} />
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <ul data-category-list class:list={["grid w-full max-w-(--layout-index) grid-cols-1 gap-x-8 gap-y-12 max-sm:gap-y-0 max-sm:divide-y max-sm:divide-border sm:grid-cols-2", !twoColumns && "lg:grid-cols-3"]}>
+        {inGrid.map((entry, index) => (
+          <li data-categories={categoriesOf(entry)} data-search={searchTextOf(entry)} class:list={["h-full max-sm:pb-8 sm:col-span-2", !twoColumns && "lg:col-span-3"]}>
+            <PostCard entry={entry} variant="feature" featured={layout === "grid" || split.featured.length > 0} images={images} priority={index === 0} />
+          </li>
+        ))}
+        {pinnedAbove &&
+          featured.map((entry) => (
+            <li class="h-full max-sm:py-6" data-categories={categoriesOf(entry)} data-search={searchTextOf(entry)} data-pinned hidden>
+              <PostCard entry={entry} images={images} />
+            </li>
+          ))}
+        {rest.map((entry) => (
+          <li class="h-full max-sm:py-6" data-categories={categoriesOf(entry)} data-search={searchTextOf(entry)}>
+            <PostCard entry={entry} images={images} />
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  {
+    filterable && (
+      <p data-category-empty hidden class="w-full max-w-(--layout-index) py-16 text-center text-sm text-muted-foreground">
+        <span data-category-name>No posts in this category yet.</span>
+      </p>
+    )
+  }
+</div>

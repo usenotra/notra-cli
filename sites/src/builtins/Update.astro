@@ -1,0 +1,14 @@
+---
+import type { UpdateProps as Props } from "../types/builtins";
+
+const { label, description } = Astro.props;
+const anchor = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+---
+
+<section id={anchor} class="update my-10 grid gap-2 border-t border-border pt-8 sm:grid-cols-[8.5rem_1fr] sm:gap-6">
+  <div class="not-prose text-sm text-muted-foreground">
+    <p class="font-medium text-foreground">{label}</p>
+    {description && <p class="mt-0.5">{description}</p>}
+  </div>
+  <div class="min-w-0 [&>:first-child]:mt-0 [&>:last-child]:mb-0"><slot /></div>
+</section>

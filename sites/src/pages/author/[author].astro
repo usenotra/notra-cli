@@ -1,0 +1,122 @@
+---
+import type { AuthorPageProps as Props } from "../../types/authors";
+import AuthorAvatar from "../../components/AuthorAvatar.astro";
+import BackLink from "../../components/BackLink.astro";
+import BrandIcon from "../../components/BrandIcon.astro";
+import Icon from "../../components/Icon.astro";
+import PostCard from "../../components/PostCard.astro";
+import Base from "../../layouts/Base.astro";
+import { allAuthors, authoredBy, personNode } from "../../lib/authors";
+import { cardImages } from "../../lib/cards";
+import { getBlogEntries } from "../../lib/entries";
+import { blogOptions } from "../../lib/options";
+import { absoluteUrl, areaTitle, config, href, params } from "../../lib/params";
+import { breadcrumbs, pageTitle } from "../../lib/seo";
+
+export async function getStaticPaths() {
+  if (params.area !== "blog") {
+    return [];
+  }
+  const entries = await getBlogEntries();
+  return allAuthors(entries)
+    .filter((author) => entries.some((entry) => authoredBy(entry, author.id)))
+    .map((author) => ({ params: { author: author.id }, props: { author } }));
+}
+
+const { author } = Astro.props;
+const posts = (await getBlogEntries()).filter((entry) => authoredBy(entry, author.id));
+const images = cardImages(posts);
+const url = absoluteUrl(author.href ?? href());
+const description = author.bio ?? `Posts by ${author.name}.`;
+const noindex = config.seo.indexing !== "all";
+const stacked = blogOptions.authorPage === "stacked";
+const boxed = blogOptions.layout === "cards";
+const postCount = `${posts.length} ${posts.length === 1 ? "post" : "posts"}`;
+const jsonLd = [
+  { "@type": "ProfilePage", "@id": `${url}#page`, url, name: author.name, mainEntity: { ...personNode(author), "@id": `${url}#person` } },
+  breadcrumbs(author.name, url),
+];
+---
+
+<Base page="author" title={pageTitle(author.name)} description={description} jsonLd={jsonLd} noindex={noindex}>
+  {
+    stacked ? (
+      <div class="author-stacked mx-auto w-full max-w-(--layout-index)">
+        <header class="flex flex-col items-start gap-5">
+          <AuthorAvatar author={author} size={80} loading="eager" />
+          <div class="flex flex-col gap-1">
+            <h1 id="page-title" class="font-heading text-4xl font-medium tracking-[-0.02em]">{author.name}</h1>
+            {author.title && <p class="author-title font-mono text-sm text-muted-foreground">{author.title}</p>}
+          </div>
+          {author.bio && <p class="max-w-xl text-lg leading-8 text-pretty text-muted-foreground">{author.bio}</p>}
+          {author.socials.length > 0 && (
+            <ul class="flex flex-wrap gap-2">
+              {author.socials.map((social) => (
+                <li>
+                  <a
+                    href={social.url}
+                    rel="me noopener"
+                    target="_blank"
+                    aria-label={new URL(social.url).hostname.replace(/^www\./, "")}
+                    class="author-social flex size-8 items-center justify-center rounded-md border border-border transition-colors duration-150 hover:bg-muted"
+                  >
+                    {social.kind === "website" ? <Icon name="globe" size={16} /> : <BrandIcon name={social.kind} size={16} />}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </header>
+        <div class="mt-14 border-t border-border pt-8">
+          <h2 class="author-post-count font-mono text-sm text-muted-foreground">{postCount}</h2>
+          <ul class:list={["mt-6 grid grid-cols-1 sm:grid-cols-2", boxed ? "gap-6" : "gap-x-8 gap-y-12 lg:grid-cols-3"]}>
+            {posts.map((entry) => (
+              <li class="h-full">
+                <PostCard entry={entry} images={images} variant={boxed ? "box" : "card"} showAuthor={boxed} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    ) : (
+      <div class="mx-auto flex max-w-(--layout-index) flex-col gap-12 pt-0 sm:pt-2 lg:pt-4">
+        <header>
+          <BackLink href={href()} label={areaTitle("blog")} />
+          <div class="mt-8 flex items-center gap-5">
+            <AuthorAvatar author={author} size={64} />
+            <div class="min-w-0">
+              <h1 id="page-title" class="font-heading text-3xl leading-tight font-(--font-heading-weight) tracking-[-0.03em] sm:text-4xl">{author.name}</h1>
+              {author.title && <p class="mt-1 text-muted-foreground">{author.title}</p>}
+            </div>
+          </div>
+          {author.bio && <p class="mt-6 max-w-xl text-lg leading-8 text-pretty text-muted-foreground">{author.bio}</p>}
+          {
+            author.links.length > 0 && (
+              <ul class="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+                {author.links.map((link) => (
+                  <li>
+                    <a href={link} rel="me noopener" target="_blank" class="inline-flex items-center gap-1 transition-colors duration-150 hover:text-foreground">
+                      {new URL(link).hostname.replace(/^www\./, "")}
+                      <Icon name="arrow-up-right" size={13} />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+        </header>
+        {
+          posts.length > 0 && (
+            <ul class="grid grid-cols-1 gap-x-8 gap-y-12 max-sm:gap-y-0 max-sm:divide-y max-sm:divide-border sm:grid-cols-2 lg:grid-cols-3">
+              {posts.map((entry) => (
+                <li class="h-full max-sm:py-6">
+                  <PostCard entry={entry} images={images} showAuthor={false} />
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </div>
+    )
+  }
+</Base>

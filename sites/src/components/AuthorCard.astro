@@ -1,0 +1,39 @@
+---
+import type { AuthorListProps as Props } from "../types/authors";
+import AuthorAvatar from "./AuthorAvatar.astro";
+
+const { authors } = Astro.props;
+const itemClass = "-mx-2 -my-2 flex w-fit max-w-full items-center gap-3 rounded-xl p-2";
+---
+
+{
+  authors.length > 0 && (
+    <div class="author-card">
+      <p class="author-card-label mb-3 hidden text-sm font-medium text-foreground lg:block">Written by</p>
+      <ul class="flex flex-col gap-3">
+        {authors.map((author) => {
+          const body = (
+            <>
+              <AuthorAvatar author={author} size={24} loading="eager" />
+              <span class="flex flex-col">
+                <span class="author-card-name text-sm leading-tight font-medium text-foreground">{author.name}</span>
+                {author.title && <span class="author-card-title mt-0.5 text-xs leading-tight text-muted-foreground">{author.title}</span>}
+              </span>
+            </>
+          );
+          return (
+            <li>
+              {author.href ? (
+                <a href={author.href} class:list={[itemClass, "transition-colors duration-150 hover:bg-primary/10 focus-visible:bg-primary/10"]}>
+                  {body}
+                </a>
+              ) : (
+                <div class={itemClass}>{body}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  )
+}

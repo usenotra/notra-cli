@@ -32,9 +32,11 @@ The folder must contain `blog.json`, `blog/`, or `changelog/`; `blog.json` is
 optional. The preview runs at `http://localhost:4321` with live reload for
 content, components, CSS, assets, and configuration. It includes drafts and
 does not load analytics integrations. No login, API key, or deployment is
-required. The first run downloads the pinned Sites renderer through npm when
-running on Node, or through Bun when running on Bun. Subsequent runs reuse the
-selected package manager's cache. Node users do not need Bun installed.
+required. The Sites renderer ships in this package's `sites/` folder, exported
+from the Notra monorepo (`apps/sites-builder`, see its `release.md`), and runs
+on the Node or Bun that started the CLI. Node users do not need Bun installed.
+The renderer is licensed AGPL-3.0-only (`sites/LICENSE`); the rest of the CLI
+is MIT.
 
 ```bash
 notra dev --source ./hosted-site --port 4400

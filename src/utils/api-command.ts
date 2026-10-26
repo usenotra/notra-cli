@@ -76,7 +76,8 @@ function schemaFlag(input: JSONSchema._JSONSchema, name: string): FlagDefinition
 }
 
 export function schemaType(schema: JSONSchema.JSONSchema): string | undefined {
-  return schema.type ?? schema.anyOf?.map(schemaType).find((type) => type !== 'null');
+  const type = Array.isArray(schema.type) ? schema.type.find((entry) => entry !== 'null') : schema.type;
+  return type ?? schema.anyOf?.map(schemaType).find((entry) => entry !== 'null');
 }
 
 export function parseSchemaValue(value: unknown, input: JSONSchema._JSONSchema): unknown {

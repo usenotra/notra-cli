@@ -1,0 +1,23 @@
+---
+import type { NavbarLinkProps as Props } from "../types/navigation";
+import { params } from "../lib/params";
+import { activeLink } from "../utils/active-link";
+import LinkIcon from "./LinkIcon.astro";
+
+const { link, mobile = false, dropdown = false } = Astro.props;
+const current = activeLink(link.href, Astro.url.pathname, params.publicOrigin);
+---
+
+<a
+  href={link.href}
+  aria-current={current}
+  aria-label={link.iconOnly && !mobile ? link.label : undefined}
+  title={link.iconOnly && !mobile ? link.label : undefined}
+  class:list={[
+    "site-nav-link inline-flex min-h-8 items-center gap-1.5 rounded-md text-muted-foreground hover:text-foreground",
+    mobile ? "min-h-11 gap-2.5 py-2 text-[0.9375rem]" : dropdown ? "min-h-10 w-full px-3 py-2" : "py-1",
+  ]}
+>
+  <LinkIcon icon={link.icon} size={15} class="shrink-0" />
+  {(!link.iconOnly || mobile) && <span class="min-w-0 wrap-anywhere">{link.label}</span>}
+</a>

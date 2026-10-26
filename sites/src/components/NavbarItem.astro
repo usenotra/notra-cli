@@ -1,0 +1,61 @@
+---
+import type { NavbarItemProps as Props } from "../types/navigation";
+import { params } from "../lib/params";
+import { activeLink } from "../utils/active-link";
+import Icon from "./Icon.astro";
+import LinkIcon from "./LinkIcon.astro";
+import NavbarLink from "./NavbarLink.astro";
+
+const { item, mobile = false } = Astro.props;
+const active = "items" in item && item.items.some((link) => activeLink(link.href, Astro.url.pathname, params.publicOrigin));
+---
+
+{
+  "items" in item ? (
+    <details data-nav-dropdown class:list={["site-nav-dropdown", mobile && "site-nav-dropdown-mobile"]}>
+      <summary class:list={["site-nav-link flex min-h-8 cursor-pointer items-center gap-1.5 rounded-md text-muted-foreground hover:text-foreground", mobile ? "min-h-11 py-2 text-[0.9375rem]" : "py-1"]} data-active={active || undefined}>
+        <LinkIcon icon={item.icon} size={15} class="shrink-0" />
+        <span class="min-w-0 wrap-anywhere">{item.label}</span>
+        <Icon name="chevron-down" size={14} class="shrink-0" />
+      </summary>
+      <div class="site-nav-dropdown-links">
+        {item.items.map((link) => <NavbarLink link={link} mobile={mobile} dropdown />)}
+      </div>
+    </details>
+  ) : <NavbarLink link={item} mobile={mobile} />
+}
+
+<script>
+  const dropdowns = [...document.querySelectorAll<HTMLDetailsElement>("[data-nav-dropdown]")];
+  for (const dropdown of dropdowns) {
+    dropdown.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && dropdown.open) {
+        event.preventDefault();
+        event.stopPropagation();
+        dropdown.open = false;
+        dropdown.querySelector("summary")?.focus();
+      }
+    });
+    dropdown.addEventListener("focusout", (event) => {
+      if (event.relatedTarget instanceof Node && !dropdown.contains(event.relatedTarget)) {
+        dropdown.open = false;
+      }
+    });
+    dropdown.addEventListener("toggle", () => {
+      if (dropdown.open) {
+        for (const other of dropdowns) {
+          if (other !== dropdown) other.open = false;
+        }
+      }
+    });
+  }
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Node)) return;
+    for (const dropdown of dropdowns) {
+      if (!dropdown.contains(event.target)) dropdown.open = false;
+    }
+  });
+  window.addEventListener("blur", () => {
+    for (const dropdown of dropdowns) dropdown.open = false;
+  });
+</script>
