@@ -9,7 +9,7 @@ test('dev has useful defaults and accepts a custom source and port', () => {
     .toEqual({ source: './my site', port: 4400 });
 });
 
-test('invalid ports and unknown flags fail before downloading the runtime', () => {
+test('invalid ports and unknown flags fail before starting the runtime', () => {
   for (const port of ['0', '65534', '-1', '4321.5', 'nope']) {
     expect(() => parseArgv(['--port', port], {}, Dev.flags)).toThrow();
   }

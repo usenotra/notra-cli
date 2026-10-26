@@ -1,0 +1,143 @@
+---
+import type { BlogPostProps as Props } from "../types/entries";
+import { render } from "astro:content";
+import { authorsOf } from "../lib/authors";
+import { getBlogEntries } from "../lib/entries";
+import { blogOptions } from "../lib/options";
+import { areaTitle, assetUrl, config, href, markdownHref, params } from "../lib/params";
+import { slotPost } from "../lib/slot-data";
+import { entryTags } from "../lib/tags";
+import { slotComponent } from "../lib/site-files";
+import { formatDate } from "../lib/dates";
+import { isoDate } from "../utils/dates";
+import { readingMinutes } from "../utils/reading-time";
+import AuthorCard from "./AuthorCard.astro";
+import AuthorList from "./AuthorList.astro";
+import BackLink from "./BackLink.astro";
+import CopyArticle from "./CopyArticle.astro";
+import Icon from "./Icon.astro";
+import PostPagination from "./PostPagination.astro";
+import SiteSlot from "./SiteSlot.astro";
+import TagList from "./TagList.astro";
+import Toc from "./Toc.astro";
+
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+const options = blogOptions.post;
+const image = options.cover ? assetUrl(entry.data.image) : undefined;
+const entries = options.pagination || entry.data.hidden ? await getBlogEntries() : [];
+const listedEntries = entry.data.hidden ? entries : undefined;
+const resolvedAuthors = authorsOf(entry, listedEntries);
+const authors = options.authorCard ? resolvedAuthors : [];
+const updated =
+  config.metadata.timestamp && entry.data.updated && isoDate(entry.data.updated) !== isoDate(entry.data.date) ? entry.data.updated : undefined;
+const index = entries.findIndex((other) => other.id === entry.id);
+const next = index > 0 ? entries[index - 1] : undefined;
+const previous = index >= 0 ? entries[index + 1] : undefined;
+const post = slotPost(entry, resolvedAuthors);
+const tags = entryTags(entry, listedEntries);
+const hasSidebarSlot = Boolean(slotComponent("sidebar"));
+const wide = options.width === "wide" && (options.toc || hasSidebarSlot);
+const hasToc = options.toc && headings.filter((heading) => heading.depth === 2 || heading.depth === 3).length > 1;
+const compact = options.header === "compact";
+const minutes = options.readingTime ? readingMinutes(entry.body) : undefined;
+---
+
+<article
+  class:list={[
+    "mx-auto grid w-full grid-cols-1 gap-x-16 pt-0 sm:pt-2 lg:pt-4",
+    compact
+      ? "post-compact max-w-(--layout-post) gap-y-6 lg:grid-cols-[minmax(0,1fr)_16rem]"
+      : wide
+        ? "max-w-(--layout-post) lg:grid-cols-[minmax(0,1fr)_13rem]"
+        : "max-w-(--layout-reading)",
+  ]}
+>
+  <header id="header" class="min-w-0 lg:col-start-1 lg:row-start-1">
+    <BackLink href={href()} label={compact ? `Back to ${params.area}` : areaTitle("blog")} />
+    {
+      compact ? (
+        <div class="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <div class="post-meta flex flex-wrap items-center gap-x-3 gap-y-1">
+            <time datetime={isoDate(entry.data.date)}>Published {formatDate(entry.data.date)}</time>
+            {updated && <span>· Updated <time datetime={isoDate(updated)}>{formatDate(updated)}</time></span>}
+            {minutes !== undefined && <span class="whitespace-nowrap">· {minutes} min read</span>}
+            {entry.data.draft && <span class="text-warning">· Draft</span>}
+          </div>
+          <CopyArticle label="Copy article" markdownHref={markdownHref(href(entry.id))} pagePath={href(entry.id)} title={entry.data.title} />
+        </div>
+      ) : (
+        <div class="post-meta mt-6 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <time datetime={isoDate(entry.data.date)}>{formatDate(entry.data.date)}</time>
+          {updated && <span>· Updated <time datetime={isoDate(updated)}>{formatDate(updated)}</time></span>}
+          {entry.data.draft && <span class="text-warning">· Draft</span>}
+        </div>
+      )
+    }
+    <h1 id="page-title" class:list={[
+      "font-heading text-[2.25rem] font-(--font-heading-weight) text-balance",
+      compact ? "mt-6 max-w-3xl leading-[1.05] tracking-[-0.02em] sm:text-5xl" : "mt-3 leading-[1.1] tracking-[-0.035em] sm:text-[2.75rem]",
+    ]}>{entry.data.title}</h1>
+    {!compact && (
+      <>
+        {entry.data.description && <p class="mt-4 text-lg leading-8 text-pretty text-muted-foreground">{entry.data.description}</p>}
+        {authors.length > 0 && <div class="mt-6"><AuthorList authors={authors} /></div>}
+        <div class="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
+          {minutes !== undefined && (
+            <span class="post-meta inline-flex items-center gap-2">
+              <Icon name="clock" size={15} />
+              {minutes} min read
+            </span>
+          )}
+          <CopyArticle markdownHref={markdownHref(href(entry.id))} pagePath={href(entry.id)} title={entry.data.title} />
+        </div>
+      </>
+    )}
+  </header>
+  {(compact || wide) && (
+    <aside class:list={[
+      "min-w-0 lg:col-start-2",
+      compact ? "lg:row-span-3 lg:row-start-1" : "lg:row-start-2 lg:pt-12",
+    ]}>
+      {compact && <AuthorCard authors={authors} />}
+      {(options.toc || hasSidebarSlot) && (
+        <div class:list={[
+          "flex-col gap-8",
+          compact ? "sticky top-8" : "sticky top-24",
+          compact && authors.length > 0 && "mt-8",
+          hasSidebarSlot ? "flex" : "hidden lg:flex",
+        ]}>
+          {options.toc && <div class="hidden lg:block"><Toc headings={headings} minItems={compact ? 1 : undefined} /></div>}
+          <SiteSlot name="sidebar" data={{ post }} />
+        </div>
+      )}
+    </aside>
+  )}
+  <div class:list={[
+    "min-w-0 lg:col-start-1 lg:row-start-2",
+    compact ? "post-body border-t border-border pt-6" : "pt-10 lg:pt-12",
+  ]}>
+        {
+          !compact && hasToc && (
+            <details class="group/toc mb-8 rounded-xl border border-border lg:hidden">
+              <summary class="post-meta flex cursor-pointer list-none items-center justify-between px-4 py-3 [&::-webkit-details-marker]:hidden">
+                On this page
+                <Icon name="chevron-down" size={15} class="transition-transform duration-200 ease-out group-open/toc:rotate-180" />
+              </summary>
+              <div class="border-t border-border px-4 py-3">
+                <Toc headings={headings} inline />
+              </div>
+            </details>
+          )
+        }
+        <SiteSlot name="before-post" data={{ post }} class="mb-8" />
+        {image && <img src={image} alt={entry.data.imageAlt ?? ""} class="image-outline mb-10 aspect-[1200/630] w-full rounded-2xl object-cover" loading="eager" />}
+        <div class="mdx-content prose prose-notra max-w-none" data-md-root>
+          <Content />
+        </div>
+        <TagList tags={tags} class="mt-10" />
+        <SiteSlot name="after-post" data={{ post }} class="mt-12" />
+        {!compact && !wide && <SiteSlot name="sidebar" data={{ post }} class="mt-12" />}
+        {options.pagination && <PostPagination next={next} previous={previous} />}
+  </div>
+</article>

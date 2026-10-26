@@ -1,0 +1,8 @@
+---
+import type { PrivacySettingsProps as Props } from "../types/consent";
+import Consent from "@notra/consent";
+
+const { class: classAttribute, className } = Astro.props;
+---
+
+<Consent part="link" class={classAttribute ?? className}><slot>Privacy settings</slot></Consent>

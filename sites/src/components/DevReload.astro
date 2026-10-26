@@ -1,0 +1,16 @@
+---
+const renderedToken = process.env.NOTRA_DEV_DOCUMENT_TOKEN;
+const event = process.env.NOTRA_DEV_HMR_EVENT;
+---
+
+{
+  renderedToken && event && (
+    <script is:inline type="module" define:vars={{ renderedToken, event }}>
+      const { createHotContext } = await import("/@vite/client");
+      const hot = createHotContext(event);
+      const report = () => hot.send(event, renderedToken);
+      hot.on("vite:ws:connect", report);
+      report();
+    </script>
+  )
+}

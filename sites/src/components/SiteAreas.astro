@@ -1,0 +1,25 @@
+---
+import type { SiteAreasProps as Props } from "../types/navigation";
+import { navbarAreas } from "../lib/navigation";
+
+const sections = Astro.props.sections ?? await navbarAreas();
+---
+
+{
+  sections.length > 0 && (
+    <nav aria-label="Sections" class="flex min-w-0 items-center gap-0.5 overflow-x-auto text-sm">
+      {sections.map((section) => (
+        <a
+          href={section.href}
+          aria-current={section.active ? "page" : undefined}
+          class:list={[
+            "flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-full px-2.5 transition-colors duration-150 ease-out",
+            section.active ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+          ]}
+        >
+          {section.label}
+        </a>
+      ))}
+    </nav>
+  )
+}

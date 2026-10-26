@@ -1,9 +1,9 @@
 {
   "name": "notra",
   "version": "0.1.0",
-  "description": "Command-line interface for the Notra API.",
+  "description": "Command-line interface for the Notra API and local Notra Sites previews.",
   "type": "module",
-  "license": "MIT",
+  "license": "MIT AND AGPL-3.0-only",
   "homepage": "https://www.usenotra.com",
   "repository": {
     "type": "git",
@@ -22,7 +22,8 @@
     "notra": "./dist/run.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "sites"
   ],
   "engines": {
     "node": ">=22.12.0"
@@ -38,12 +39,38 @@
     "prepack": "bun run build"
   },
   "dependencies": {
+    "@astrojs/mdx": "8.0.2",
+    "@astrojs/react": "7.0.0",
+    "@c15t/astro": "3.0.0",
+    "@c15t/dev-tools": "3.0.0",
+    "@c15t/integrations": "3.0.0",
+    "@c15t/react": "3.0.0",
+    "@fontsource-variable/inter": "5.3.0",
+    "@fontsource/inter": "^5.3.0",
     "@inquirer/prompts": "^7.2.1",
+    "@resvg/resvg-js": "^2.6.2",
+    "@tailwindcss/typography": "0.5.20",
+    "@tailwindcss/vite": "4.3.3",
+    "astro": "7.3.5",
     "chalk": "^5.3.0",
     "cli-table3": "^0.6.5",
     "conf": "^13.1.0",
+    "hast-util-from-html": "2.0.3",
+    "hast-util-to-mdast": "10.1.2",
+    "mdast-util-from-markdown": "2.1.0",
+    "mdast-util-gfm": "3.1.0",
+    "mdast-util-mdx": "3.0.0",
+    "mdast-util-to-markdown": "2.1.2",
+    "micromark-extension-gfm": "3.0.0",
+    "micromark-extension-mdxjs": "3.0.0",
     "ora": "^8.1.1",
+    "parse5-sax-parser": "8.0.0",
     "proper-lockfile": "^4.1.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "satori": "^0.26.0",
+    "tailwindcss": "4.3.3",
+    "unist-util-visit": "5.1.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

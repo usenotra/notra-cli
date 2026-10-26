@@ -1,0 +1,28 @@
+---
+import type { ConsentProps as Props } from "../types/consent";
+import ConsentDevTools from "@notra/consent-devtools";
+import { consentLegalLinks } from "../lib/consent";
+import { params } from "../lib/params";
+import { ConsentBanner, ConsentDialog, ConsentDialogLink, ConsentScript } from "@c15t/astro/components";
+
+const { part, class: className = "transition-colors hover:text-foreground" } = Astro.props;
+const legalLinks = consentLegalLinks();
+---
+
+{part === "head" && <ConsentScript />}
+{
+  part === "body" && (
+    <>
+      <ConsentBanner legalLinks={legalLinks} hideBranding={params.consent?.hideBranding} />
+      <ConsentDialog legalLinks={legalLinks} />
+      <ConsentDevTools part="body" />
+    </>
+  )
+}
+{
+  part === "link" && (
+    <ConsentDialogLink class={className}>
+      <slot>Privacy settings</slot>
+    </ConsentDialogLink>
+  )
+}

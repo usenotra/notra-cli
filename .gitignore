@@ -144,3 +144,6 @@ report/
 
 # compiled CLI output (rebuilt by `bun run build` / prepack)
 dist/
+
+# bundled Notra Sites renderer, exported from the Notra monorepo
+!sites/dist/

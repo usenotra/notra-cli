@@ -1,8 +1,7 @@
 import { spawn } from 'node:child_process';
 import { Command, Flags } from '../cli/core';
-import { SITES_DEV_PACKAGE } from '../constants/sites-dev';
 import { resolveSiteSource } from '../utils/site-source';
-import { sitesDevLaunch } from '../utils/sites-dev-launch';
+import { sitesRuntimePath } from '../utils/sites-runtime';
 
 export default class Dev extends Command {
   static override description = 'Preview a local Notra Sites blog and changelog with live reload. No login required.';
@@ -19,10 +18,9 @@ export default class Dev extends Command {
   public async run(): Promise<void> {
     const { flags } = await this.parse(Dev);
     const source = await resolveSiteSource(flags.source);
-    const runtime = process.env.NOTRA_SITES_DEV_PACKAGE || SITES_DEV_PACKAGE;
+    const runtime = sitesRuntimePath();
     this.logToStderr(`Starting Notra Sites preview for ${source}`);
-    const launch = sitesDevLaunch(runtime, source, flags.port);
-    const child = spawn(launch.command, launch.args, {
+    const child = spawn(process.execPath, [runtime, 'dev', '--source', source, '--port', String(flags.port)], {
       stdio: 'inherit',
       detached: process.platform !== 'win32',
     });

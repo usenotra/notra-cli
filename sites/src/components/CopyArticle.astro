@@ -1,0 +1,149 @@
+---
+import type { CopyArticleProps as Props } from "../types/contextual";
+import { contextualActions } from "../lib/contextual";
+import Icon from "./Icon.astro";
+import LinkIcon from "./LinkIcon.astro";
+
+const { markdownHref, pagePath, title, label = "Copy page" } = Astro.props;
+const { copy, menu } = contextualActions({ title, pagePath, markdownHref });
+const hasActions = copy || menu.length > 0;
+---
+
+{hasActions && (
+<div class="relative" data-page-actions>
+<div class="split-button" role="group" aria-label="Page actions">
+  {
+    copy && (
+      <button type="button" data-copy-article={markdownHref} data-copy-idle-label={label} class="btn btn-secondary btn-sm">
+        <Icon name="copy" size={14} class="[[data-copied]_&]:hidden" />
+        <Icon name="check" size={14} class="hidden [[data-copied]_&]:block" />
+        <span data-copy-label>{label}</span>
+      </button>
+    )
+  }
+  {
+    menu.length > 0 && (
+      <details class="group" data-open-in>
+        <summary
+          aria-label={copy ? "More page actions" : undefined}
+          class:list={["btn btn-secondary btn-sm list-none [&::-webkit-details-marker]:hidden", copy && "btn-icon"]}
+        >
+          {!copy && "Open in"}
+          <Icon name="chevron-down" size={14} class="transition-transform duration-150 ease-out group-open:rotate-180" />
+        </summary>
+        <div
+          class:list={[
+            "absolute top-full left-0 z-30 mt-2 origin-top-left rounded-xl border border-border bg-background p-1.5 font-sans shadow-lg motion-safe:animate-[menu-in_120ms_ease-out]",
+            menu.some((item) => item.description) ? "w-72" : "w-60",
+          ]}
+        >
+          {menu.map((item, index) => (
+            <>
+              {index > 0 && menu[index - 1]?.kind !== item.kind && <div class="my-1 h-px bg-border" />}
+              <a
+                href={item.href}
+                target={item.external ? "_blank" : undefined}
+                rel={item.external ? "noopener noreferrer" : undefined}
+                class="flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm text-foreground transition-colors duration-150 hover:bg-muted"
+              >
+                {item.logo ? (
+                  <span class="flex size-5 shrink-0 items-center justify-center [&>svg]:size-4" set:html={item.logo} />
+                ) : (
+                  <span class="flex size-5 shrink-0 items-center justify-center text-muted-foreground">
+                    <LinkIcon icon={item.icon} size={16} />
+                  </span>
+                )}
+                <span class="flex min-w-0 flex-col">
+                  <span>{item.label}</span>
+                  {item.description && <span class="text-xs leading-snug text-muted-foreground">{item.description}</span>}
+                </span>
+                {item.external && <Icon name="arrow-up-right" size={13} class="ml-auto shrink-0 text-muted-foreground" />}
+              </a>
+            </>
+          ))}
+        </div>
+      </details>
+    )
+  }
+</div>
+{copy && (
+  <>
+    <p data-copy-status role="status" class="mt-2 max-w-72 text-sm text-muted-foreground empty:sr-only" />
+    <a data-copy-fallback href={markdownHref} hidden class="text-sm underline underline-offset-4">View as Markdown</a>
+  </>
+)}
+</div>
+)}
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-copy-article]")) {
+    let resetTimer: ReturnType<typeof setTimeout> | undefined;
+    button.addEventListener("click", async () => {
+      if (button.getAttribute("aria-disabled") === "true") {
+        return;
+      }
+      const label = button.querySelector("[data-copy-label]");
+      const status = button.closest("[data-page-actions]")?.querySelector("[data-copy-status]");
+      const fallback = button.closest("[data-page-actions]")?.querySelector<HTMLAnchorElement>("[data-copy-fallback]");
+      clearTimeout(resetTimer);
+      button.setAttribute("aria-disabled", "true");
+      button.setAttribute("aria-busy", "true");
+      button.removeAttribute("data-copied");
+      if (fallback) {
+        fallback.hidden = true;
+      }
+      if (label) {
+        label.textContent = button.dataset.copyIdleLabel ?? "Copy page";
+      }
+      if (status) {
+        status.textContent = "";
+      }
+      try {
+        const response = await fetch(button.dataset.copyArticle ?? "");
+        if (!response.ok) {
+          throw new Error("Unable to load Markdown");
+        }
+        await navigator.clipboard.writeText(await response.text());
+        button.setAttribute("data-copied", "");
+        if (label) {
+          label.textContent = "Copied";
+        }
+        if (status) {
+          status.textContent = "Page copied as Markdown.";
+        }
+        resetTimer = setTimeout(() => {
+          button.removeAttribute("data-copied");
+          if (label) {
+            label.textContent = button.dataset.copyIdleLabel ?? "Copy page";
+          }
+          if (status?.textContent === "Page copied as Markdown.") {
+            status.textContent = "";
+          }
+        }, 2000);
+      } catch {
+        if (status) {
+          status.textContent = "Unable to copy. Try again, or open the Markdown version and copy it manually.";
+        }
+        if (fallback) {
+          fallback.hidden = false;
+        }
+      } finally {
+        button.removeAttribute("aria-disabled");
+        button.removeAttribute("aria-busy");
+      }
+    });
+  }
+  for (const menu of document.querySelectorAll<HTMLDetailsElement>("[data-open-in]")) {
+    document.addEventListener("click", (event) => {
+      if (menu.open && !menu.contains(event.target as Node)) {
+        menu.open = false;
+      }
+    });
+    menu.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && menu.open) {
+        menu.open = false;
+        menu.querySelector("summary")?.focus();
+      }
+    });
+  }
+</script>
