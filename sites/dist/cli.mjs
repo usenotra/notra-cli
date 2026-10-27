@@ -4739,6 +4739,7 @@ import { pipeline } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
 
 // compiler/utils/dev-error-page.ts
+import { createHash as createHash4 } from "node:crypto";
 function escapeHtml(value) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
@@ -4750,6 +4751,17 @@ function diagnosticLocation(diagnostic) {
     return diagnostic.file;
   }
   return `${diagnostic.file}:${diagnostic.line}${diagnostic.column ? `:${diagnostic.column}` : ""}`;
+}
+function devErrorsKey(errors) {
+  if (errors.length === 0) {
+    return "";
+  }
+  return createHash4("sha1").update(JSON.stringify(errors.map((error) => [
+    error.file,
+    error.line,
+    error.column,
+    error.message
+  ]))).digest("hex").slice(0, 16);
 }
 function devErrorPage(errors) {
   const items = errors.map((error) => `<li><code>${escapeHtml(diagnosticLocation(error))}</code><p>${escapeHtml(error.message)}</p></li>`).join("");
@@ -4782,8 +4794,11 @@ li p { margin: 6px 0 0; white-space: pre-wrap; }
 const poll = async () => {
   try {
     const response = await fetch(${JSON.stringify(DEV_ERRORS_PATH)}, { cache: "no-store" });
-    const { count } = await response.json();
-    if (count === 0) {
+    if (!response.ok) {
+      throw new Error(String(response.status));
+    }
+    const { key } = await response.json();
+    if (key !== ${JSON.stringify(devErrorsKey(errors))}) {
       location.reload();
       return;
     }
@@ -5102,7 +5117,8 @@ function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => [])
         "Content-Type": "application/json",
         "Cache-Control": "no-store"
       });
-      outgoing.end(JSON.stringify({ count: siteErrors().length }));
+      const errors = siteErrors();
+      outgoing.end(JSON.stringify({ count: errors.length, key: devErrorsKey(errors) }));
       return;
     }
     const errors = siteErrors();

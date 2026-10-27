@@ -18,6 +18,9 @@ const errorsPath = process.env.NOTRA_DEV_ERRORS_PATH;
         const poll = async () => {
           try {
             const response = await fetch(errorsPath, { cache: "no-store" });
+            if (!response.ok) {
+              throw new Error(String(response.status));
+            }
             const { count } = await response.json();
             if (count > 0) {
               location.reload();
