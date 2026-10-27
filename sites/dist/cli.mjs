@@ -5057,7 +5057,7 @@ function isDocumentRequest(incoming) {
     return false;
   }
   const destination = incoming.headers["sec-fetch-dest"];
-  return destination ? destination === "document" : (incoming.headers.accept ?? "").includes("text/html");
+  return destination ? destination === "document" || destination === "iframe" || destination === "frame" : (incoming.headers.accept ?? "").includes("text/html");
 }
 function pathnameOf(incoming) {
   try {
