@@ -99,6 +99,7 @@ export default defineConfig({
     },
   },
   vite: {
+    cacheDir: resolve(workDir, "cache", "vite", params.area),
     plugins: [
       tailwindcss(),
       ...(process.env.NOTRA_DEV_ROOT

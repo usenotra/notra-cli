@@ -1,16 +1,36 @@
 ---
 const renderedToken = process.env.NOTRA_DEV_DOCUMENT_TOKEN;
 const event = process.env.NOTRA_DEV_HMR_EVENT;
+const errorsPath = process.env.NOTRA_DEV_ERRORS_PATH;
 ---
 
 {
   renderedToken && event && (
-    <script is:inline type="module" define:vars={{ renderedToken, event }}>
+    <script is:inline type="module" define:vars={{ renderedToken, event, errorsPath }}>
       const { createHotContext } = await import("/@vite/client");
       const hot = createHotContext(event);
       const report = () => hot.send(event, renderedToken);
       hot.on("vite:ws:connect", report);
       report();
+      // A broken edit keeps the last good page running; reload so the
+      // preview's error page replaces it.
+      if (errorsPath) {
+        const poll = async () => {
+          try {
+            const response = await fetch(errorsPath, { cache: "no-store" });
+            if (!response.ok) {
+              throw new Error(String(response.status));
+            }
+            const { count } = await response.json();
+            if (count > 0) {
+              location.reload();
+              return;
+            }
+          } catch {}
+          setTimeout(poll, 1000);
+        };
+        setTimeout(poll, 1000);
+      }
     </script>
   )
 }

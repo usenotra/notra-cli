@@ -17,6 +17,13 @@ export default class Dev extends Command {
 
   public async run(): Promise<void> {
     const { flags } = await this.parse(Dev);
+    const [major = 0, minor = 0] = process.versions.node.split('.').map(Number);
+    if (!process.versions.bun && (major < 22 || (major === 22 && minor < 12))) {
+      this.error(
+        `notra dev needs Node.js 22.12 or newer, but this is Node.js ${process.versions.node}. Update Node.js or run bunx --bun notra dev.`,
+        { exit: 1 },
+      );
+    }
     const source = await resolveSiteSource(flags.source);
     const runtime = sitesRuntimePath();
     this.logToStderr(`Starting Notra Sites preview for ${source}`);
@@ -42,8 +49,11 @@ export default class Dev extends Command {
     };
     const onInterrupt = () => stop('SIGINT');
     const onTerminate = () => stop('SIGTERM');
+    // Closing the terminal hangs up this process only; the detached preview
+    // would keep running and hold the port.
     process.on('SIGINT', onInterrupt);
     process.on('SIGTERM', onTerminate);
+    process.on('SIGHUP', onTerminate);
     try {
       const code = await new Promise<number | null>((resolve, reject) => {
         child.once('error', reject);
@@ -55,6 +65,7 @@ export default class Dev extends Command {
     } finally {
       process.removeListener('SIGINT', onInterrupt);
       process.removeListener('SIGTERM', onTerminate);
+      process.removeListener('SIGHUP', onTerminate);
       if (child.pid && !interrupted && process.platform !== 'win32') {
         try {
           process.kill(-child.pid, 'SIGTERM');

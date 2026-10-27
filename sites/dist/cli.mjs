@@ -556,6 +556,8 @@ var siteContextualSchema = z2.object({
 var siteSeoSchema = z2.object({
   metatags: z2.record(z2.string().regex(/^[a-z][a-z0-9:_.-]*$/i), z2.string().max(500)).default({}),
   indexing: z2.enum(["navigable", "all"]).default("navigable"),
+  image: sitePathSchema.optional(),
+  imageAlt: z2.string().trim().max(200).optional(),
   organization: z2.object({
     name: z2.string().trim().min(1).max(120),
     legalName: z2.string().trim().max(160).optional(),
@@ -3150,7 +3152,8 @@ var AREA_PAGES_FILE = "notra-pages.json";
 var ASTRO_LOG_NOISE = [
   /\[glob-loader\] No files found matching/,
   /\[glob-loader\] The base directory .* does not exist/,
-  /\[content\] The collection "(?:blog|changelog)" does not exist or is empty/
+  /\[content\] The collection "(?:blog|changelog)" does not exist or is empty/,
+  /┃ (?:Local|Network)\s+http:\/\/127\.0\.0\.1:\d+/
 ];
 var SHIKI_UNKNOWN_LANGUAGE = /\[Shiki\] The language "([^"]+)" doesn't exist/;
 
@@ -3633,12 +3636,39 @@ async function renderPng(card, fonts) {
     fitTo: { mode: "width", value: OG_IMAGE_WIDTH }
   }).render().asPng();
 }
+function areaCard(params, area, style) {
+  const { config } = params;
+  const title = configuredAreaTitle(config, area);
+  const section = config.thumbnails.label ?? AREA_DEFAULT_TITLES[area];
+  if (config.thumbnails.layout === "article") {
+    return OgArticleCard({
+      ...style,
+      date: config.name,
+      category: section === title ? "" : section,
+      title,
+      description: config[area]?.description ?? config.description,
+      authors: []
+    });
+  }
+  if (config.thumbnails.layout === "author") {
+    return OgAuthorCard({ ...style, label: section, title });
+  }
+  return OgCard({
+    ...style,
+    eyebrow: config.name,
+    title,
+    footer: style.domain
+  });
+}
+async function writeCard(params, card, fonts, urlPath) {
+  await writeFileEnsured(join3(params.workDir, "site", "public", urlPath), await renderPng(card, fonts));
+}
 async function writeOgImages(params) {
   const started = Date.now();
   const manifest = {};
   const diagnostics = [];
   const { config } = params;
-  if (config.thumbnails.enabled && params.entries.length > 0) {
+  if (config.thumbnails.enabled) {
     const [fonts, background] = await Promise.all([
       loadFonts(),
       loadBackground(params)
@@ -3647,10 +3677,21 @@ async function writeOgImages(params) {
       diagnostics.push(background.diagnostic);
     }
     const appearance = config.thumbnails.appearance;
-    const logo = await publicImage(params, siteLogo(config));
-    const accent = appearance === "dark" ? config.colors.light ?? config.colors.primary : config.colors.primary;
-    const domain = new URL(params.publicOrigin).hostname.replace(/^www\./, "");
+    const style = {
+      appearance,
+      accent: appearance === "dark" ? config.colors.light ?? config.colors.primary : config.colors.primary,
+      logo: await publicImage(params, siteLogo(config)),
+      domain: new URL(params.publicOrigin).hostname.replace(/^www\./, ""),
+      background: background.dataUri
+    };
+    const { accent, logo, domain } = style;
     const now = new Date;
+    const areas = config.seo.image ? [] : params.areas;
+    await Promise.all(areas.map(async (area) => {
+      const urlPath = `/${OG_IMAGES_DIR}/${area}.png`;
+      await writeCard(params, areaCard(params, area, style), fonts, urlPath);
+      manifest[area] = urlPath;
+    }));
     await Promise.all(params.entries.map(async (entry) => {
       const source = await readFile2(join3(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), "utf8");
       const { data } = parseEntryFrontmatter(entry.path, entry.area, source);
@@ -3694,9 +3735,8 @@ async function writeOgImages(params) {
           background: background.dataUri
         });
       }
-      const png = await renderPng(card, fonts);
       const urlPath = `/${OG_IMAGES_DIR}/${entry.area}/${entry.slug}.png`;
-      await writeFileEnsured(join3(params.workDir, "site", "public", urlPath), png);
+      await writeCard(params, card, fonts, urlPath);
       manifest[`${entry.area}/${entry.slug}`] = urlPath;
     }));
   }
@@ -4521,7 +4561,8 @@ async function buildSite(options) {
     entries: prepared.validation.entries,
     publicFiles: prepared.publicFiles,
     includeDrafts: options.target.includeDrafts,
-    publicOrigin: options.target.publicOrigin
+    publicOrigin: options.target.publicOrigin,
+    areas: listMountedAreas(mounts).map(({ area }) => area)
   });
   diagnostics.push(...ogImages.diagnostics);
   const ogImagePaths = Object.values(ogImages.manifest);
@@ -4668,6 +4709,8 @@ var ASTRO_READY_URL = /http:\/\/127\.0\.0\.1:(\d+)(?=\D)/;
 var ASTRO_READY_SCAN_CHARS = 512;
 var DEV_STOP_TIMEOUT_MS = 5000;
 var DEV_HMR_GENERATION_EVENT = "notra:page-generation";
+var DEV_ERRORS_PATH = "/__notra-dev/errors";
+var DEV_ERRORS_POLL_MS = 1000;
 var DEV_PROXY_MAX_ATTEMPTS = 3;
 var DEV_PROXY_RETRY_DELAY_MS = 50;
 var DEV_PROXY_RETRY_ERRORS = new Set([
@@ -4694,6 +4737,79 @@ import { connect, createServer as createNetServer } from "node:net";
 import { dirname as dirname4, join as join8, relative as relative2 } from "node:path";
 import { pipeline } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
+
+// compiler/utils/dev-error-page.ts
+import { createHash as createHash4 } from "node:crypto";
+function escapeHtml(value) {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+function diagnosticLocation(diagnostic) {
+  if (!diagnostic.file) {
+    return "site";
+  }
+  if (!diagnostic.line) {
+    return diagnostic.file;
+  }
+  return `${diagnostic.file}:${diagnostic.line}${diagnostic.column ? `:${diagnostic.column}` : ""}`;
+}
+function devErrorsKey(errors) {
+  if (errors.length === 0) {
+    return "";
+  }
+  return createHash4("sha1").update(JSON.stringify(errors.map((error) => [
+    error.file,
+    error.line,
+    error.column,
+    error.message
+  ]))).digest("hex").slice(0, 16);
+}
+function devErrorPage(errors) {
+  const items = errors.map((error) => `<li><code>${escapeHtml(diagnosticLocation(error))}</code><p>${escapeHtml(error.message)}</p></li>`).join("");
+  const title = errors.length === 1 ? "1 error" : `${errors.length} errors`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title} · Notra Sites preview</title>
+<style>
+:root { color-scheme: light dark; font-family: ui-sans-serif, system-ui, sans-serif; }
+body { margin: 0; padding: 48px 24px; }
+main { max-width: 720px; margin: 0 auto; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+.hint { margin: 0 0 24px; opacity: 0.7; }
+ul { list-style: none; margin: 0; padding: 0; }
+li { border: 1px solid color-mix(in oklab, currentColor 18%, transparent); border-radius: 10px; padding: 12px 16px; margin-bottom: 12px; }
+code { font-family: ui-monospace, monospace; font-size: 13px; color: #dc2626; }
+li p { margin: 6px 0 0; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<main>
+<h1>Your site has ${title}</h1>
+<p class="hint">Fix ${errors.length === 1 ? "it" : "them"} and this page reloads.</p>
+<ul>${items}</ul>
+</main>
+<script>
+const poll = async () => {
+  try {
+    const response = await fetch(${JSON.stringify(DEV_ERRORS_PATH)}, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(String(response.status));
+    }
+    const { key } = await response.json();
+    if (key !== ${JSON.stringify(devErrorsKey(errors))}) {
+      location.reload();
+      return;
+    }
+  } catch {}
+  setTimeout(poll, ${DEV_ERRORS_POLL_MS});
+};
+setTimeout(poll, ${DEV_ERRORS_POLL_MS});
+</script>
+</body>
+</html>`;
+}
 
 // compiler/utils/dev-host.ts
 function isLocalDevHost(host) {
@@ -4786,6 +4902,22 @@ async function findFreePort(from) {
   }
   throw new Error(`No free port between ${from} and ${from + DEV_PORT_SEARCH_RANGE}`);
 }
+async function findUnusedPort(from) {
+  for (let port = from;port < from + DEV_PORT_SEARCH_RANGE && port <= 65535; port++) {
+    const answered = await new Promise((resolve) => {
+      const socket = connect(port, "127.0.0.1");
+      socket.once("connect", () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.once("error", () => resolve(false));
+    });
+    if (!answered) {
+      return port;
+    }
+  }
+  throw new Error(`No free port between ${from} and ${from + DEV_PORT_SEARCH_RANGE}`);
+}
 async function startAstroDev(toolchainRoot, area) {
   const root = join8(dirname4(area.paramsPath), "astro", area.area);
   area.hmrToken ??= randomBytes(18).toString("base64url");
@@ -4845,7 +4977,9 @@ async function startAstroDev(toolchainRoot, area) {
         NOTRA_DEV_HMR_TOKEN: `${area.hmrToken}.${area.hmrGeneration}`,
         NOTRA_DEV_DOCUMENT_TOKEN: area.documentToken,
         NOTRA_DEV_HMR_EVENT: DEV_HMR_GENERATION_EVENT,
-        ASTRO_TELEMETRY_DISABLED: "1"
+        NOTRA_DEV_ERRORS_PATH: DEV_ERRORS_PATH,
+        ASTRO_TELEMETRY_DISABLED: "1",
+        ASTRO_DISABLE_UPDATE_CHECK: "true"
       },
       stdio: ["ignore", "pipe", "pipe"]
     });
@@ -4918,6 +5052,13 @@ async function stopAstroDev(running) {
     child.kill("SIGTERM");
   });
 }
+function isDocumentRequest(incoming) {
+  if (incoming.method !== "GET") {
+    return false;
+  }
+  const destination = incoming.headers["sec-fetch-dest"];
+  return destination ? destination === "document" || destination === "iframe" || destination === "frame" : (incoming.headers.accept ?? "").includes("text/html");
+}
 function pathnameOf(incoming) {
   try {
     return decodeURIComponent(new URL(incoming.url ?? "/", "http://localhost").pathname);
@@ -4941,7 +5082,7 @@ ${headers.join(`\r
   socket.on("error", () => upstream.destroy());
   socket.on("close", () => upstream.destroy());
 }
-function startDevProxy(port, mounts, areas, waitForReady) {
+function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => []) {
   const [fallback] = areas;
   const targetFor = (pathname) => {
     const owner = resolveAreaForPath(mounts, pathname);
@@ -4969,6 +5110,24 @@ function startDevProxy(port, mounts, areas, waitForReady) {
     if (pathname === null) {
       outgoing.writeHead(400);
       outgoing.end();
+      return;
+    }
+    if (pathname === DEV_ERRORS_PATH) {
+      outgoing.writeHead(200, {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store"
+      });
+      const errors = siteErrors();
+      outgoing.end(JSON.stringify({ count: errors.length, key: devErrorsKey(errors) }));
+      return;
+    }
+    const errors = siteErrors();
+    if (errors.length > 0 && isDocumentRequest(incoming)) {
+      outgoing.writeHead(500, {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store"
+      });
+      outgoing.end(devErrorPage(errors));
       return;
     }
     if (areas.some((area) => pathname.replace(/\/+$/, "") === joinMountPath(area.mount, AREA_PAGES_FILE))) {
@@ -5194,7 +5353,7 @@ async function cleanDevGeneratedAssets(workDir, publicFiles, customScripts) {
       return false;
     }
     const name = relative3(publicDir, path).split(sep2).join("/");
-    return name.startsWith(`${SITE_ASSETS_DIR}/`) && /^custom-[A-Za-z0-9_-]+\.[a-f0-9]{10}\.js$/.test(name.slice(SITE_ASSETS_DIR.length + 1)) || name.startsWith(`${SITE_ASSETS_DIR}/fonts/`) && /^[a-f0-9]{64}\//.test(name.slice(`${SITE_ASSETS_DIR}/fonts/`.length)) || SITE_AREAS.some((area) => name.startsWith(`${OG_IMAGES_DIR}/${area}/`)) && name.endsWith(".png");
+    return name.startsWith(`${SITE_ASSETS_DIR}/`) && /^custom-[A-Za-z0-9_-]+\.[a-f0-9]{10}\.js$/.test(name.slice(SITE_ASSETS_DIR.length + 1)) || name.startsWith(`${SITE_ASSETS_DIR}/fonts/`) && /^[a-f0-9]{64}\//.test(name.slice(`${SITE_ASSETS_DIR}/fonts/`.length)) || SITE_AREAS.some((area) => name === `${OG_IMAGES_DIR}/${area}.png` || name.startsWith(`${OG_IMAGES_DIR}/${area}/`) && name.endsWith(".png"));
   }).map((path) => rm4(path, { force: true })));
 }
 
@@ -5252,7 +5411,8 @@ function createDevRefresh(options) {
       entries: prepared.validation.entries,
       publicFiles: prepared.publicFiles,
       includeDrafts: options.params.includeDrafts,
-      publicOrigin: options.params.publicOrigin
+      publicOrigin: options.params.publicOrigin,
+      areas: listMountedAreas(options.params.mounts).map(({ area }) => area)
     });
     if (closed || current !== revision) {
       return;
@@ -5464,9 +5624,14 @@ async function main() {
     const target = values.target ? await readBuildTarget(values.target) : undefined;
     const mounts = normalizeSiteMounts(target?.mounts ?? { blog: "/blog", changelog: "/changelog" });
     const defaultConfig = localDefaultConfig(siteRoot, target);
-    const port = Number(values.port ?? "4321");
-    if (!Number.isInteger(port) || port < 1 || port > 65533) {
+    const requestedPort = Number(values.port ?? "4321");
+    if (!Number.isInteger(requestedPort) || requestedPort < 1 || requestedPort > 65533) {
       throw new Error("--port must be an integer between 1 and 65533");
+    }
+    const port = await findUnusedPort(requestedPort);
+    if (port !== requestedPort) {
+      process.stderr.write(`Port ${requestedPort} is in use, using ${port} instead.
+`);
     }
     if (values.area && values.area !== "blog" && values.area !== "changelog") {
       throw new Error("--area must be blog or changelog");
@@ -5497,6 +5662,7 @@ async function main() {
     const documentSession = randomBytes2(18).toString("base64url");
     let documentGeneration = 0;
     let running = [];
+    let siteErrors = [];
     const stopAreas = async () => {
       const stopping = running;
       running = [];
@@ -5522,7 +5688,10 @@ async function main() {
         defaultConfig
       }),
       writeOgImages,
-      printDiagnostics,
+      printDiagnostics: (diagnostics) => {
+        siteErrors = diagnostics.filter((diagnostic) => diagnostic.severity === "error");
+        printDiagnostics(diagnostics);
+      },
       reportError: (error) => process.stderr.write(`${String(error)}
 `),
       publish: async (params, isCurrent) => {
@@ -5573,6 +5742,7 @@ async function main() {
     };
     process.on("SIGINT", onSignal);
     process.on("SIGTERM", onSignal);
+    process.on("SIGHUP", onSignal);
     try {
       watcher = watch2(siteRoot, { recursive: true }, () => {
         const requested = refresh.refresh(150);
@@ -5584,18 +5754,21 @@ async function main() {
       });
       proxy = await startDevProxy(port, mounts, ordered, async () => {
         await watchedRefresh;
-      });
+      }, () => siteErrors);
       if (interrupted) {
         proxy.close();
         await stop();
         process.exit(0);
       }
       watchedRefresh = refresh.refresh();
-      if (!await watchedRefresh) {
+      const started = await watchedRefresh;
+      if (interrupted) {
         await stop();
-        process.exit(interrupted ? 0 : 1);
+        process.exit(0);
       }
-      process.stderr.write(`Previewing ${areas.map((area) => `${area.area} at http://localhost:${port}${area.mount}`).join(" and ")}
+      const urls = areas.map((area) => `${area.area} at http://localhost:${port}${area.mount}`).join(" and ");
+      process.stderr.write(started ? `Previewing ${urls}
+` : `Fix the errors above to preview ${urls}. Waiting for changes...
 `);
       await new Promise(() => {
         return;
