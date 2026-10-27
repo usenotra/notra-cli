@@ -5353,7 +5353,7 @@ async function cleanDevGeneratedAssets(workDir, publicFiles, customScripts) {
       return false;
     }
     const name = relative3(publicDir, path).split(sep2).join("/");
-    return name.startsWith(`${SITE_ASSETS_DIR}/`) && /^custom-[A-Za-z0-9_-]+\.[a-f0-9]{10}\.js$/.test(name.slice(SITE_ASSETS_DIR.length + 1)) || name.startsWith(`${SITE_ASSETS_DIR}/fonts/`) && /^[a-f0-9]{64}\//.test(name.slice(`${SITE_ASSETS_DIR}/fonts/`.length)) || SITE_AREAS.some((area) => name.startsWith(`${OG_IMAGES_DIR}/${area}/`)) && name.endsWith(".png");
+    return name.startsWith(`${SITE_ASSETS_DIR}/`) && /^custom-[A-Za-z0-9_-]+\.[a-f0-9]{10}\.js$/.test(name.slice(SITE_ASSETS_DIR.length + 1)) || name.startsWith(`${SITE_ASSETS_DIR}/fonts/`) && /^[a-f0-9]{64}\//.test(name.slice(`${SITE_ASSETS_DIR}/fonts/`.length)) || SITE_AREAS.some((area) => name === `${OG_IMAGES_DIR}/${area}.png` || name.startsWith(`${OG_IMAGES_DIR}/${area}/`) && name.endsWith(".png"));
   }).map((path) => rm4(path, { force: true })));
 }
 
