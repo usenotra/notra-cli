@@ -4887,6 +4887,22 @@ async function findFreePort(from) {
   }
   throw new Error(`No free port between ${from} and ${from + DEV_PORT_SEARCH_RANGE}`);
 }
+async function findUnusedPort(from) {
+  for (let port = from;port < from + DEV_PORT_SEARCH_RANGE && port <= 65535; port++) {
+    const answered = await new Promise((resolve) => {
+      const socket = connect(port, "127.0.0.1");
+      socket.once("connect", () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.once("error", () => resolve(false));
+    });
+    if (!answered) {
+      return port;
+    }
+  }
+  throw new Error(`No free port between ${from} and ${from + DEV_PORT_SEARCH_RANGE}`);
+}
 async function startAstroDev(toolchainRoot, area) {
   const root = join8(dirname4(area.paramsPath), "astro", area.area);
   area.hmrToken ??= randomBytes(18).toString("base64url");
@@ -5596,7 +5612,7 @@ async function main() {
     if (!Number.isInteger(requestedPort) || requestedPort < 1 || requestedPort > 65533) {
       throw new Error("--port must be an integer between 1 and 65533");
     }
-    const port = await findFreePort(requestedPort);
+    const port = await findUnusedPort(requestedPort);
     if (port !== requestedPort) {
       process.stderr.write(`Port ${requestedPort} is in use, using ${port} instead.
 `);
