@@ -19,9 +19,18 @@ function readManifest(): Record<string, string> {
 
 const manifest = readManifest();
 
-export function generatedImage(slug: string): string | undefined {
-  const path = manifest[`${params.area}/${slug}`];
+function manifestImage(key: string): string | undefined {
+  const path = manifest[key];
   return typeof path === "string" && path.startsWith("/")
     ? assetUrl(path)
     : undefined;
+}
+
+export function generatedImage(slug: string): string | undefined {
+  return manifestImage(`${params.area}/${slug}`);
+}
+
+/** The generated share image of this section's index. */
+export function generatedAreaImage(): string | undefined {
+  return manifestImage(params.area);
 }

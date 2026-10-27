@@ -30,8 +30,10 @@ bunx --bun notra@latest dev
 
 The folder must contain `blog.json`, `blog/`, or `changelog/`; `blog.json` is
 optional. The preview runs at `http://localhost:4321` with live reload for
-content, components, CSS, assets, and configuration. It includes drafts and
-does not load analytics integrations. No login, API key, or deployment is
+content, components, CSS, assets, and configuration; if 4321 is taken, the
+next free port is used. Errors show in the terminal and in the browser, which
+reloads once they are fixed. It includes drafts and does not load analytics
+integrations. It needs Node.js 22.12 or newer, or Bun. No login, API key, or deployment is
 required. The Sites renderer ships in this package's `sites/` folder, exported
 from the Notra monorepo (`apps/sites-builder`, see its `release.md`), and runs
 on the Node or Bun that started the CLI. Node users do not need Bun installed.

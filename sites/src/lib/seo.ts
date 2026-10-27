@@ -11,6 +11,7 @@ import type {
   ThemeColors,
 } from "../types/seo";
 import { mailtoAddress } from "../utils/mailto";
+import { generatedAreaImage } from "./og";
 import {
   absoluteUrl,
   areaTitle,
@@ -140,20 +141,32 @@ export function structuredData(nodes: JsonLdNode[]): string {
   return JSON.stringify(graph).replaceAll("<", "\\u003c");
 }
 
+function chosenImage(path: string, alt: string | undefined): SocialImage {
+  return {
+    url: absoluteUrl(assetUrl(path) ?? path),
+    large: true,
+    alt: alt || undefined,
+  };
+}
+
+/** The page's own image, its generated card, seo.image, the section card, then the logo. */
 export function socialImage(
   image: string | undefined,
   generated?: string,
   imageAlt?: string
 ): SocialImage | undefined {
   if (image) {
-    return {
-      url: absoluteUrl(assetUrl(image) ?? image),
-      large: true,
-      alt: imageAlt || undefined,
-    };
+    return chosenImage(image, imageAlt);
   }
   if (generated) {
     return { url: absoluteUrl(generated), large: true };
+  }
+  if (config.seo.image) {
+    return chosenImage(config.seo.image, config.seo.imageAlt);
+  }
+  const areaImage = generatedAreaImage();
+  if (areaImage) {
+    return { url: absoluteUrl(areaImage), large: true };
   }
   const logo = logoFor("light");
   return logo ? { url: absoluteUrl(logo), large: false } : undefined;
