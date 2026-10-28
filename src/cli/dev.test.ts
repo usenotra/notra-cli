@@ -34,5 +34,6 @@ test('an unrelated directory gets an actionable error without authentication', a
   expect(result.code).toBe(2);
   expect(result.stderr).toContain('No Notra site found');
   expect(result.stderr).toContain('--source');
+  expect(result.stderr).toContain('notra dev --init');
   expect(result.stderr).not.toContain('API key');
 });
