@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 
 export function starterSiteFiles(name: string, date: string): Record<string, string> {
@@ -48,14 +48,23 @@ Our changelog is live. <Badge>New</Badge>
   };
 }
 
-/** Writes the starter files, never overwriting one that already exists. */
+/** Writes every starter file or none, never overwriting one that already exists. */
 export async function createStarterSite(source: string, today = new Date()): Promise<{ root: string; files: string[] }> {
   const root = resolve(source);
-  const files = starterSiteFiles(basename(root), today.toISOString().slice(0, 10));
-  for (const [path, content] of Object.entries(files)) {
-    const target = join(root, path);
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, content, { flag: 'wx' });
+  const name = basename(root).trim().slice(0, 80).trim() || 'My site';
+  const files = starterSiteFiles(name, today.toISOString().slice(0, 10));
+  const created: string[] = [];
+  try {
+    for (const [path, content] of Object.entries(files)) {
+      const target = join(root, path);
+      const directory = await mkdir(dirname(target), { recursive: true });
+      if (directory) created.push(directory);
+      await writeFile(target, content, { flag: 'wx' });
+      created.push(target);
+    }
+  } catch (error) {
+    await Promise.all(created.map((path) => rm(path, { recursive: true, force: true })));
+    throw error;
   }
   return { root, files: Object.keys(files) };
 }

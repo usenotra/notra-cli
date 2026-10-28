@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { resolveSiteSource } from './site-source';
@@ -27,4 +27,19 @@ test('never overwrites an existing file', async () => {
   await writeFile(join(root, 'blog.json'), '{"name":"Mine"}');
   await expect(createStarterSite(root)).rejects.toThrow('EEXIST');
   expect(await readFile(join(root, 'blog.json'), 'utf8')).toBe('{"name":"Mine"}');
+});
+
+test('a failed write removes everything it created', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'notra-starter-'));
+  roots.push(root);
+  await writeFile(join(root, 'changelog'), 'not a folder');
+  await expect(createStarterSite(root)).rejects.toThrow();
+  expect((await readdir(root)).sort()).toEqual(['changelog']);
+});
+
+test('the site name fits the renderer limit', async () => {
+  const parent = await mkdtemp(join(tmpdir(), 'notra-starter-'));
+  roots.push(parent);
+  const { root } = await createStarterSite(join(parent, 'x'.repeat(120)));
+  expect(JSON.parse(await readFile(join(root, 'blog.json'), 'utf8')).name).toHaveLength(80);
 });
