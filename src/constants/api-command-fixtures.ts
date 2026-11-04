@@ -45,6 +45,20 @@ export const API_COMMAND_FIXTURES: ReadonlyArray<ApiCommandFixture> = [
   { command: 'geo shelf list', path: '/v1/projects/project_1/geo/shelf-sources', args: ['project_1', '--offset', '5', '--limit', '10'], query: { offset: '5', limit: '10' } },
   { command: 'geo visibility prompt-summaries', path: '/v1/projects/project_1/geo/visibility/prompt-results/summaries', args: ['project_1', '--limit', '10', '--engine', 'openai', '--mentioned', 'false', '--cursor', '20', '--query', 'best tools'], query: { limit: '10', engine: 'openai', mentioned: 'false', cursor: '20', query: 'best tools' } },
   { command: 'geo visibility prompt-detail', path: '/v1/projects/project_1/geo/visibility/prompt-results/check%2F1', args: ['project_1', 'check/1'] },
+  { command: 'geo prompts suggestions list', path: '/v1/projects/project_1/geo/prompts/suggestions', args: ['project_1'] },
+  { command: 'geo prompts suggestions accept', path: '/v1/projects/project_1/geo/prompts/suggestions/suggestion_1/accept', method: 'POST', args: ['project_1', 'suggestion_1'] },
+  { command: 'geo prompts suggestions dismiss', path: '/v1/projects/project_1/geo/prompts/suggestions/suggestion_1/dismiss', method: 'POST', args: ['project_1', 'suggestion_1'] },
+  { command: 'geo scans start', path: '/v1/projects/project_1/geo/scans/prompts/prompt_1', method: 'POST', args: ['project_1', '--prompt', 'prompt_1'] },
+  { command: 'geo engines', path: '/v1/projects/project_1/geo/engines', args: ['project_1'] },
+  { command: 'geo gaps update', path: '/v1/projects/project_1/geo/gaps/prompt_1', method: 'PATCH', args: ['project_1', 'prompt_1', '--no-ignored'], body: { ignored: false } },
+  { command: 'geo briefs update', path: '/v1/projects/project_1/geo/briefs/brief_1', method: 'PATCH', args: ['project_1', 'brief_1', '--working-title', 'Pricing guide', '--questions-to-answer', 'What does it cost?'], body: { workingTitle: 'Pricing guide', questionsToAnswer: ['What does it cost?'] } },
+  { command: 'schedules run', path: '/v1/schedules/schedule_1/run', method: 'POST', args: ['schedule_1'] },
+  { command: 'schedules runs', path: '/v1/schedules/schedule_1/runs', args: ['schedule_1', '--limit', '5'], query: { limit: '5' } },
+  { command: 'brands colors list', path: '/v1/brand-identities/brand_1/colors', args: ['brand_1'] },
+  { command: 'brands colors create', path: '/v1/brand-identities/brand_1/colors', method: 'POST', args: ['brand_1', '--light-value', '#13A0DC', '--role', 'primary', '--name', 'Notra blue'], body: { lightValue: '#13A0DC', role: 'primary', name: 'Notra blue' } },
+  { command: 'brands colors update', path: '/v1/brand-identities/brand_1/colors/color_1', method: 'PATCH', args: ['brand_1', 'color_1', '--dark-value', '#0b5f84'], body: { darkValue: '#0b5f84' } },
+  { command: 'brands colors delete', path: '/v1/brand-identities/brand_1/colors/color_1', method: 'DELETE', args: ['brand_1', 'color_1'] },
+  { command: 'integrations activity', path: '/v1/integrations/github/integration_1/activity', args: ['integration_1', '--type', 'releases', '--since', '2026-10-01T00:00:00Z', '--page', '2'], query: { type: 'releases', since: '2026-10-01T00:00:00Z', page: '2' } },
 ];
 
 export const POST_GENERATION_RESPONSE = {

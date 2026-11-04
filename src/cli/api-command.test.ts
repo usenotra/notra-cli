@@ -352,6 +352,9 @@ describe('curated API commands end to end', () => {
       ['webhooks', 'endpoints', 'delete', 'endpoint_1'], ['chats', 'create', '--message', 'Hello'],
       ['agents', 'create', '--message', 'Hello'], ['api', 'call', 'createChat', '--body-file', '-'],
       ['api', 'request', 'POST', '/v2/eve/v1/session', '--body-file', '-'],
+      ['geo', 'scans', 'start', 'project_1', '--prompt', 'prompt_1'], ['schedules', 'run', 'schedule_1'],
+      ['api', 'call', 'runSchedule', '--param', 'scheduleId=schedule_1'], ['brands', 'colors', 'delete', 'brand_1', 'color_1'],
+      ['api', 'request', 'POST', '/v1/projects/project_1/geo/scans/prompts/prompt_1'],
     ]) {
       const before = requests;
       const result = await run(args, false, '{"message":"Hello"}');
@@ -387,6 +390,18 @@ describe('curated API commands end to end', () => {
       ['agents', 'events', 'session_1', '--start-index', '-1'],
       ['skills', 'create', '--body-file', '-'],
       ['skills', 'create', '--name', 'humanizer', '--content', 'a', '--content-file', 'b'],
+      ['geo', 'prompts', 'suggestions', 'accept', 'project_1'],
+      ['geo', 'engines'],
+      ['geo', 'gaps', 'update', 'project_1', 'prompt_1'],
+      ['geo', 'briefs', 'update', 'project_1', 'brief_1'],
+      ['geo', 'briefs', 'update', 'project_1', 'brief_1', '--sections', '[]'],
+      ['geo', 'scans', 'start', 'project_1', '--prompt', '', '--yes'],
+      ['schedules', 'runs', 'schedule_1', '--limit', '51'],
+      ['brands', 'colors', 'create', 'brand_1', '--light-value', 'blue'],
+      ['brands', 'colors', 'create', 'brand_1', '--light-value', '#13A0DC', '--role', 'brand'],
+      ['brands', 'colors', 'update', 'brand_1', 'color_1'],
+      ['integrations', 'activity', 'integration_1', '--type', 'issues'],
+      ['integrations', 'activity', 'integration_1', '--since', 'yesterday'],
     ]) {
       const before = requests;
       const result = await run(args, false, 'null');
