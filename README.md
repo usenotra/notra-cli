@@ -113,10 +113,11 @@ Run `notra <topic> --help` to see every command and flag. Every API command
 accepts `--json` for machine-readable output.
 
 GEO commands cover projects, settings, answer engines, prompts and Search
-Console prompt suggestions, sequences, competitors, scans (full or one prompt
-with `geo scans start --prompt`), visibility, sentiment, scan changes, prompt
-history, citation shelf sources, content gaps, briefs, agent readiness, and AI
-traffic. Run `notra geo --help` to browse the complete command tree.
+Console prompt suggestions, sequences, competitors, scans, visibility,
+sentiment, scan changes, prompt history, citation shelf sources, content gaps,
+briefs, agent readiness, and AI traffic. Rescan a single prompt with
+`notra geo scans start <projectId> --prompt <promptId>`. Run `notra geo --help`
+to browse the complete command tree.
 
 ### Content and workspace workflows
 
@@ -124,7 +125,7 @@ traffic. Run `notra geo --help` to browse the complete command tree.
 |---|---|
 | `posts` | List, get, create, update, delete, generate, generation status; schedule, inspect or cancel publishing |
 | `schedules` | List, create, update, delete; run once now, list recent runs |
-| `brands colors` | List, add, update, delete brand guideline colors |
+| `brands colors` | List, create, update, delete brand guideline colors |
 | `integrations activity` | List merged pull requests, commits or releases of a connected GitHub repository |
 | `event-triggers` | List, get, create, replace configuration, delete |
 | `webhooks endpoints` | List, create, delete subscriptions |

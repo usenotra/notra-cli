@@ -355,6 +355,7 @@ describe('curated API commands end to end', () => {
       ['geo', 'scans', 'start', 'project_1', '--prompt', 'prompt_1'], ['schedules', 'run', 'schedule_1'],
       ['api', 'call', 'runSchedule', '--param', 'scheduleId=schedule_1'], ['brands', 'colors', 'delete', 'brand_1', 'color_1'],
       ['api', 'request', 'POST', '/v1/projects/project_1/geo/scans/prompts/prompt_1'],
+      ['geo', 'prompts', 'suggestions', 'dismiss', 'project_1', 'suggestion_1'],
     ]) {
       const before = requests;
       const result = await run(args, false, '{"message":"Hello"}');
@@ -395,6 +396,7 @@ describe('curated API commands end to end', () => {
       ['geo', 'gaps', 'update', 'project_1', 'prompt_1'],
       ['geo', 'briefs', 'update', 'project_1', 'brief_1'],
       ['geo', 'briefs', 'update', 'project_1', 'brief_1', '--sections', '[]'],
+      ['geo', 'briefs', 'update', 'project_1', 'brief_1', '--expected-updated-at', '2026-11-01T00:00:00Z'],
       ['geo', 'scans', 'start', 'project_1', '--prompt', '', '--yes'],
       ['schedules', 'runs', 'schedule_1', '--limit', '51'],
       ['brands', 'colors', 'create', 'brand_1', '--light-value', 'blue'],

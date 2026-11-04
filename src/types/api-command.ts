@@ -15,6 +15,8 @@ export type ApiCommandOptions = {
   // Skip the selected-workspace header, e.g. so a stale selection cannot block discovery.
   unscoped?: boolean;
   response?: 'json' | 'chat' | 'ndjson';
+  // Ask before irreversible actions that are neither DELETE nor billable.
+  confirm?: boolean;
   bodySchema?: ZodObject;
 };
 
