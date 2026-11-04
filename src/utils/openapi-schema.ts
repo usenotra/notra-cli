@@ -55,10 +55,11 @@ export function resolveOpenApiSchema(
 
 const ASCII_LETTER = /^[a-z]$/i;
 
-// Returns undefined for syntax this does not rewrite safely (Unicode, hex and
-// named escapes or groups); dropping the pattern leaves validation to the API.
+// Returns undefined for syntax this does not rewrite safely (non-ASCII text,
+// backreferences, Unicode, hex and named escapes or groups); dropping the
+// pattern leaves validation to the API.
 export function caseInsensitivePattern(pattern: string): string | undefined {
-  if (/\\[pPkuxc]|\(\?</.test(pattern)) return undefined;
+  if (/[^\x00-\x7f]|\\[pPkuxc1-9]|\(\?</.test(pattern)) return undefined;
   let result = '';
   let inClass = false;
   for (let index = 0; index < pattern.length; index += 1) {

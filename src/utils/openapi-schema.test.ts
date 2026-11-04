@@ -35,6 +35,8 @@ describe('bundled OpenAPI request schemas', () => {
     expect(caseInsensitivePattern('^foo-bar$')).toBe('^[fF][oO][oO]-[bB][aA][rR]$');
     expect(caseInsensitivePattern('^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\d$')).toBe('^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\d$');
     expect(resolveOpenApiSchema({ type: 'string', pattern: '^\\p{L}+$/i' }, {})).toEqual({ type: 'string' });
+    expect(caseInsensitivePattern('^(a)\\1$')).toBeUndefined();
+    expect(caseInsensitivePattern('^é$')).toBeUndefined();
   });
 
   test('fails loudly on missing, remote and recursive references', () => {
