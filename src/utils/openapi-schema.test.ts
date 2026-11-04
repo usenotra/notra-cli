@@ -24,6 +24,16 @@ describe('bundled OpenAPI request schemas', () => {
     expect(fromJSONSchema(resolveOpenApiSchema({ type: 'string', nullable: true }, {})).safeParse(null).success).toBe(true);
   });
 
+  test('keeps serialized case-insensitive patterns case-insensitive', () => {
+    const validator = fromJSONSchema(resolveOpenApiSchema(
+      { type: 'string', pattern: '^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i' },
+      {},
+    ));
+    expect(validator.safeParse('#13A0DC').success).toBe(true);
+    expect(validator.safeParse('#13a0dc').success).toBe(true);
+    expect(validator.safeParse('#13A0DG').success).toBe(false);
+  });
+
   test('fails loudly on missing, remote and recursive references', () => {
     expect(() => resolveOpenApiSchema({ $ref: '#/missing' }, {})).toThrow('Missing OpenAPI reference');
     expect(() => resolveOpenApiSchema({ $ref: 'https://example.com/schema' }, {})).toThrow('Unsupported OpenAPI reference');

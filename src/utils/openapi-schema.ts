@@ -20,10 +20,14 @@ export function resolveOpenApiSchema(
     return resolveOpenApiSchema(target, document, [...references, ref]);
   }
   const result: Record<string, unknown> = { ...value };
-  // Some API schemas serialize a RegExp flag after the end anchor. That is not
-  // a JSON Schema regex; retaining it makes even valid lowercase slugs fail.
+  // Some API schemas serialize a RegExp `i` flag after the end anchor. That is
+  // not a JSON Schema regex and JSON Schema has no flags, so drop it and add the
+  // uppercase letter ranges instead; otherwise "#13A0DC" fails locally.
   if (typeof result.pattern === 'string' && result.pattern.endsWith('$/i')) {
-    result.pattern = result.pattern.slice(0, -2);
+    result.pattern = result.pattern.slice(0, -2).replace(
+      /([a-z])-([a-z])/g,
+      (range, from: string, to: string) => `${range}${from.toUpperCase()}-${to.toUpperCase()}`,
+    );
   }
   for (const key of ['example', 'examples', 'title']) delete result[key];
   if (isRecord(value.properties)) {

@@ -9,6 +9,8 @@ export const API_QUERY_PARAMETER_SCHEMAS: Readonly<Record<string, Record<string,
 };
 
 export const API_ACTION_CONFIRMATIONS: Readonly<Record<string, string>> = {
+  createGeoPromptScan: 'Rescan this GEO prompt? It uses AI credits.',
+  runSchedule: 'Run this schedule now? Generation uses AI credits, and auto-publish schedules publish the result.',
   createChat: 'Start this chat? It uses AI credits, and agent tools may modify data or external services.',
   postChatMessage: 'Send this chat message or approval? It uses AI credits, and agent tools may modify data or external services.',
   createAgentSession: 'Start this agent session? It uses AI credits, and agent tools may modify data or external services.',
