@@ -3,7 +3,7 @@
 // compiler/cli.ts
 import { randomBytes as randomBytes2 } from "node:crypto";
 import { renameSync, watch as watch2 } from "node:fs";
-import { mkdtemp as mkdtemp2, realpath, rm as rm6, writeFile as writeFile5 } from "node:fs/promises";
+import { mkdtemp as mkdtemp2, realpath, rm as rm6, writeFile as writeFile6 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join as join14, resolve as resolve4 } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -2823,7 +2823,7 @@ function findRedirect(redirects, bare) {
 
 // compiler/build.ts
 import { spawn } from "node:child_process";
-import { cp as cp3, mkdir as mkdir7, readFile as readFile7, rm as rm4, stat as stat3, writeFile as writeFile4 } from "node:fs/promises";
+import { cp as cp3, mkdir as mkdir7, readFile as readFile6, rm as rm4, stat as stat4, writeFile as writeFile5 } from "node:fs/promises";
 import { createRequire as createRequire2 } from "node:module";
 import { dirname as dirname6, join as join10, relative as relative2, resolve as resolve2 } from "node:path";
 
@@ -5494,7 +5494,8 @@ function hasReactComponents(outputs) {
 }
 
 // compiler/utils/work-lock.ts
-import { mkdir as mkdir6, open as open2, readFile as readFile6, rm as rm3 } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { link, mkdir as mkdir6, open as open2, rm as rm3, stat as stat3, writeFile as writeFile4 } from "node:fs/promises";
 import { dirname as dirname5 } from "node:path";
 
 // compiler/utils/usage-error.ts
@@ -5504,6 +5505,9 @@ class UsageError extends Error {
 
 // compiler/utils/work-lock.ts
 function isRunning(pid) {
+  if (!(Number.isInteger(pid) && pid > 0)) {
+    return false;
+  }
   try {
     process.kill(pid, 0);
     return true;
@@ -5511,26 +5515,73 @@ function isRunning(pid) {
     return error.code === "EPERM";
   }
 }
+async function publish(path) {
+  const draft = `${path}.${process.pid}.${randomUUID()}`;
+  await writeFile4(draft, String(process.pid));
+  try {
+    await link(draft, path);
+    return (await stat3(draft)).ino;
+  } catch (error) {
+    if (error.code === "EEXIST") {
+      return null;
+    }
+    throw error;
+  } finally {
+    await rm3(draft, { force: true });
+  }
+}
+async function ownerOf(path) {
+  const handle = await open2(path, "r").catch(() => null);
+  if (!handle) {
+    return null;
+  }
+  try {
+    const [{ ino }, text] = await Promise.all([
+      handle.stat(),
+      handle.readFile("utf8")
+    ]);
+    return { pid: Number(text), ino };
+  } finally {
+    await handle.close();
+  }
+}
+async function removeIfStill(path, ino) {
+  if ((await ownerOf(path))?.ino === ino) {
+    await rm3(path, { force: true });
+  }
+}
+async function clearStale(lockPath, stale) {
+  const guard = `${lockPath}.takeover`;
+  const guardIno = await publish(guard);
+  if (guardIno === null) {
+    const holder = await ownerOf(guard);
+    if (holder && !isRunning(holder.pid)) {
+      await removeIfStill(guard, holder.ino);
+    }
+    return;
+  }
+  try {
+    await removeIfStill(lockPath, stale.ino);
+  } finally {
+    await removeIfStill(guard, guardIno);
+  }
+}
 async function lockWorkDir(lockPath) {
   await mkdir6(dirname5(lockPath), { recursive: true });
-  for (let attempt = 0;attempt < 2; attempt += 1) {
-    try {
-      const handle = await open2(lockPath, "wx");
-      await handle.writeFile(String(process.pid));
-      await handle.close();
-      return () => rm3(lockPath, { force: true });
-    } catch (error) {
-      if (error.code !== "EEXIST") {
-        throw error;
-      }
-      const owner = Number(await readFile6(lockPath, "utf8").catch(() => ""));
-      if (Number.isInteger(owner) && owner > 0 && isRunning(owner)) {
-        throw new UsageError(`Another Notra Sites build (process ${owner}) is running with this toolchain. Wait for it to finish, then build again. If none is running, delete ${lockPath}.`);
-      }
-      await rm3(lockPath, { force: true });
+  for (let attempt = 0;attempt < 5; attempt += 1) {
+    const ino = await publish(lockPath);
+    if (ino !== null) {
+      return () => removeIfStill(lockPath, ino);
+    }
+    const owner = await ownerOf(lockPath);
+    if (owner && isRunning(owner.pid)) {
+      throw new UsageError(`Another Notra Sites build (process ${owner.pid}) is running with this toolchain. Wait for it to finish, then build again. If none is running, delete ${lockPath}.`);
+    }
+    if (owner) {
+      await clearStale(lockPath, owner);
     }
   }
-  throw new UsageError("Couldn't lock the build folder. Try the build again.");
+  throw new UsageError(`Couldn't lock the build folder. Try the build again, or delete ${lockPath} if no build is running.`);
 }
 
 // compiler/build.ts
@@ -5567,7 +5618,7 @@ function runAstro(toolchainRoot, command, paramsPath, extraArgs = [], onOutput =
   });
 }
 async function writeBuildParams(path, params) {
-  await writeFile4(path, JSON.stringify(params));
+  await writeFile5(path, JSON.stringify(params));
 }
 function failedBuild(diagnostics, areas = []) {
   return {
@@ -5681,7 +5732,7 @@ ${log.trim().split(`
     for (const file of await listFiles(areaOut)) {
       const relativePath = relative2(areaOut, file).split("\\").join("/");
       if (relativePath === AREA_PAGES_FILE) {
-        areaPages.push(JSON.parse(await readFile7(file, "utf8")));
+        areaPages.push(JSON.parse(await readFile6(file, "utf8")));
         continue;
       }
       const urlPath = joinMountPath(mount, relativePath);
@@ -5697,16 +5748,16 @@ ${log.trim().split(`
       const target = join10(options.outDir, urlPath);
       await mkdir7(dirname6(target), { recursive: true });
       if (file.endsWith(".html")) {
-        const html = rewritePublicAssetUrls(unnestLinks(await readFile7(file, "utf8")), mount, publicFiles);
+        const html = rewritePublicAssetUrls(unnestLinks(await readFile6(file, "utf8")), mount, publicFiles);
         pageHtml.set(urlPath, html);
-        await writeFile4(target, html);
+        await writeFile5(target, html);
       } else {
         await cp3(file, target);
       }
     }
     const probePath = join10(options.outDir, mount, "_notra", "probe.txt");
     await mkdir7(dirname6(probePath), { recursive: true });
-    await writeFile4(probePath, `notra-site=${options.target.siteId}
+    await writeFile5(probePath, `notra-site=${options.target.siteId}
 area=${area}
 `);
     areas.push({ area, mount, durationMs: Date.now() - started });
@@ -5719,7 +5770,7 @@ area=${area}
   diagnostics.push(...contentImages.diagnostics);
   for (const [urlPath, html] of contentImages.pages) {
     pageHtml.set(urlPath, html);
-    await writeFile4(join10(options.outDir, urlPath), html);
+    await writeFile5(join10(options.outDir, urlPath), html);
   }
   if (contentImages.images > 0) {
     process.stderr.write(`Made ${contentImages.variants} smaller copies of ${contentImages.images} ${contentImages.images === 1 ? "image" : "images"} in ${contentImages.durationMs} ms
@@ -5760,7 +5811,7 @@ area=${area}
     });
   }
   const outputFiles = await listFiles(options.outDir);
-  const sizes = await Promise.all(outputFiles.map(async (file) => (await stat3(file)).size));
+  const sizes = await Promise.all(outputFiles.map(async (file) => (await stat4(file)).size));
   return {
     ok: !hasErrors(diagnostics),
     diagnostics,
@@ -5775,7 +5826,7 @@ area=${area}
   };
 }
 async function readBuildTarget(path) {
-  return siteBuildRequestSchema.parse(JSON.parse(await readFile7(path, "utf8")));
+  return siteBuildRequestSchema.parse(JSON.parse(await readFile6(path, "utf8")));
 }
 
 // compiler/constants/cli.ts
@@ -5911,7 +5962,7 @@ function isLocalDevHost(host) {
 }
 
 // compiler/utils/dev-markdown.ts
-import { readFile as readFile8 } from "node:fs/promises";
+import { readFile as readFile7 } from "node:fs/promises";
 async function devMarkdown(area, pathname, origin, signal) {
   let path = pathname.replace(/\.md$/, "") || "/";
   const upstreamSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(1e4)]) : AbortSignal.timeout(1e4);
@@ -5953,7 +6004,7 @@ async function devMarkdown(area, pathname, origin, signal) {
   const html = await response.text();
   const url = new URL(path, origin).toString();
   const markdown = entry ? entryMarkdown(entry, url, htmlToMarkdown(html, url)) : indexMarkdown(pages, origin);
-  const params = JSON.parse(await readFile8(area.paramsPath, {
+  const params = JSON.parse(await readFile7(area.paramsPath, {
     encoding: "utf8",
     signal: upstreamSignal
   }));
@@ -6846,7 +6897,7 @@ async function main() {
       localFavicons: !values.target
     });
     if (values["result-file"]) {
-      await writeFile5(values["result-file"], JSON.stringify(result));
+      await writeFile6(values["result-file"], JSON.stringify(result));
     }
     if (values.json) {
       process.stdout.write(`${JSON.stringify(result)}

@@ -7,6 +7,7 @@ import { splitFeatured } from "../lib/featured";
 import { blogOptions } from "../lib/options";
 import { areaDescription, areaTitle } from "../lib/params";
 import AreaHero from "./AreaHero.astro";
+import BlogEmpty from "./BlogEmpty.astro";
 import CategoryBar from "./CategoryBar.astro";
 import PostCard from "./PostCard.astro";
 import SiteSlot from "./SiteSlot.astro";
@@ -51,10 +52,7 @@ const searchTextOf = (entry: (typeof entries)[number]) => (blogOptions.search ? 
 
   {
     entries.length === 0 ? (
-      <div class="w-full max-w-(--layout-index) rounded-2xl border border-dashed border-border px-6 py-16 text-center">
-        <h2 class="font-heading text-lg font-(--font-heading-weight) tracking-[-0.015em]">No posts yet</h2>
-        <p class="mt-2 text-sm leading-6 text-muted-foreground">Add a Markdown file to blog/ and push.</p>
-      </div>
+      <BlogEmpty />
     ) : layout === "cards" ? (
       <ul data-category-list class="blog-cards grid w-full max-w-(--layout-index) grid-cols-1 gap-6 sm:grid-cols-2">
         {[...featured, ...rest].map((entry) => (
