@@ -12,7 +12,8 @@ beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), 'notra-dev-process-'));
   await mkdir(join(root, 'site with spaces ü', 'blog'), { recursive: true });
   const result = await Bun.build({
-    entrypoints: [resolve('src/run.ts'), resolve('src/commands/dev.ts')],
+    entrypoints: ['run.ts', 'commands/dev.ts', 'commands/sites/dev.ts', 'commands/sites/build.ts', 'commands/sites/validate.ts']
+      .map((file) => resolve('src', file)),
     root: resolve('src'),
     outdir: join(root, 'cli'),
     target: 'node',
@@ -47,8 +48,8 @@ afterAll(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-function startDev(record: string, env: Record<string, string>, args: string[] = []) {
-  const child = Bun.spawn([node!, join(root, 'cli/run.js'), 'dev', '--source', join(root, 'site with spaces ü'), ...args], {
+function startDev(record: string, env: Record<string, string>, args: string[] = [], command = ['dev']) {
+  const child = Bun.spawn([node!, join(root, 'cli/run.js'), ...command, '--source', join(root, 'site with spaces ü'), ...args], {
     env: {
       ...process.env,
       NOTRA_SITES_RUNTIME: join(root, 'runtime.mjs'),
@@ -66,6 +67,52 @@ test('Node forwards source and port to the bundled runtime', async () => {
   expect(await startDev(record, { RUNTIME_EXIT: '0' }, ['--port', '4400']).exited).toBe(0);
   const runtime = JSON.parse(await readFile(`${record}-runtime`, 'utf8'));
   expect(runtime.args).toEqual(['dev', '--source', join(root, 'site with spaces ü'), '--port', '4400']);
+});
+
+test('Node forwards --mount to the bundled runtime, also as sites dev', async () => {
+  for (const command of [['dev'], ['sites', 'dev']]) {
+    const record = join(root, `mount-${command.length}`);
+    const child = startDev(record, { RUNTIME_EXIT: '0' }, ['--mount', 'blog=/newsroom', '--mount', 'changelog=/releases'], command);
+    expect(await child.exited).toBe(0);
+    const runtime = JSON.parse(await readFile(`${record}-runtime`, 'utf8'));
+    expect(runtime.args).toEqual([
+      'dev', '--source', join(root, 'site with spaces ü'), '--port', '4321',
+      '--mount', 'blog=/newsroom', '--mount', 'changelog=/releases',
+    ]);
+  }
+});
+
+test('Node forwards sites build flags with an absolute output folder', async () => {
+  const record = join(root, 'build');
+  const child = startDev(record, { RUNTIME_EXIT: '0' }, [
+    '--out', 'relative out', '--mount', 'blog=/newsroom', '--origin', 'https://www.example.com', '--json',
+  ], ['sites', 'build']);
+  expect(await child.exited).toBe(0);
+  const runtime = JSON.parse(await readFile(`${record}-runtime`, 'utf8'));
+  expect(runtime.args).toEqual([
+    'build', '--source', join(root, 'site with spaces ü'), '--out', resolve('relative out'),
+    '--mount', 'blog=/newsroom', '--origin', 'https://www.example.com', '--json',
+  ]);
+});
+
+test('Node defaults the build output to ./.notra/out and forwards validate', async () => {
+  const build = join(root, 'build-default');
+  expect(await startDev(build, { RUNTIME_EXIT: '0' }, [], ['sites', 'build']).exited).toBe(0);
+  expect(JSON.parse(await readFile(`${build}-runtime`, 'utf8')).args)
+    .toEqual(['build', '--source', join(root, 'site with spaces ü'), '--out', resolve('.notra/out')]);
+  const validate = join(root, 'validate');
+  expect(await startDev(validate, { RUNTIME_EXIT: '0' }, ['--json'], ['sites', 'validate']).exited).toBe(0);
+  expect(JSON.parse(await readFile(`${validate}-runtime`, 'utf8')).args)
+    .toEqual(['validate', '--source', join(root, 'site with spaces ü'), '--json']);
+});
+
+test('Node passes a failed build or validation exit code through without extra output', async () => {
+  for (const command of ['build', 'validate']) {
+    const child = startDev(join(root, `${command}-failure`), { RUNTIME_EXIT: '1' }, [], ['sites', command]);
+    const stderr = new Response(child.stderr).text();
+    expect(await child.exited).toBe(1);
+    expect(await stderr).toBe('');
+  }
 });
 
 test('Node preserves unsuccessful runtime exit codes', async () => {

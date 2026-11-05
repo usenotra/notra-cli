@@ -44,8 +44,39 @@ is MIT.
 notra dev --source ./hosted-site --port 4400
 ```
 
-Both `/blog` and `/changelog` are served; `/` redirects to `/blog`. Stop with
-Ctrl+C. `dev` prints server logs rather than JSON.
+The blog and changelog are served at `/blog` and `/changelog` when the site has
+a `blog/` or `changelog/` folder (both when it has neither), and `/` redirects to
+the first one. Stop with Ctrl+C. `dev` prints server logs rather than JSON.
+`notra sites dev` is the same command.
+
+To preview at the path you will serve the site from, for example behind your
+own proxy, pass `--mount <section>=<path>` once per section. Only the sections
+you list are served:
+
+```bash
+notra dev --mount blog=/newsroom
+notra dev --mount blog=/news --mount changelog=/releases
+```
+
+Paths start with `/` and use lowercase letters, digits, and dashes, at most
+three segments deep; `/` mounts a section at the root.
+
+### Check and build a site
+
+```bash
+notra sites validate
+notra sites build --mount blog=/newsroom
+```
+
+`notra sites validate` checks `blog.json`, MDX, and snippets without building
+(`--json` prints the diagnostics). `notra sites build` makes the same static
+output a hosted deployment serves, in `./.notra/out` by default (`--out <dir>`
+to change it; the folder is emptied first), with each section in the folder of
+its path, such as `.notra/out/newsroom/`. Sections and `--mount` work as in
+`notra dev`. The build leaves out drafts and is marked `noindex`; canonical
+links, feeds, and sitemaps use `http://localhost` unless you pass
+`--origin https://www.example.com`. Both commands exit with 1 when the site has
+errors and need no login.
 
 ## Sign in
 
