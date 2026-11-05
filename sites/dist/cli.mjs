@@ -3,15 +3,65 @@
 // compiler/cli.ts
 import { randomBytes as randomBytes2 } from "node:crypto";
 import { renameSync, watch as watch2 } from "node:fs";
-import { mkdtemp as mkdtemp2, realpath, rm as rm5, writeFile as writeFile3 } from "node:fs/promises";
+import { mkdtemp as mkdtemp2, realpath, rm as rm6, writeFile as writeFile6 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join as join10, resolve as resolve2 } from "node:path";
+import { join as join14, resolve as resolve4 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+
+// ../../packages/sites-compiler/src/constants/validate.ts
+var TEXT_SOURCE_FILE = /\.(?:mdx?|jsx?|json|txt|css|svg)$/i;
+var ENTRY_FILE = /^(blog|changelog)\/(.+)\.(mdx?)$/;
+var ENTRY_SLUG = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
+var MDX_FILE = /\.mdx$/i;
+var SCRIPT_FILE = /\.jsx?$/i;
+var COLLAPSED_WARNING_CODES = new Set([
+  "unknown_prop",
+  "frontmatter_unknown_key"
+]);
+var COLLAPSED_WARNING_EXAMPLES = 3;
 
 // ../../packages/sites-compiler/src/utils/diagnostics.ts
 function hasErrors(diagnostics) {
   return diagnostics.some((diagnostic) => diagnostic.severity === "error");
+}
+function location(diagnostic) {
+  return diagnostic.line ? `${diagnostic.file}:${diagnostic.line}` : String(diagnostic.file);
+}
+function collapseRepeatedWarnings(diagnostics) {
+  const groups = new Map;
+  for (const diagnostic of diagnostics) {
+    if (COLLAPSED_WARNING_CODES.has(diagnostic.code)) {
+      const key = `${diagnostic.code}\x00${diagnostic.message}`;
+      const group = groups.get(key);
+      if (group) {
+        group.push(diagnostic);
+      } else {
+        groups.set(key, [diagnostic]);
+      }
+    }
+  }
+  return diagnostics.flatMap((diagnostic) => {
+    const group = groups.get(`${diagnostic.code}\x00${diagnostic.message}`);
+    if (!group) {
+      return [diagnostic];
+    }
+    if (group[0] !== diagnostic) {
+      return [];
+    }
+    const rest = group.slice(1);
+    if (rest.length === 0) {
+      return [diagnostic];
+    }
+    const examples = rest.slice(0, COLLAPSED_WARNING_EXAMPLES).map(location).join(", ");
+    const more = rest.length > COLLAPSED_WARNING_EXAMPLES ? ", …" : "";
+    return [
+      {
+        ...diagnostic,
+        message: `${diagnostic.message} Also in ${rest.length} more place${rest.length === 1 ? "" : "s"}: ${examples}${more}.`
+      }
+    ];
+  });
 }
 
 // ../../packages/sites-core/src/constants/site-layout.ts
@@ -60,6 +110,97 @@ var SITE_SLOT_NAMES = [
   "after-changelog-entry",
   "before-footer"
 ];
+var SITE_ICON_NAMES = [
+  "arrow-left",
+  "arrow-right",
+  "arrow-up-right",
+  "bell",
+  "book",
+  "book-marked",
+  "book-open",
+  "bookmark",
+  "box",
+  "briefcase",
+  "building-2",
+  "calendar",
+  "chart-line",
+  "check",
+  "chevron-down",
+  "circle-check",
+  "circle-help",
+  "clock",
+  "close",
+  "cloud",
+  "code",
+  "compass",
+  "copy",
+  "cpu",
+  "credit-card",
+  "database",
+  "dollar-sign",
+  "download",
+  "external-link",
+  "file-text",
+  "flag",
+  "gift",
+  "git-branch",
+  "github",
+  "globe",
+  "graduation-cap",
+  "handshake",
+  "headphones",
+  "heart",
+  "house",
+  "image",
+  "info",
+  "layers",
+  "layout-dashboard",
+  "library",
+  "life-buoy",
+  "lightbulb",
+  "link",
+  "linkedin",
+  "lock",
+  "mail",
+  "map",
+  "megaphone",
+  "menu",
+  "message-circle",
+  "message-square",
+  "mic",
+  "monitor",
+  "moon",
+  "newspaper",
+  "notebook-pen",
+  "octagon-alert",
+  "package",
+  "palette",
+  "pen-line",
+  "play",
+  "plus",
+  "puzzle",
+  "rocket",
+  "rss",
+  "search",
+  "settings",
+  "shield",
+  "sparkles",
+  "star",
+  "sticky-note",
+  "sun",
+  "tag",
+  "terminal",
+  "text-align-start",
+  "triangle-alert",
+  "trophy",
+  "user",
+  "users",
+  "video",
+  "wrench",
+  "x",
+  "youtube",
+  "zap"
+];
 
 // ../../packages/sites-core/src/constants/sites.ts
 var SITE_AREAS = ["blog", "changelog"];
@@ -84,23 +225,67 @@ var SITE_UNAVAILABLE_SLUGS = new Set([
   "abuse",
   "account",
   "accounts",
+  "administrator",
   "auth",
   "autoconfig",
   "autodiscover",
   "billing",
+  "checkout",
   "cname",
   "console",
   "dashboard",
+  "dns",
+  "email",
   "fallback",
+  "ftp",
+  "gateway",
   "help",
+  "hostmaster",
+  "identity",
+  "imap",
   "ingest",
+  "internal",
+  "intranet",
+  "invoice",
+  "invoices",
+  "localhost",
   "login",
+  "logout",
   "mta-sts",
+  "no-reply",
+  "noreply",
+  "ns1",
+  "ns2",
+  "oauth",
+  "oauth2",
   "origin",
+  "password",
+  "pay",
+  "payment",
+  "payments",
+  "pop3",
+  "portal",
+  "postmaster",
+  "recovery",
+  "register",
+  "reset",
+  "root",
+  "secure",
   "security",
+  "sftp",
   "signin",
+  "signout",
+  "signup",
   "sites",
-  "support"
+  "smtp",
+  "sso",
+  "staging",
+  "support",
+  "verify",
+  "vpn",
+  "wallet",
+  "webmail",
+  "webmaster"
 ]);
 var SITE_MOUNT_MAX_SEGMENTS = 3;
 var SITE_PREVIEW_SESSION_SECONDS = 60 * 60 * 12;
@@ -181,6 +366,17 @@ var SITE_INJECTED_REACT_HOOKS = [
 ];
 var SITE_PREVIEW_VISIBILITIES = ["public", "protected"];
 var SITE_STATUSES = ["active", "suspended"];
+var SITE_SUSPENSION_CATEGORIES = [
+  "phishing",
+  "malware",
+  "deceptive_redirects",
+  "spam",
+  "terms"
+];
+var SITE_FAVICON_DIR = "_notra/favicon";
+var SITE_FAVICON_HOST = /^(?=.{1,253}$)[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+var SITE_FAVICON_MAX_BYTES = 256 * 1024;
+var SITE_FAVICON_FALLBACK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`;
 var SITE_ENGAGEMENT_MAX_VISIBLE_MS = 30 * 60 * 1000;
 
 // ../../packages/sites-core/src/constants/source.ts
@@ -193,11 +389,14 @@ var SITE_SOURCE_SAFE_SEGMENT = /^[A-Za-z0-9._@()+ -]+$/;
 var SITE_HEX_COLOR = /^#(?:[0-9a-fA-F]{3}){1,2}$/;
 var SITE_LINK_HREF = /^(?:\/(?!\/)|https?:\/\/|mailto:)/;
 var SITE_ICON_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+var SITE_META_TAG_NAME = /^[a-z][a-z0-9:_.-]*$/i;
 var SITE_AUTHOR_ID = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
 var SITE_AUTHOR_AVATAR = /^(?:\/(?!\/)|https:\/\/)/;
 var SITE_DEFAULT_PRIMARY_COLOR = "#8B5CF6";
 var SITE_APPEARANCE_STORAGE_KEY = /^[A-Za-z0-9._-]{1,64}$/;
 var SITE_DEFAULT_APPEARANCE_STORAGE_KEY = "notra-theme";
+var SITE_FONT_WEIGHT_RANGE = /^(?:[1-8]\d\d|900) (?:[1-8]\d\d|900)$/;
+var SITE_FONT_FACES_MAX = 12;
 
 // ../../packages/sites-core/src/constants/integrations.ts
 var UMAMI_SCRIPT_URL = "https://cloud.umami.is/script.js";
@@ -210,6 +409,7 @@ var GOOGLE_ANALYTICS_CONNECT_ORIGINS = [
 ];
 var GA4_MEASUREMENT_ID = /^G-[A-Z0-9]{4,16}$/;
 var DATABUDDY_SCRIPT_URL = "https://cdn.databuddy.cc/databuddy.js";
+var DATABUDDY_REPLAY_SCRIPT_URL = "https://cdn.databuddy.cc/replay.js";
 var DATABUDDY_API_URL = "https://basket.databuddy.cc";
 var DATABUDDY_CLIENT_ID = /^[A-Za-z0-9_-]{8,64}$/;
 var DATABUDDY_CLIENT_ID_MESSAGE = "Copy the Client ID from your Databuddy website settings";
@@ -232,6 +432,8 @@ var HTTPS_BASE_URL = new RegExp(String.raw`^https:\/\/${HOST}${PORT}(?:\/[A-Za-z
 var HTTPS_SCRIPT_URL = new RegExp(String.raw`^https:\/\/${HOST}${PORT}(?:\/(?!\.{1,2}(?:\/|$))[A-Za-z0-9._~-]+)+$`);
 var CSP_ORIGIN = new RegExp(String.raw`^(?:https|wss):\/\/(?:\*\.)?${HOST}${PORT}$`);
 var POSTHOG_API_KEY = /^phc_[A-Za-z0-9]{20,64}$/;
+var C15T_ANALYTICS_CATEGORY = "measurement";
+var C15T_HOST_STORAGE_KEY = "__Host-c15t";
 var C15T_SCRIPT_CATEGORIES = [
   "measurement",
   "marketing",
@@ -422,7 +624,15 @@ var databuddySchema = z.strictObject({
   batchTimeout: databuddyDelaySchema.optional().describe("Milliseconds before a partial batch is sent (default: 5000)."),
   enableRetries: optionalBooleanSchema.describe("Retry failed requests (default: true)."),
   maxRetries: z.number().int().min(0).max(DATABUDDY_MAX_RETRIES).optional().describe("Retries per failed request (default: 3)."),
-  initialRetryDelay: databuddyDelaySchema.optional().describe("Milliseconds before the first retry (default: 500).")
+  initialRetryDelay: databuddyDelaySchema.optional().describe("Milliseconds before the first retry (default: 500)."),
+  replay: z.union([
+    z.boolean(),
+    z.strictObject({
+      maskText: optionalBooleanSchema.describe("Mask page text in recordings (default: true). Set false only on pages that show no personal data; typed input stays masked."),
+      recordIframes: optionalBooleanSchema.describe("Record your own embedded pages into the parent page's recording. Set it on the framed page too (default: false)."),
+      scriptUrl: httpsScriptUrlSchema.describe("Recorder script URL. Defaults to https://cdn.databuddy.cc/replay.js; set it for a self-hosted or proxied script.")
+    })
+  ]).optional().describe("Record session replays with Databuddy's recorder (default: false). Turn session replay on for the website in Databuddy too.")
 });
 var siteIntegrationUpdateSchema = z.discriminatedUnion("provider", [
   z.object({
@@ -519,7 +729,21 @@ var siteNavbarSchema = z2.object({
     })
   ])).max(8).default([]),
   cta: siteLinkSchema.optional(),
-  primary: z2.object({ type: z2.enum(SITE_NAVBAR_LINK_TYPES), href: platformHref }).optional()
+  primary: z2.discriminatedUnion("type", [
+    z2.object({
+      type: z2.enum(SITE_NAVBAR_LINK_TYPES),
+      href: platformHref
+    }),
+    siteLinkSchema.extend({ type: z2.literal("button") })
+  ], {
+    error: `Use one of ${SITE_NAVBAR_LINK_TYPES.join(", ")}. For a button with your own label, use navbar.cta`
+  }).optional()
+}).transform(({ primary, ...navbar }) => {
+  if (primary?.type !== "button") {
+    return primary ? { ...navbar, primary } : { ...navbar };
+  }
+  const { type: _type, ...button } = primary;
+  return { ...navbar, cta: navbar.cta ?? button };
 }).default({ links: [] });
 var footerColumnSchema = z2.object({
   header: z2.string().trim().min(1).max(60).optional(),
@@ -530,7 +754,7 @@ var siteFooterSchema = z2.object({
     z2.array(siteLinkSchema).max(16),
     z2.array(footerColumnSchema).max(6)
   ]).default([]),
-  socials: z2.partialRecord(z2.enum(SITE_SOCIAL_PLATFORMS), z2.url()).default({})
+  socials: z2.partialRecord(z2.enum(SITE_SOCIAL_PLATFORMS), platformHref).default({})
 }).default({ links: [], socials: {} });
 var siteBannerSchema = z2.object({
   content: z2.string().trim().min(1).max(300),
@@ -554,7 +778,7 @@ var siteContextualSchema = z2.object({
   display: "meta"
 });
 var siteSeoSchema = z2.object({
-  metatags: z2.record(z2.string().regex(/^[a-z][a-z0-9:_.-]*$/i), z2.string().max(500)).default({}),
+  metatags: z2.record(z2.string().regex(SITE_META_TAG_NAME), z2.string().max(500)).default({}),
   indexing: z2.enum(["navigable", "all"]).default("navigable"),
   image: sitePathSchema.optional(),
   imageAlt: z2.string().trim().max(200).optional(),
@@ -615,13 +839,15 @@ var siteBlogSchema = z2.object({
     excerpt: z2.boolean().default(true),
     author: z2.boolean().default(true),
     date: z2.boolean().default(true),
-    readingTime: z2.boolean().default(false)
+    readingTime: z2.boolean().default(false),
+    style: z2.enum(["auto", "tile", "plain"]).default("auto")
   }).default({
     image: "auto",
     excerpt: true,
     author: true,
     date: true,
-    readingTime: false
+    readingTime: false,
+    style: "auto"
   }),
   authorPage: z2.enum(["inline", "stacked"]).default("inline"),
   post: z2.object({
@@ -647,7 +873,8 @@ var siteChangelogSchema = z2.object({
   description: z2.string().trim().max(400).optional(),
   layout: z2.enum(["timeline", "cards", "compact"]).default("timeline"),
   hero: blogHeroSchema,
-  pageActions: z2.boolean().default(false)
+  pageActions: z2.boolean().default(false),
+  minimap: z2.boolean().default(true)
 });
 var siteMetadataSchema = z2.object({
   timestamp: z2.boolean().default(true),
@@ -676,11 +903,23 @@ var imageByModeSchema = z3.object({
   light: sitePathSchema,
   dark: sitePathSchema
 });
+var fontWeightSchema = z3.number().int().min(100).max(900);
+var fontFormatSchema = z3.enum(["woff", "woff2"]);
+var fontFileSchema = z3.strictObject({
+  source: z3.string().trim().min(1),
+  weight: z3.union([
+    fontWeightSchema,
+    z3.string().regex(SITE_FONT_WEIGHT_RANGE, 'Use a weight like 500 or a range like "100 900"')
+  ]).optional().describe('The weight in this file, or a range like "100 900" for a variable font. Defaults to the full range.'),
+  style: z3.enum(["normal", "italic"]).optional(),
+  format: fontFormatSchema.optional()
+});
 var fontSpecSchema = z3.object({
   family: z3.string().trim().min(1).max(80),
-  weight: z3.number().int().min(100).max(900).optional(),
+  weight: fontWeightSchema.optional(),
   source: z3.string().trim().min(1).optional(),
-  format: z3.enum(["woff", "woff2"]).optional()
+  format: fontFormatSchema.optional(),
+  faces: z3.array(fontFileSchema).min(1).max(SITE_FONT_FACES_MAX).optional().describe("More files of the same family, such as other weights or italics.")
 });
 var appearanceSchema = z3.union([
   z3.enum(["light", "dark", "system"]),
@@ -767,6 +1006,9 @@ var frontmatterAuthorSchema = z3.object({
   github: frontmatterLinkSchema.optional(),
   youtube: frontmatterLinkSchema.optional()
 });
+var frontmatterDate = z3.coerce.date({
+  error: "Use a date in YYYY-MM-DD format, like 2026-11-01"
+});
 var frontmatterAuthorRefSchema = z3.union([
   z3.string(),
   frontmatterAuthorSchema
@@ -774,8 +1016,8 @@ var frontmatterAuthorRefSchema = z3.union([
 var blogFrontmatterSchema = z3.object({
   title: z3.string().trim().min(1),
   description: z3.string().trim().optional(),
-  date: z3.coerce.date(),
-  updated: z3.coerce.date().optional(),
+  date: frontmatterDate,
+  updated: frontmatterDate.optional(),
   author: z3.union([frontmatterAuthorRefSchema, z3.array(frontmatterAuthorRefSchema)]).optional(),
   image: z3.string().optional(),
   imageAlt: z3.string().trim().optional(),
@@ -788,7 +1030,7 @@ var blogFrontmatterSchema = z3.object({
 var changelogFrontmatterSchema = z3.object({
   title: z3.string().trim().min(1),
   description: z3.string().trim().optional(),
-  date: z3.coerce.date(),
+  date: frontmatterDate,
   version: z3.string().trim().optional(),
   tags: z3.array(z3.string()).default([]),
   image: z3.string().optional(),
@@ -839,18 +1081,38 @@ function tagSlug(tag) {
 // ../../packages/sites-compiler/src/validate.ts
 import { Parser as Parser2 } from "acorn";
 
-// ../../packages/sites-compiler/src/constants/validate.ts
-var TEXT_SOURCE_FILE = /\.(?:mdx?|jsx?|json|txt|css|svg)$/i;
-var ENTRY_FILE = /^(blog|changelog)\/(.+)\.(mdx?)$/;
-var ENTRY_SLUG = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
-var MDX_FILE = /\.mdx$/i;
-var SCRIPT_FILE = /\.jsx?$/i;
-
 // ../../packages/sites-compiler/src/frontmatter.ts
 import { parse as parseYaml } from "yaml";
 
 // ../../packages/sites-compiler/src/constants/frontmatter.ts
 var FRONTMATTER_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
+var YAML_KEY = /^(["']?)(.+?)\1\s*:(?:\s|$)/;
+var FRONTMATTER_EXAMPLES = {
+  title: "title: Launch week recap",
+  date: "date: 2026-11-01"
+};
+
+// ../../packages/sites-compiler/src/utils/closest-name.ts
+function editDistance(a, b) {
+  const row = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1;i <= a.length; i += 1) {
+    let previous = row[0] ?? 0;
+    row[0] = i;
+    for (let j = 1;j <= b.length; j += 1) {
+      const current = row[j] ?? 0;
+      row[j] = Math.min(current + 1, (row[j - 1] ?? 0) + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
+      previous = current;
+    }
+  }
+  return row[b.length] ?? 0;
+}
+function closestName(name, candidates) {
+  const best = candidates.map((candidate) => ({
+    candidate,
+    score: editDistance(name.toLowerCase(), candidate.toLowerCase())
+  })).sort((a, b) => a.score - b.score)[0];
+  return best && best.score <= 2 ? best.candidate : undefined;
+}
 
 // ../../packages/sites-compiler/src/constants/errors.ts
 var ACORN_LOCATION_SUFFIX = /\s*\(\d+:\d+\)$/;
@@ -880,6 +1142,10 @@ function micromarkErrorPosition(error) {
 function frontmatterError(path, code, message) {
   return { severity: "error", file: path, line: 1, code, message };
 }
+function keyLine(yaml, key) {
+  const index = yaml.split(/\r?\n/).findIndex((line) => YAML_KEY.exec(line)?.[2] === key);
+  return index === -1 ? 1 : index + 2;
+}
 function parseEntryFrontmatter(path, area, source) {
   const yaml = FRONTMATTER_BLOCK.exec(source)?.[1];
   if (yaml === undefined) {
@@ -902,13 +1168,32 @@ function parseEntryFrontmatter(path, area, source) {
     };
   }
   const schema = area === "blog" ? blogFrontmatterSchema : changelogFrontmatterSchema;
+  const known = Object.keys(schema.shape);
+  const fields = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const warnings = Object.keys(fields).filter((key) => !known.includes(key)).map((key) => {
+    const suggestion = closestName(key, known);
+    return {
+      severity: "warning",
+      file: path,
+      line: keyLine(yaml, key),
+      code: "frontmatter_unknown_key",
+      message: `Frontmatter key "${key}" is not supported in ${area} entries and is ignored.${suggestion ? ` Did you mean "${suggestion}"?` : ""}`
+    };
+  });
   const parsed = schema.safeParse(raw);
   if (parsed.success) {
-    return { data: parsed.data, diagnostics: [] };
+    return { data: parsed.data, diagnostics: warnings };
   }
   return {
     data: null,
-    diagnostics: parsed.error.issues.map((issue) => frontmatterError(path, "frontmatter_invalid", `Frontmatter ${issue.path.join(".") || "value"}: ${issue.message}`))
+    diagnostics: [
+      ...parsed.error.issues.map((issue) => {
+        const [key] = issue.path;
+        const example = typeof key === "string" && fields[key] === undefined ? FRONTMATTER_EXAMPLES[key] : undefined;
+        return example ? frontmatterError(path, "frontmatter_invalid", `${path} is missing "${String(key)}" in its frontmatter. Add a line like ${example} between the --- lines.`) : frontmatterError(path, "frontmatter_invalid", `Frontmatter ${issue.path.join(".") || "value"}: ${issue.message}`);
+      }),
+      ...warnings
+    ]
   };
 }
 
@@ -943,6 +1228,33 @@ var BUILTIN_COMPONENTS = [
   "SiteAreas",
   "PrivacySettings"
 ];
+var BUILTIN_COMPONENT_PROPS = {
+  Note: ["title"],
+  Tip: ["title"],
+  Info: ["title"],
+  Warning: ["title"],
+  Check: ["title"],
+  Danger: ["title"],
+  Callout: ["variant", "title"],
+  Card: ["title", "href", "img", "cta"],
+  CardGroup: ["cols"],
+  Columns: ["cols"],
+  Tabs: [],
+  Tab: ["title"],
+  Accordion: ["title", "defaultOpen"],
+  AccordionGroup: [],
+  Steps: [],
+  Step: ["title"],
+  CodeGroup: [],
+  Frame: ["caption"],
+  Badge: [],
+  Update: ["label", "description"],
+  Video: ["src", "poster", "title"],
+  YouTube: ["id", "title"],
+  ThemeToggle: [],
+  SiteAreas: ["sections"],
+  PrivacySettings: ["class", "className"]
+};
 var BUILTIN_COMPONENT_NAMES = new Set(BUILTIN_COMPONENTS);
 var INJECTED_HOOK_NAMES = new Set(SITE_INJECTED_REACT_HOOKS);
 var BUILTINS_IMPORT_SOURCE = "@notra/builtins";
@@ -1078,7 +1390,7 @@ function referencedIdentifiers(root) {
       return;
     }
     const jsx = node;
-    if (jsx.type === "JSXIdentifier" && key === "name" && jsx.name && COMPONENT_NAME.test(jsx.name)) {
+    if (jsx.type === "JSXIdentifier" && key === "name" && parent?.type === "JSXOpeningElement" && jsx.name && COMPONENT_NAME.test(jsx.name)) {
       references.push({
         name: jsx.name,
         start: jsx.start ?? -1,
@@ -1430,9 +1742,9 @@ function applyEdits(source, edits) {
 }
 
 // ../../packages/sites-compiler/src/mdx.ts
-function report(pass, code, message, offset) {
+function report(pass, code, message, offset, severity = "error") {
   pass.diagnostics.push({
-    severity: "error",
+    severity,
     code,
     message,
     file: pass.path,
@@ -1563,13 +1875,19 @@ function checkInlineComponents(pass, scan) {
     }
   }
 }
-function snippetPropEdits(program, localNames) {
+function unresolvedReferences(program, localNames) {
   const declared = declaredNames(program);
-  return referencedIdentifiers(program).filter((reference) => reference.start >= 0 && !localNames.has(reference.name) && !declared.has(reference.name) && !KNOWN_GLOBALS.has(reference.name) && !BUILTIN_COMPONENT_NAMES.has(reference.name) && !INJECTED_HOOK_NAMES.has(reference.name) && !COMPONENT_NAME.test(reference.name) && !(reference.name in globalThis)).map((reference) => ({
-    start: reference.start,
-    end: reference.start,
-    text: reference.shorthand ? `${reference.name}: props.` : "props."
-  }));
+  return referencedIdentifiers(program).filter((reference) => reference.start >= 0 && !localNames.has(reference.name) && !declared.has(reference.name) && !KNOWN_GLOBALS.has(reference.name) && !BUILTIN_COMPONENT_NAMES.has(reference.name) && !INJECTED_HOOK_NAMES.has(reference.name) && !(reference.name in globalThis));
+}
+function checkBuiltinProps(pass, element) {
+  const name = element.name;
+  const props = BUILTIN_COMPONENT_PROPS[name];
+  for (const attribute of element.attributes) {
+    if (attribute.type !== "mdxJsxAttribute" || attribute.name.startsWith("client:") || props.includes(attribute.name)) {
+      continue;
+    }
+    report(pass, "unknown_prop", props.length > 0 ? `<${name}> has no "${attribute.name}" prop, so it is ignored. Its props are ${props.join(", ")}.` : `<${name}> takes no props, so "${attribute.name}" is ignored.`, attribute.position?.start.offset ?? element.position?.start.offset ?? 0, "warning");
+  }
 }
 function walkContent(pass, tree, scan) {
   const localNames = new Set([...scan.importedNames, ...scan.exportedNames]);
@@ -1596,9 +1914,15 @@ function walkContent(pass, tree, scan) {
     pass.edits.push(...edits);
     for (const program of programs) {
       checkForbidden(pass, program);
-      if (!pass.context.isEntry) {
-        for (const edit of snippetPropEdits(program, localNames)) {
-          propEdits.set(edit.start, edit);
+      for (const reference of unresolvedReferences(program, localNames)) {
+        if (pass.context.isEntry) {
+          report(pass, "expression_undefined", `"${reference.name}" is not defined, so this page would fail to build. To show the braces as text, escape them: \\{${reference.name}\\}. To insert a site variable, write {{ ${reference.name} }} and add "${reference.name}" to variables in ${SITE_CONFIG_FILENAME}.`, reference.start);
+        } else if (!COMPONENT_NAME.test(reference.name)) {
+          propEdits.set(reference.start, {
+            start: reference.start,
+            end: reference.start,
+            text: reference.shorthand ? `${reference.name}: props.` : "props."
+          });
         }
       }
     }
@@ -1622,8 +1946,12 @@ function walkContent(pass, tree, scan) {
       }
     } else if (BUILTIN_COMPONENT_NAMES.has(root) && !localNames.has(root)) {
       usedBuiltins.add(root);
+      if (name === root) {
+        checkBuiltinProps(pass, node);
+      }
     } else if (!(localNames.has(root) || scan.contentComponents.has(root))) {
-      report(pass, "unknown_component", `Unknown component <${name}>. Import it from a snippet or use a built-in component.`, start);
+      const suggestion = closestName(root, BUILTIN_COMPONENTS);
+      report(pass, "unknown_component", suggestion ? `Unknown component <${name}>. Did you mean <${suggestion}>?` : `Unknown component <${name}>. Import it from a snippet or use a built-in component.`, start);
     }
   });
   const removed = pass.edits.filter((edit) => edit.text === "" && edit.end > edit.start);
@@ -1718,35 +2046,65 @@ function analyzeMdxFile(path, source, context) {
 }
 
 // ../../packages/sites-compiler/src/utils/config-checks.ts
-function distance(a, b) {
-  const row = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let i = 1;i <= a.length; i += 1) {
-    let previous = row[0] ?? 0;
-    row[0] = i;
-    for (let j = 1;j <= b.length; j += 1) {
-      const current = row[j] ?? 0;
-      row[j] = Math.min(current + 1, (row[j - 1] ?? 0) + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
-      previous = current;
-    }
-  }
-  return row[b.length] ?? 0;
-}
 function unknownConfigKeyWarnings(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return [];
   }
   const known = Object.keys(siteConfigSchema.shape);
   return Object.keys(raw).filter((key) => !known.includes(key)).map((key) => {
-    const suggestion = known.map((candidate) => ({
-      candidate,
-      score: distance(key.toLowerCase(), candidate.toLowerCase())
-    })).sort((a, b) => a.score - b.score)[0];
-    const hint = suggestion && suggestion.score <= 2 ? ` Did you mean "${suggestion.candidate}"?` : "";
+    const suggestion = closestName(key, known);
+    const hint = suggestion ? ` Did you mean "${suggestion}"?` : "";
     return {
       severity: "warning",
       file: SITE_CONFIG_FILENAME,
       code: "config_unknown_key",
       message: `Unknown setting "${key}" is ignored.${hint}`
+    };
+  });
+}
+function record(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function navbarPrimaryButtonWarnings(raw) {
+  const navbar = record(record(raw).navbar);
+  if (record(navbar.primary).type !== "button") {
+    return [];
+  }
+  return [
+    {
+      severity: "warning",
+      file: SITE_CONFIG_FILENAME,
+      code: "navbar_primary_button",
+      message: navbar.cta === undefined ? 'navbar.primary with type "button" is used as navbar.cta. Rename it to "cta" and drop "type"; navbar.primary is for platform buttons like github.' : 'navbar.primary with type "button" is ignored because navbar.cta is set. Remove it; navbar.primary is for platform buttons like github.'
+    }
+  ];
+}
+function iconSettings(value, path = []) {
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) => iconSettings(item, [...path, String(index)]));
+  }
+  return Object.entries(record(value)).flatMap(([key, child]) => key === "icon" && typeof child === "string" ? [{ name: child, setting: [...path, key].join(".") }] : iconSettings(child, [...path, key]));
+}
+function unknownIconWarnings(config, source) {
+  const known = SITE_ICON_NAMES;
+  const navbar = record(record(JSON.parse(source)).navbar);
+  const aliased = record(navbar.primary).type === "button" && navbar.cta === undefined;
+  const unknown = new Map;
+  for (const icon of iconSettings({ ...config, variables: undefined })) {
+    if (!known.includes(icon.name)) {
+      const setting = aliased && icon.setting === "navbar.cta.icon" ? "navbar.primary.icon" : icon.setting;
+      unknown.set(icon.name, [...unknown.get(icon.name) ?? [], setting]);
+    }
+  }
+  return [...unknown].map(([name, settings]) => {
+    const suggestion = closestName(name, known);
+    const offset = source.search(new RegExp(`"icon"\\s*:\\s*"${name}"`));
+    return {
+      severity: "warning",
+      file: SITE_CONFIG_FILENAME,
+      ...offset === -1 ? {} : offsetToLineColumn(source, offset),
+      code: "icon_unknown",
+      message: `Icon "${name}" (${settings.join(", ")}) is not bundled with Notra and is skipped.${suggestion ? ` Did you mean "${suggestion}"?` : ""} See the icon list in the blog.json reference.`
     };
   });
 }
@@ -2128,7 +2486,10 @@ function parseSiteConfig(raw) {
       ]
     };
   }
-  const diagnostics = unknownConfigKeyWarnings(json);
+  const diagnostics = [
+    ...unknownConfigKeyWarnings(json),
+    ...navbarPrimaryButtonWarnings(json)
+  ];
   const parsed = siteConfigSchema.safeParse(json);
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
@@ -2136,6 +2497,7 @@ function parseSiteConfig(raw) {
     }
     return { config: null, diagnostics };
   }
+  diagnostics.push(...unknownIconWarnings(parsed.data, raw));
   const settings = substituteSettingVariables(parsed.data);
   diagnostics.push(...settings.diagnostics);
   return {
@@ -2332,7 +2694,7 @@ function validateSite(input) {
   }
   entries.sort((a, b) => a.path.localeCompare(b.path));
   return {
-    diagnostics,
+    diagnostics: collapseRepeatedWarnings(diagnostics),
     config,
     entries,
     outputs,
@@ -2425,11 +2787,45 @@ function pathCollidesWithOtherMount(mounts, area, urlPath) {
   return owner !== null && owner.area !== area;
 }
 
+// ../../packages/sites-core/src/utils/redirects.ts
+function siteRedirectRules(redirects) {
+  return redirects.map((rule) => ({
+    source: rule.source,
+    destination: rule.destination,
+    status: rule.permanent ? 308 : 307
+  }));
+}
+function withoutTrailingSlash(path) {
+  return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+}
+function headerSafeLocation(location) {
+  return location.replace(/[^\u0021-\u007E]/gu, encodeURIComponent);
+}
+function matchRedirect(redirects, path) {
+  const match = findRedirect(redirects, withoutTrailingSlash(path));
+  return match && { ...match, location: headerSafeLocation(match.location) };
+}
+function findRedirect(redirects, bare) {
+  for (const rule of redirects) {
+    if (rule.source.endsWith("/*")) {
+      const prefix = rule.source.slice(0, -2);
+      if (bare === prefix || bare.startsWith(`${prefix}/`)) {
+        const rest = bare.slice(prefix.length).split("/").map(encodeURIComponent).join("/");
+        const destination = rule.destination.endsWith("/*") ? `${rule.destination.slice(0, -2)}${rest}` : rule.destination;
+        return { location: destination, status: rule.status };
+      }
+    } else if (withoutTrailingSlash(rule.source) === bare) {
+      return { location: rule.destination, status: rule.status };
+    }
+  }
+  return null;
+}
+
 // compiler/build.ts
 import { spawn } from "node:child_process";
-import { cp as cp3, mkdir as mkdir4, readFile as readFile4, rm as rm3, stat as stat2, writeFile as writeFile2 } from "node:fs/promises";
+import { cp as cp3, mkdir as mkdir7, readFile as readFile6, rm as rm4, stat as stat4, writeFile as writeFile5 } from "node:fs/promises";
 import { createRequire as createRequire2 } from "node:module";
-import { dirname as dirname3, join as join7, relative, resolve } from "node:path";
+import { dirname as dirname6, join as join10, relative as relative2, resolve as resolve2 } from "node:path";
 
 // ../../packages/sites-core/src/schemas/deployment.ts
 import { z as z4 } from "zod";
@@ -2479,7 +2875,8 @@ var siteManifestSchema = z4.object({
   redirects: z4.array(siteRedirectRuleSchema),
   contentSecurityPolicy: siteContentSecurityPolicySchema.optional(),
   analyticsConsent: z4.boolean().optional(),
-  consentBackendURL: z4.url().optional()
+  consentStorageKey: z4.literal(C15T_HOST_STORAGE_KEY).optional(),
+  faviconHost: z4.string().regex(SITE_FAVICON_HOST).optional()
 });
 var siteServingPointerSchema = z4.object({
   deploymentId: z4.string(),
@@ -2508,6 +2905,7 @@ var siteServingStateSchema = z4.object({
   siteId: z4.string(),
   slug: z4.string(),
   status: z4.enum(SITE_STATUSES),
+  suspension: z4.object({ category: z4.enum(SITE_SUSPENSION_CATEGORIES) }).nullable().default(null),
   production: siteServingPointerSchema.nullable(),
   productionRollback: z4.boolean().default(false),
   previews: z4.record(z4.string(), sitePreviewPointerSchema),
@@ -2546,7 +2944,8 @@ var siteBuildRequestSchema = z5.object({
   includeDrafts: z5.boolean().default(false),
   analytics: z5.boolean().default(false),
   branding: z5.boolean().default(true),
-  defaultConfig: siteConfigSchema.optional()
+  defaultConfig: siteConfigSchema.optional(),
+  hostingDomain: z5.string().regex(/^[a-z0-9.-]+$/).optional()
 });
 var siteBuildRedirectSchema = z5.object({
   source: z5.string().startsWith("/").max(500),
@@ -2566,13 +2965,17 @@ var siteBuildResultSchema = z5.object({
   redirects: z5.array(siteBuildRedirectSchema).max(500),
   contentSecurityPolicy: siteContentSecurityPolicySchema.nullable().default(null),
   analyticsConsent: z5.boolean().optional(),
-  consentBackendURL: z5.url().optional()
+  consentStorageKey: z5.literal(C15T_HOST_STORAGE_KEY).optional(),
+  faviconHost: z5.string().regex(SITE_FAVICON_HOST).optional()
 });
 
 // ../../packages/sites-core/src/utils/data-attributes.ts
 function dataAttributes(options) {
   const attributes = {};
   for (const [key, value] of Object.entries(options)) {
+    if (value === undefined) {
+      continue;
+    }
     const name = key.replace(CAMEL_CASE_BOUNDARY, (letter) => `-${letter.toLowerCase()}`);
     attributes[`data-${name}`] = typeof value === "string" ? value : JSON.stringify(value);
   }
@@ -2583,11 +2986,12 @@ function dataAttributes(options) {
 function inlineScriptLiteral(value) {
   return JSON.stringify(value).replaceAll("<", "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 }
-function integrationHeadScripts(integrations) {
+function integrationHeadScripts(integrations, hostingDomain) {
   const scripts = [];
+  const onHostingDomain = hostingDomain && `("."+location.hostname).endsWith(${inlineScriptLiteral(`.${hostingDomain}`)})`;
   const { databuddy, ga4, plausible, posthog, umami } = integrations;
   if (databuddy) {
-    const { scriptUrl, ...options } = databuddy;
+    const { scriptUrl, replay, ...options } = databuddy;
     scripts.push({
       kind: "external",
       src: scriptUrl ?? DATABUDDY_SCRIPT_URL,
@@ -2597,6 +3001,23 @@ function integrationHeadScripts(integrations) {
         ...dataAttributes(options)
       }
     });
+    if (replay) {
+      const { scriptUrl: replayScriptUrl, ...replayOptions } = replay === true ? {} : replay;
+      scripts.push({
+        kind: "external",
+        src: replayScriptUrl ?? DATABUDDY_REPLAY_SCRIPT_URL,
+        attributes: {
+          async: true,
+          crossorigin: "anonymous",
+          ...dataAttributes({
+            clientId: options.clientId,
+            apiUrl: options.apiUrl,
+            maskPatterns: options.maskPatterns,
+            ...replayOptions
+          })
+        }
+      });
+    }
   }
   if (ga4) {
     scripts.push({
@@ -2605,7 +3026,7 @@ function integrationHeadScripts(integrations) {
       attributes: { async: true }
     }, {
       kind: "inline",
-      code: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config",${inlineScriptLiteral(ga4.measurementId)});`
+      code: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config",${inlineScriptLiteral(ga4.measurementId)}${onHostingDomain ? `,${onHostingDomain}?{cookie_domain:"none"}:{}` : ""});`
     });
   }
   if (plausible) {
@@ -2622,7 +3043,7 @@ function integrationHeadScripts(integrations) {
     };
     scripts.push({
       kind: "inline",
-      code: `${POSTHOG_LOADER}posthog.init(${inlineScriptLiteral(posthog.apiKey)},${inlineScriptLiteral(options)});`
+      code: `${POSTHOG_LOADER}posthog.init(${inlineScriptLiteral(posthog.apiKey)},${onHostingDomain ? `Object.assign(${inlineScriptLiteral(options)},${onHostingDomain}?{cross_subdomain_cookie:false}:{})` : inlineScriptLiteral(options)});`
     });
   }
   if (umami) {
@@ -2651,6 +3072,10 @@ function integrationCspSources(integrations) {
   if (databuddy) {
     scriptSrc.push(new URL(databuddy.scriptUrl ?? DATABUDDY_SCRIPT_URL).origin);
     connectSrc.push(new URL(databuddy.apiUrl ?? DATABUDDY_API_URL).origin);
+    if (databuddy.replay) {
+      const replayScriptUrl = databuddy.replay === true ? undefined : databuddy.replay.scriptUrl;
+      scriptSrc.push(new URL(replayScriptUrl ?? DATABUDDY_REPLAY_SCRIPT_URL).origin);
+    }
   }
   if (ga4) {
     scriptSrc.push(GOOGLE_TAG_ORIGIN);
@@ -2711,11 +3136,27 @@ function buildSiteContentSecurityPolicy(params) {
   return [
     `script-src ${scriptSrc.join(" ")}`,
     `connect-src ${connectSrc.join(" ")}`,
-    ...params.integrations.posthog && params.integrations.posthog.sessionRecording !== false ? [
+    ...params.integrations.posthog && params.integrations.posthog.sessionRecording !== false || params.integrations.databuddy?.replay ? [
       `worker-src 'self' blob: data: ${sortedUnique(scriptOrigins).join(" ")}`
     ] : [],
     ...SITE_CSP_STATIC_DIRECTIVES
   ].join("; ");
+}
+
+// src/constants/favicons.ts
+var FAVICON_HOST = /^(?=.{1,253}$)[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+
+// src/utils/favicons.ts
+function faviconHost(url) {
+  if (!URL.canParse(url)) {
+    return null;
+  }
+  const { protocol, hostname } = new URL(url);
+  return (protocol === "https:" || protocol === "http:") && FAVICON_HOST.test(hostname) ? hostname : null;
+}
+function footerFaviconHost(config) {
+  const website = config.footer.socials.website;
+  return website && faviconHost(website) || undefined;
 }
 
 // src/constants/public-assets.ts
@@ -2723,28 +3164,29 @@ var URL_ATTRIBUTE = /\b(src|href|poster|content|data-src)=(["'])(\/[^"']*)\2/g;
 var SRCSET_ATTRIBUTE = /\bsrcset=(["'])([^"']*)\1/g;
 
 // src/utils/public-assets.ts
+function mountPublicUrl(url, mount, publicFiles) {
+  if (url.startsWith("//")) {
+    return url;
+  }
+  const match = /^([^?#]*)(.*)$/.exec(url);
+  const path = match?.[1] ?? url;
+  let decoded = path;
+  try {
+    decoded = decodeURI(path);
+  } catch {
+    decoded = path;
+  }
+  return publicFiles.has(decoded) ? `${mount}${path}${match?.[2] ?? ""}` : url;
+}
 function rewritePublicAssetUrls(html, mount, publicFiles) {
   if (mount === "/" || publicFiles.size === 0) {
     return html;
   }
-  const rewrite = (url) => {
-    const match = /^([^?#]*)(.*)$/.exec(url);
-    const path = match?.[1] ?? url;
-    let decoded = path;
-    try {
-      decoded = decodeURI(path);
-    } catch {
-      decoded = path;
-    }
-    return publicFiles.has(decoded) ? `${mount}${path}${match?.[2] ?? ""}` : url;
-  };
-  return html.replace(URL_ATTRIBUTE, (whole, name, quote, url) => url.startsWith("//") ? whole : `${name}=${quote}${rewrite(url)}${quote}`).replace(SRCSET_ATTRIBUTE, (_whole, quote, value) => {
+  const rewrite = (url) => mountPublicUrl(url, mount, publicFiles);
+  return html.replace(URL_ATTRIBUTE, (_whole, name, quote, url) => `${name}=${quote}${rewrite(url)}${quote}`).replace(SRCSET_ATTRIBUTE, (_whole, quote, value) => {
     const rewritten = value.split(",").map((candidate) => {
       const [url = "", ...descriptor] = candidate.trim().split(/\s+/);
-      return [
-        url.startsWith("/") && !url.startsWith("//") ? rewrite(url) : url,
-        ...descriptor
-      ].join(" ");
+      return [url.startsWith("/") ? rewrite(url) : url, ...descriptor].join(" ");
     }).join(", ");
     return `srcset=${quote}${rewritten}${quote}`;
   });
@@ -3149,18 +3591,392 @@ ${instructions}` : `# ${name}`,
 
 // compiler/constants/build.ts
 var AREA_PAGES_FILE = "notra-pages.json";
+var LOCAL_FAVICON_FETCH_TIMEOUT_MS = 5000;
 var ASTRO_LOG_NOISE = [
   /\[glob-loader\] No files found matching/,
   /\[glob-loader\] The base directory .* does not exist/,
   /\[content\] The collection "(?:blog|changelog)" does not exist or is empty/,
-  /┃ (?:Local|Network)\s+http:\/\/127\.0\.0\.1:\d+/
+  /┃ (?:Local|Network)\s+http:\/\/127\.0\.0\.1:\d+/,
+  /astro\s+v[\d.]+\s+ready in/,
+  /watching for file changes\.\.\./,
+  /\[types\] Generated/,
+  /\[content\] Sync(?:ing|ed) content/
 ];
 var SHIKI_UNKNOWN_LANGUAGE = /\[Shiki\] The language "([^"]+)" doesn't exist/;
 
+// compiler/content-images.ts
+import { createHash } from "node:crypto";
+import { mkdir as mkdir2, readFile as readFile2, stat, writeFile as writeFile2 } from "node:fs/promises";
+import { basename, extname, join as join3, relative, resolve } from "node:path";
+
+// compiler/constants/content-images.ts
+var CONTENT_ROOT_CLASS = "mdx-content";
+var CONTENT_IMAGE_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp"
+]);
+var CONTENT_IMAGE_WIDTHS = [640, 960, 1280, 1920, 2560];
+var CONTENT_IMAGE_WEBP = {
+  lossless: { nearLossless: true, quality: 60 },
+  lossy: { quality: 90, smartSubsample: true }
+};
+var CONTENT_IMAGE_LOSSLESS_FORMATS = new Set(["png"]);
+var CONTENT_IMAGE_RGB_SPACES = new Set([
+  "srgb",
+  "rgb",
+  "rgb16",
+  "scrgb"
+]);
+var CONTENT_IMAGES_DIR = "_notra/assets/images";
+var CONTENT_IMAGE_SETTINGS_VERSION = "2";
+var CONTENT_IMAGE_ENCODE_TIMEOUT_SECONDS = 30;
+var CONTENT_IMAGE_BUDGET = {
+  maxImages: 500,
+  maxDurationMs: 120000,
+  concurrency: 4
+};
+
+// compiler/utils/animated-png.ts
+var PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
+function isAnimatedPng(data) {
+  if (!PNG_SIGNATURE.every((byte, index) => data[index] === byte)) {
+    return false;
+  }
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  let offset = PNG_SIGNATURE.length;
+  while (offset + 8 <= data.byteLength) {
+    const length = view.getUint32(offset);
+    const type = String.fromCharCode(...data.subarray(offset + 4, offset + 8));
+    if (type === "acTL") {
+      return true;
+    }
+    if (type === "IDAT" || type === "IEND") {
+      return false;
+    }
+    offset += 12 + length;
+  }
+  return false;
+}
+
+// compiler/utils/content-image-tags.ts
+import { SAXParser } from "parse5-sax-parser";
+var attribute = (attrs, name) => attrs.find((attr) => attr.name === name)?.value;
+var OPTIMIZABLE_SRC = /^\/(?!\/)[^\s,?#&"'<>]+$/;
+function findContentImages(html) {
+  if (!(html.includes(CONTENT_ROOT_CLASS) && /<img[\s/>]/i.test(html))) {
+    return [];
+  }
+  const parser = new SAXParser({ sourceCodeLocationInfo: true });
+  const images = [];
+  let rootTag = null;
+  let depth = 0;
+  parser.on("startTag", (token) => {
+    if (rootTag === null) {
+      const classes = attribute(token.attrs, "class")?.split(/\s+/) ?? [];
+      if (classes.includes(CONTENT_ROOT_CLASS) && !token.selfClosing) {
+        rootTag = token.tagName;
+        depth = 1;
+      }
+      return;
+    }
+    if (token.tagName === rootTag && !token.selfClosing) {
+      depth += 1;
+      return;
+    }
+    if (token.tagName !== "img" || !token.sourceCodeLocation) {
+      return;
+    }
+    const src = attribute(token.attrs, "src");
+    if (!src || !OPTIMIZABLE_SRC.test(src) || attribute(token.attrs, "srcset") !== undefined) {
+      return;
+    }
+    const { endOffset } = token.sourceCodeLocation;
+    images.push({
+      src,
+      insertAt: html[endOffset - 2] === "/" ? endOffset - 2 : endOffset - 1,
+      loading: attribute(token.attrs, "loading")?.toLowerCase(),
+      hasSizes: attribute(token.attrs, "sizes") !== undefined,
+      hasDimensions: attribute(token.attrs, "width") !== undefined && attribute(token.attrs, "height") !== undefined
+    });
+  });
+  parser.on("endTag", (token) => {
+    if (rootTag !== null && token.tagName === rootTag) {
+      depth -= 1;
+      if (depth === 0) {
+        rootTag = null;
+      }
+    }
+  });
+  parser.end(html);
+  return images;
+}
+function contentImageSizes(image, originalWidth) {
+  const sizes = `min(${originalWidth}px, 100vw)`;
+  return image.loading === "lazy" && image.hasDimensions ? `auto, ${sizes}` : sizes;
+}
+function addContentImageSrcsets(html, images, variantsFor) {
+  let result = "";
+  let offset = 0;
+  for (const image of [...images].sort((a, b) => a.insertAt - b.insertAt)) {
+    const variants = variantsFor(image.src);
+    const original = variants?.at(-1);
+    if (!(variants && original) || variants.length < 2) {
+      continue;
+    }
+    const srcset = variants.map((candidate) => `${candidate.url} ${candidate.width}w`).join(", ");
+    let added = ` srcset="${srcset}"`;
+    if (!image.hasSizes) {
+      added += ` sizes="${contentImageSizes(image, original.width)}"`;
+    }
+    result += html.slice(offset, image.insertAt) + added;
+    offset = image.insertAt;
+  }
+  return result + html.slice(offset);
+}
+
+// compiler/content-images.ts
+async function importSharp() {
+  return (await import("sharp")).default;
+}
+function mountOf(path, mounts) {
+  return [...mounts].filter((mount) => mount === "/" || path === mount || path.startsWith(`${mount}/`)).sort((a, b) => b.length - a.length)[0] ?? null;
+}
+function outputFile(outDir, src, mounts) {
+  let path;
+  try {
+    path = decodeURI(src);
+  } catch {
+    return null;
+  }
+  if (path.split("/").some((segment) => segment === "." || segment === "..") || !mountOf(path, mounts) || path.includes("/_notra/") || !CONTENT_IMAGE_EXTENSIONS.has(extname(path).toLowerCase())) {
+    return null;
+  }
+  const file = resolve(outDir, `.${path}`);
+  return relative(outDir, file).startsWith("..") ? null : file;
+}
+function assetsUrl(src, mounts) {
+  return joinMountPath(mountOf(decodeURI(src), mounts) ?? "/", CONTENT_IMAGES_DIR);
+}
+async function makeVariants(sharp, outDir, mounts, src, file, deadline, now) {
+  const none = { variants: null, created: 0 };
+  const data = await readFile2(file);
+  const metadata = await sharp(data).metadata();
+  const width = metadata.autoOrient?.width ?? metadata.width;
+  if (!width || (metadata.pages ?? 1) > 1 || isAnimatedPng(data)) {
+    return none;
+  }
+  const widths = CONTENT_IMAGE_WIDTHS.filter((candidate) => candidate < width);
+  if (widths.length === 0) {
+    return none;
+  }
+  const hash = createHash("sha256").update(CONTENT_IMAGE_SETTINGS_VERSION).update(data).digest("hex").slice(0, 10);
+  const stem = basename(file, extname(file)).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "image";
+  const encoding = CONTENT_IMAGE_LOSSLESS_FORMATS.has(metadata.format ?? "") ? CONTENT_IMAGE_WEBP.lossless : CONTENT_IMAGE_WEBP.lossy;
+  const keepProfile = Boolean(metadata.icc && CONTENT_IMAGE_RGB_SPACES.has(metadata.space ?? ""));
+  const baseUrl = assetsUrl(src, mounts);
+  const directory = join3(outDir, `.${baseUrl}`);
+  await mkdir2(directory, { recursive: true });
+  const candidates = [];
+  for (const target of widths) {
+    if (now() > deadline) {
+      if (candidates.length === 0) {
+        return { ...none, outOfTime: true };
+      }
+      break;
+    }
+    let output;
+    try {
+      const pipeline = sharp(data).timeout({ seconds: CONTENT_IMAGE_ENCODE_TIMEOUT_SECONDS }).autoOrient().resize({ width: target, withoutEnlargement: true });
+      output = await (keepProfile ? pipeline.keepIccProfile() : pipeline).webp(encoding).toBuffer();
+    } catch (error) {
+      if (candidates.length === 0) {
+        throw error;
+      }
+      break;
+    }
+    if (output.byteLength >= data.byteLength) {
+      break;
+    }
+    const name = `${stem}-${hash}-${target}.webp`;
+    await writeFile2(join3(directory, name), output);
+    candidates.push({ url: `${baseUrl}/${name}`, width: target });
+  }
+  if (candidates.length === 0) {
+    return none;
+  }
+  return {
+    variants: [...candidates, { url: src, width }],
+    created: candidates.length
+  };
+}
+async function optimizeContentImages(params) {
+  const now = params.now ?? Date.now;
+  const started = now();
+  const result = {
+    pages: new Map,
+    diagnostics: [],
+    images: 0,
+    variants: 0,
+    durationMs: 0
+  };
+  const tagsByPage = new Map;
+  const sources = new Map;
+  for (const [urlPath, html] of params.pageHtml) {
+    const tags = findContentImages(html).filter((tag) => {
+      const file = outputFile(params.outDir, tag.src, params.mounts);
+      if (file) {
+        sources.set(tag.src, file);
+      }
+      return file !== null;
+    });
+    if (tags.length > 0) {
+      tagsByPage.set(urlPath, tags);
+    }
+  }
+  if (sources.size === 0) {
+    return result;
+  }
+  let sharp;
+  try {
+    sharp = await (params.loadSharp ?? importSharp)();
+  } catch (error) {
+    result.diagnostics.push({
+      severity: "warning",
+      file: null,
+      code: "content_images_unavailable",
+      message: `Images in posts were published without smaller copies: the image library could not load (${error instanceof Error ? error.message : String(error)}).`
+    });
+    result.durationMs = now() - started;
+    return result;
+  }
+  const budget = params.budget ?? CONTENT_IMAGE_BUDGET;
+  const variants = new Map;
+  const failed = [];
+  const queue = [...sources].slice(0, budget.maxImages);
+  let skippedForBudget = sources.size - queue.length;
+  const worker = async () => {
+    for (let next = queue.shift();next; next = queue.shift()) {
+      if (now() - started > budget.maxDurationMs) {
+        skippedForBudget += 1;
+        continue;
+      }
+      const [src, file] = next;
+      try {
+        if (!(await stat(file).catch(() => null))?.isFile()) {
+          continue;
+        }
+        const made = await makeVariants(sharp, params.outDir, params.mounts, src, file, started + budget.maxDurationMs, now);
+        if (made.outOfTime) {
+          skippedForBudget += 1;
+          continue;
+        }
+        variants.set(src, made.variants);
+        if (made.variants) {
+          result.images += 1;
+          result.variants += made.created;
+        }
+      } catch {
+        failed.push(src);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: budget.concurrency }, worker));
+  for (const [urlPath, tags] of tagsByPage) {
+    if (!tags.some((tag) => variants.get(tag.src))) {
+      continue;
+    }
+    const html = params.pageHtml.get(urlPath) ?? "";
+    result.pages.set(urlPath, addContentImageSrcsets(html, tags, (src) => variants.get(src) ?? null));
+  }
+  if (failed.length > 0) {
+    result.diagnostics.push({
+      severity: "warning",
+      file: null,
+      code: "content_image_failed",
+      message: `${failed.length} image${failed.length === 1 ? "" : "s"} could not be read and kept only the original: ${failed.slice(0, 5).join(", ")}${failed.length > 5 ? ", …" : ""}`
+    });
+  }
+  if (skippedForBudget > 0) {
+    result.diagnostics.push({
+      severity: "warning",
+      file: null,
+      code: "content_images_budget",
+      message: `${skippedForBudget} image${skippedForBudget === 1 ? "" : "s"} in posts kept only the original because the build reached its image limit (${budget.maxImages} images or ${budget.maxDurationMs / 1000} seconds).`
+    });
+  }
+  result.durationMs = now() - started;
+  return result;
+}
+
+// compiler/local-favicons.ts
+import { mkdir as mkdir3, writeFile as writeFile3 } from "node:fs/promises";
+import { dirname as dirname2, join as join4 } from "node:path";
+
+// ../../packages/utils/src/constants/favicon.ts
+var FAVICON_DOMAIN_OVERRIDES = {
+  "digitalocean.com": "cloud.digitalocean.com"
+};
+
+// ../../packages/utils/src/google-favicon.ts
+var GOOGLE_FAVICON_SIZE = 128;
+var RESERVED_EXAMPLE_DOMAIN = /(?:^|\.)example(?:\.(?:com|net|org))?$/i;
+function isReservedExampleDomain(domain) {
+  return domain !== null && RESERVED_EXAMPLE_DOMAIN.test(domain);
+}
+function googleFaviconUrl(domain, size = GOOGLE_FAVICON_SIZE) {
+  if (!domain || isReservedExampleDomain(domain)) {
+    return null;
+  }
+  const url = new URL("https://www.google.com/s2/favicons");
+  const host = domain.toLowerCase().replace(/^www\./, "");
+  url.searchParams.set("domain", FAVICON_DOMAIN_OVERRIDES[host] ?? domain);
+  url.searchParams.set("sz", String(size));
+  return url.toString();
+}
+
+// compiler/local-favicons.ts
+async function fetchFavicon(host, fetcher) {
+  const url = googleFaviconUrl(host);
+  if (!url) {
+    return null;
+  }
+  try {
+    const response = await fetcher(url, {
+      redirect: "follow",
+      signal: AbortSignal.timeout(LOCAL_FAVICON_FETCH_TIMEOUT_MS)
+    });
+    if (!response.headers.get("Content-Type")?.startsWith("image/")) {
+      return null;
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return response.ok && bytes.byteLength > 0 && bytes.byteLength <= SITE_FAVICON_MAX_BYTES ? bytes : null;
+  } catch {
+    return null;
+  }
+}
+async function fallbackIcon() {
+  try {
+    const sharp = (await import("sharp")).default;
+    return await sharp(Buffer.from(SITE_FAVICON_FALLBACK_SVG), { density: 288 }).resize(64, 64).png().toBuffer();
+  } catch {
+    return new TextEncoder().encode(SITE_FAVICON_FALLBACK_SVG);
+  }
+}
+async function writeLocalFavicons(params) {
+  const icon = await fetchFavicon(params.host, params.fetch ?? fetch) ?? await fallbackIcon();
+  await Promise.all(params.mounts.map(async (mount) => {
+    const file = join4(params.outDir, joinMountPath(mount, `${SITE_FAVICON_DIR}/${params.host}`));
+    await mkdir3(dirname2(file), { recursive: true });
+    await writeFile3(file, icon);
+  }));
+}
+
 // compiler/og-images.ts
-import { readFile as readFile2 } from "node:fs/promises";
+import { readFile as readFile3 } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { extname, join as join3 } from "node:path";
+import { extname as extname2, join as join5 } from "node:path";
 import { Resvg } from "@resvg/resvg-js";
 import satori from "satori";
 
@@ -3545,7 +4361,7 @@ function loadFonts() {
       name: `Inter ${subset}`,
       weight,
       style: "normal",
-      data: await readFile2(require2.resolve(`@fontsource/inter/files/inter-${subset}-${weight}-normal.woff`))
+      data: await readFile3(require2.resolve(`@fontsource/inter/files/inter-${subset}-${weight}-normal.woff`))
     })));
   })();
   return fontsPromise;
@@ -3573,7 +4389,7 @@ async function loadBackground(params) {
     return {};
   }
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  const mimeType = OG_BACKGROUND_MIME_TYPES[extname(normalized).toLowerCase()];
+  const mimeType = OG_BACKGROUND_MIME_TYPES[extname2(normalized).toLowerCase()];
   if (!(mimeType && params.publicFiles.includes(normalized))) {
     return {
       diagnostic: {
@@ -3584,7 +4400,7 @@ async function loadBackground(params) {
       }
     };
   }
-  const bytes = await readFile2(join3(params.workDir, "site", "public", normalized));
+  const bytes = await readFile3(join5(params.workDir, "site", "public", normalized));
   return { dataUri: `data:${mimeType};base64,${bytes.toString("base64")}` };
 }
 async function publicImage(params, path) {
@@ -3592,11 +4408,11 @@ async function publicImage(params, path) {
     return;
   }
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  const mimeType = OG_BACKGROUND_MIME_TYPES[extname(normalized).toLowerCase()];
+  const mimeType = OG_BACKGROUND_MIME_TYPES[extname2(normalized).toLowerCase()];
   if (!(mimeType && params.publicFiles.includes(normalized))) {
     return;
   }
-  const bytes = await readFile2(join3(params.workDir, "site", "public", normalized));
+  const bytes = await readFile3(join5(params.workDir, "site", "public", normalized));
   return `data:${mimeType};base64,${bytes.toString("base64")}`;
 }
 async function resolveAuthor(params, ref) {
@@ -3661,7 +4477,7 @@ function areaCard(params, area, style) {
   });
 }
 async function writeCard(params, card, fonts, urlPath) {
-  await writeFileEnsured(join3(params.workDir, "site", "public", urlPath), await renderPng(card, fonts));
+  await writeFileEnsured(join5(params.workDir, "site", "public", urlPath), await renderPng(card, fonts));
 }
 async function writeOgImages(params) {
   const started = Date.now();
@@ -3693,7 +4509,7 @@ async function writeOgImages(params) {
       manifest[area] = urlPath;
     }));
     await Promise.all(params.entries.map(async (entry) => {
-      const source = await readFile2(join3(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), "utf8");
+      const source = await readFile3(join5(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), "utf8");
       const { data } = parseEntryFrontmatter(entry.path, entry.area, source);
       if (!data || data.image || data.draft && !params.includeDrafts) {
         return;
@@ -3741,15 +4557,15 @@ async function writeOgImages(params) {
     }));
   }
   const sorted = Object.fromEntries(Object.entries(manifest).sort(([a], [b]) => a.localeCompare(b)));
-  await writeFileEnsured(join3(params.workDir, OG_MANIFEST_FILE), `${JSON.stringify(sorted, null, 2)}
+  await writeFileEnsured(join5(params.workDir, OG_MANIFEST_FILE), `${JSON.stringify(sorted, null, 2)}
 `);
   return { manifest: sorted, diagnostics, durationMs: Date.now() - started };
 }
 
 // compiler/prepare.ts
-import { createHash as createHash2 } from "node:crypto";
-import { cp as cp2, mkdir as mkdir3, readFile as readFile3, rm as rm2, stat } from "node:fs/promises";
-import { dirname as dirname2, join as join6, sep } from "node:path";
+import { createHash as createHash4 } from "node:crypto";
+import { cp as cp2, mkdir as mkdir5, readFile as readFile5, rm as rm2, stat as stat2 } from "node:fs/promises";
+import { dirname as dirname4, join as join9, sep } from "node:path";
 
 // ../../packages/sites-core/src/utils/source-files.ts
 function isSiteContentPath(path) {
@@ -3774,14 +4590,14 @@ function isCollectedSiteSourcePath(path) {
 // compiler/collect.ts
 import { constants } from "node:fs";
 import { lstat, open, opendir } from "node:fs/promises";
-import { join as join4 } from "node:path";
+import { join as join6 } from "node:path";
 async function collectSiteSource(siteRoot) {
   const files = [];
   const diagnostics = [];
   let totalBytes = 0;
   let ignoreContent = null;
   try {
-    const file = await open(join4(siteRoot, SITE_IGNORE_FILENAME), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    const file = await open(join6(siteRoot, SITE_IGNORE_FILENAME), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
     try {
       const stats = await file.stat();
       if (!stats.isFile() || stats.size > SITE_IGNORE_MAX_BYTES) {
@@ -3823,7 +4639,7 @@ async function collectSiteSource(siteRoot) {
         }
       };
     }
-    const stats = await lstat(join4(siteRoot, relativePath));
+    const stats = await lstat(join6(siteRoot, relativePath));
     if (isIgnored(stats.isDirectory() ? `${relativePath}/` : relativePath)) {
       return { kind: "skip" };
     }
@@ -3861,7 +4677,7 @@ async function collectSiteSource(siteRoot) {
   let stopped = false;
   while (directories.length > 0 && !stopped) {
     const relativeDir = directories.pop() ?? "";
-    const directory = await opendir(join4(siteRoot, relativeDir));
+    const directory = await opendir(join6(siteRoot, relativeDir));
     for await (const entry of directory) {
       const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
       const result = await inspect(relativePath);
@@ -3903,10 +4719,73 @@ async function collectSiteSource(siteRoot) {
   return { files, totalBytes, diagnostics, ignoreContent };
 }
 
-// compiler/utils/site-fonts.ts
-import { createHash } from "node:crypto";
-import { cp, mkdir as mkdir2, mkdtemp, readdir as readdir2, rename, rm } from "node:fs/promises";
-import { join as join5 } from "node:path";
+// compiler/utils/font-fallbacks.ts
+import { createHash as createHash2 } from "node:crypto";
+import { readFile as readFile4 } from "node:fs/promises";
+import { dirname as dirname3, join as join7 } from "node:path";
+import { fromBuffer } from "@capsizecss/unpack";
+
+// src/constants/theme.ts
+var FONT_DEFAULT_BODY_WEIGHT = 400;
+var FONT_DEFAULT_HEADING_WEIGHT = 500;
+
+// src/utils/theme-fonts.ts
+function specFaces(spec) {
+  const family = spec?.family;
+  if (!family) {
+    return [];
+  }
+  return [
+    {
+      family,
+      weight: spec.weight,
+      source: spec.source,
+      format: spec.format
+    },
+    ...(spec.faces ?? []).map((face) => ({
+      family,
+      weight: face.weight,
+      style: face.style,
+      source: face.source,
+      format: face.format ?? spec.format
+    }))
+  ];
+}
+function fontRoles(fonts) {
+  const body = fonts?.body?.family ? fonts.body : fonts;
+  const heading = [fonts?.heading, fonts, fonts?.body].find((spec) => spec?.family);
+  return [
+    {
+      role: "body",
+      spec: body,
+      weight: fonts?.body?.weight ?? fonts?.weight ?? FONT_DEFAULT_BODY_WEIGHT
+    },
+    {
+      role: "heading",
+      spec: heading,
+      weight: fonts?.heading?.weight ?? FONT_DEFAULT_HEADING_WEIGHT
+    }
+  ].flatMap(({ role, spec, weight }) => spec?.family ? [{ role, family: spec.family, weight, faces: specFaces(spec) }] : []);
+}
+function coversWeight(weight, target) {
+  if (weight === undefined) {
+    return true;
+  }
+  const [low = Number.NaN, high = low] = String(weight).trim().split(/\s+/).map(Number);
+  return Math.min(low, high) <= target && target <= Math.max(low, high);
+}
+function uprightFaces(role) {
+  return role.faces.filter((face) => face.source && (face.style ?? "normal") === "normal");
+}
+function roleFace(role) {
+  return uprightFaces(role).find((face) => coversWeight(face.weight, role.weight));
+}
+function metricsFace(role) {
+  return roleFace(role) ?? uprightFaces(role)[0];
+}
+function isSiteFontPath(source) {
+  return !/^[a-z][a-z\d+.-]*:|^\/\//i.test(source);
+}
 
 // compiler/constants/fonts.ts
 var GOOGLE_FONTS_CSS_URL = "https://fonts.googleapis.com/css2";
@@ -3930,8 +4809,107 @@ var FONT_WEIGHT_RANGES = [
 ];
 var FONT_COMMON_WEIGHTS = [300, 400, 500, 600, 700];
 var DEFAULT_HEADING_WEIGHT = 600;
+var FONT_FALLBACK_LOCAL = "Arial";
+var FONT_FALLBACK_METRICS = {
+  ascent: 1854,
+  descent: -434,
+  lineGap: 67,
+  unitsPerEm: 2048,
+  xWidthAvg: 913
+};
+var GOOGLE_FONT_FACE_RE = /(?:\/\*\s*([\w-]+)\s*\*\/\s*)?@font-face\s*\{([^}]*)\}/g;
+
+// compiler/utils/font-fallbacks.ts
+var metricsCache = new Map;
+async function fontMetrics(bytes) {
+  const key = createHash2("sha256").update(bytes).digest("hex");
+  const cached = metricsCache.get(key);
+  if (cached) {
+    return cached;
+  }
+  const { ascent, descent, lineGap, unitsPerEm, xWidthAvg } = await fromBuffer(bytes);
+  if (!(unitsPerEm > 0 && xWidthAvg > 0 && ascent > 0)) {
+    throw new Error("The font file has no usable metrics");
+  }
+  const metrics = { ascent, descent, lineGap, unitsPerEm, xWidthAvg };
+  metricsCache.set(key, metrics);
+  return metrics;
+}
+function percent(value) {
+  return Math.round(value * 1e4) / 100;
+}
+function fallbackFor(family, metrics) {
+  const sizeAdjust = metrics.xWidthAvg / metrics.unitsPerEm / (FONT_FALLBACK_METRICS.xWidthAvg / FONT_FALLBACK_METRICS.unitsPerEm);
+  const em = metrics.unitsPerEm * sizeAdjust;
+  return {
+    family,
+    local: FONT_FALLBACK_LOCAL,
+    sizeAdjust: percent(sizeAdjust),
+    ascentOverride: percent(metrics.ascent / em),
+    descentOverride: percent(Math.abs(metrics.descent) / em),
+    lineGapOverride: percent(metrics.lineGap / em)
+  };
+}
+function googleFontFile(css, family, weight) {
+  const faces = [...css.matchAll(GOOGLE_FONT_FACE_RE)].map(([, subset, body = ""]) => ({
+    subset,
+    family: /font-family:\s*['"]?([^;'"]+)/.exec(body)?.[1]?.trim(),
+    style: /font-style:\s*(\w+)/.exec(body)?.[1] ?? "normal",
+    weight: /font-weight:\s*([\d ]+)/.exec(body)?.[1],
+    url: /url\(\s*["']?([^\s"')]+)/.exec(body)?.[1]
+  })).filter((face) => face.family?.toLowerCase() === family.toLowerCase() && face.style === "normal" && face.url);
+  const matching = faces.filter((face) => coversWeight(face.weight, weight));
+  const face = matching.find((item) => item.subset === "latin") ?? matching[0] ?? faces.find((item) => item.subset === "latin") ?? faces[0];
+  return face?.url;
+}
+async function roleFontFile(role, params) {
+  const face = metricsFace(role);
+  if (face?.source) {
+    if (!isSiteFontPath(face.source)) {
+      return;
+    }
+    const path = `/${face.source.replace(/[?#].*$/, "").replace(/^\/+/, "")}`;
+    if (!params.publicFiles.has(path)) {
+      throw new Error(`${face.source} is not a file in public/`);
+    }
+    return join7(params.siteRoot, "public", path);
+  }
+  if (role.faces.some((item) => item.source) || !params.stylesheet) {
+    return;
+  }
+  const stylesheet = join7(params.workDir, "site", "public", params.stylesheet);
+  const file = googleFontFile(await readFile4(stylesheet, "utf8"), role.family, role.weight);
+  return file?.startsWith("./") ? join7(dirname3(stylesheet), file.slice(2)) : undefined;
+}
+async function siteFontFallbacks(config, params) {
+  const result = { fallbacks: [], diagnostics: [] };
+  const families = new Set;
+  for (const role of fontRoles(config.fonts)) {
+    if (families.has(role.family)) {
+      continue;
+    }
+    families.add(role.family);
+    try {
+      const file = await roleFontFile(role, params);
+      if (file) {
+        result.fallbacks.push(fallbackFor(role.family, await fontMetrics(await readFile4(file))));
+      }
+    } catch (error) {
+      result.diagnostics.push({
+        severity: "warning",
+        file: SITE_CONFIG_FILENAME,
+        code: "font_fallback",
+        message: `Could not measure ${role.family} for its fallback font, so text may shift when it loads. ${error instanceof Error ? error.message : String(error)}`
+      });
+    }
+  }
+  return result;
+}
 
 // compiler/utils/site-fonts.ts
+import { createHash as createHash3 } from "node:crypto";
+import { cp, mkdir as mkdir4, mkdtemp, readdir as readdir2, rename, rm } from "node:fs/promises";
+import { join as join8 } from "node:path";
 class FontRequestError extends Error {
   status;
   constructor(status) {
@@ -3975,7 +4953,7 @@ function requestedWeights(fonts) {
   ];
   const families = new Map;
   for (const { spec, weights } of uses) {
-    if (spec?.family && !spec.source) {
+    if (spec?.family && !spec.source && !spec.faces) {
       families.set(spec.family, [
         ...families.get(spec.family) ?? [],
         ...weights
@@ -4061,14 +5039,14 @@ async function prepareSiteFonts(config, workDir) {
       weightCandidates(weights)
     ]));
     const url = googleFontsUrl(new Map([...candidates].map(([family, specs]) => [family, specs[0] ?? ""])));
-    const key = createHash("sha256").update(url.toString()).update(JSON.stringify([...candidates])).digest("hex");
-    const cacheRoot = join5(workDir, "font-cache");
-    const cacheDir = join5(cacheRoot, key);
+    const key = createHash3("sha256").update(url.toString()).update(JSON.stringify([...candidates])).digest("hex");
+    const cacheRoot = join8(workDir, "font-cache");
+    const cacheDir = join8(cacheRoot, key);
     const publicPath = `/${SITE_ASSETS_DIR}/fonts/${key}`;
-    publicDir = join5(workDir, "site", "public", publicPath);
+    publicDir = join8(workDir, "site", "public", publicPath);
     if (!await exists(cacheDir)) {
-      await mkdir2(cacheRoot, { recursive: true });
-      stagingDir = await mkdtemp(join5(cacheRoot, "batch-"));
+      await mkdir4(cacheRoot, { recursive: true });
+      stagingDir = await mkdtemp(join8(cacheRoot, "batch-"));
       try {
         await downloadSiteFonts(url, [...families.keys()], stagingDir, true);
       } catch (error) {
@@ -4076,7 +5054,7 @@ async function prepareSiteFonts(config, workDir) {
           throw error;
         }
         await rm(stagingDir, { recursive: true, force: true });
-        stagingDir = await mkdtemp(join5(cacheRoot, "batch-"));
+        stagingDir = await mkdtemp(join8(cacheRoot, "batch-"));
         await downloadSiteFonts(await supportedFontsUrl(candidates), [...families.keys()], stagingDir, false);
       }
       await rename(stagingDir, cacheDir);
@@ -4130,14 +5108,14 @@ async function downloadSiteFonts(url, families, stagingDir, requireEveryFamily) 
   const replacements = new Map;
   const downloads = families.map((family) => async () => {
     const license = await fetchFontLicense(family);
-    const hash = createHash("sha256").update(license).digest("hex").slice(0, 16);
-    await writeFileEnsured(join5(stagingDir, `font-license-${hash}.txt`), license);
+    const hash = createHash3("sha256").update(license).digest("hex").slice(0, 16);
+    await writeFileEnsured(join8(stagingDir, `font-license-${hash}.txt`), license);
   });
   downloads.push(...sources.map(({ source, extension }) => async () => {
     const bytes = await fetchFontAsset(source, FONT_FILE_MAX_BYTES);
-    const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 16);
+    const hash = createHash3("sha256").update(bytes).digest("hex").slice(0, 16);
     const name = `font-${hash}.${extension}`;
-    await writeFileEnsured(join5(stagingDir, name), bytes);
+    await writeFileEnsured(join8(stagingDir, name), bytes);
     replacements.set(source, `./${name}`);
   }));
   const results = await Promise.allSettled(Array.from({ length: FONT_DOWNLOAD_CONCURRENCY }, async () => {
@@ -4156,9 +5134,9 @@ async function downloadSiteFonts(url, families, stagingDir, requireEveryFamily) 
   if (/https?:\/\//i.test(localCss) || /@import/i.test(localCss)) {
     throw new Error("Unsupported external font stylesheet reference");
   }
-  const hash = createHash("sha256").update(localCss).digest("hex").slice(0, 16);
+  const hash = createHash3("sha256").update(localCss).digest("hex").slice(0, 16);
   const stylesheet = `fonts-${hash}.css`;
-  await writeFileEnsured(join5(stagingDir, stylesheet), localCss);
+  await writeFileEnsured(join8(stagingDir, stylesheet), localCss);
 }
 
 // compiler/prepare.ts
@@ -4167,7 +5145,7 @@ async function readSiteFiles(siteRoot) {
   if (hasErrors(collected.diagnostics)) {
     return { collected, files: new Map };
   }
-  const texts = await Promise.all(collected.files.map((file) => isTextSourceFile(file.path) ? readFile3(join6(siteRoot, file.path), "utf8") : null));
+  const texts = await Promise.all(collected.files.map((file) => isTextSourceFile(file.path) ? readFile5(join9(siteRoot, file.path), "utf8") : null));
   const files = new Map(collected.files.map((file, index) => [file.path, texts[index] ?? null]));
   if (collected.ignoreContent !== null) {
     files.set(SITE_IGNORE_FILENAME, collected.ignoreContent);
@@ -4204,80 +5182,89 @@ async function prepareSite(params) {
     };
   }
   if (params.incremental) {
-    const siteDir = join6(params.workDir, "site");
-    const entriesDir = join6(params.workDir, "entries");
+    const siteDir = join9(params.workDir, "site");
+    const entriesDir = join9(params.workDir, "entries");
     const expected = new Set([
-      ...collected.files.map((file) => join6(siteDir, file.path)),
-      ...[...validation.outputs.keys()].map((path) => join6(siteDir, path)),
-      ...validation.entries.map((entry) => join6(entriesDir, entry.area, `${entry.slug}.${entry.format}`))
+      ...collected.files.map((file) => join9(siteDir, file.path)),
+      ...[...validation.outputs.keys()].map((path) => join9(siteDir, path)),
+      ...validation.entries.map((entry) => join9(entriesDir, entry.area, `${entry.slug}.${entry.format}`))
     ]);
     const staged = [
       ...await listFiles(siteDir).catch(() => []),
       ...await listFiles(entriesDir).catch(() => [])
     ];
-    const generated = `${join6(siteDir, "public", "_notra")}${sep}`;
+    const generated = `${join9(siteDir, "public", "_notra")}${sep}`;
     await Promise.all(staged.filter((path) => !expected.has(path) && !path.startsWith(generated)).map((path) => rm2(path, { force: true })));
     await Promise.all([...expected].map(async (path) => {
-      const existing = await stat(path).catch(() => null);
+      const existing = await stat2(path).catch(() => null);
       if (existing?.isDirectory()) {
         await rm2(path, { recursive: true, force: true });
       }
     }));
   } else {
-    await rm2(join6(params.workDir, "site"), { recursive: true, force: true });
-    await rm2(join6(params.workDir, "entries"), { recursive: true, force: true });
+    await rm2(join9(params.workDir, "site"), { recursive: true, force: true });
+    await rm2(join9(params.workDir, "entries"), { recursive: true, force: true });
   }
-  await Promise.all(SITE_AREAS.map((area) => mkdir3(join6(params.workDir, "entries", area), { recursive: true })));
+  await Promise.all(SITE_AREAS.map((area) => mkdir5(join9(params.workDir, "entries", area), { recursive: true })));
   await Promise.all(collected.files.map(async (file) => {
-    const target = join6(params.workDir, "site", file.path);
+    const target = join9(params.workDir, "site", file.path);
     const transformed = validation.outputs.get(file.path);
     if (transformed !== undefined) {
       await writeFileEnsured(target, transformed);
       return;
     }
     if (params.incremental) {
-      await writeFileEnsured(target, await readFile3(join6(params.siteRoot, file.path)));
+      await writeFileEnsured(target, await readFile5(join9(params.siteRoot, file.path)));
     } else {
-      await mkdir3(dirname2(target), { recursive: true });
-      await cp2(join6(params.siteRoot, file.path), target);
+      await mkdir5(dirname4(target), { recursive: true });
+      await cp2(join9(params.siteRoot, file.path), target);
     }
   }));
-  await Promise.all([...validation.outputs].filter(([path]) => !files.has(path)).map(([path, source]) => writeFileEnsured(join6(params.workDir, "site", path), source)));
-  const customCss = collected.files.filter((file) => isSiteStylesheet(file.path)).map((file) => `@import ${JSON.stringify(join6(params.workDir, "site", file.path))};`).join(`
+  await Promise.all([...validation.outputs].filter(([path]) => !files.has(path)).map(([path, source]) => writeFileEnsured(join9(params.workDir, "site", path), source)));
+  const customCss = collected.files.filter((file) => isSiteStylesheet(file.path)).map((file) => `@import ${JSON.stringify(join9(params.workDir, "site", file.path))};`).join(`
 `);
-  await writeFileEnsured(join6(params.workDir, "custom.css"), `${customCss}
+  await writeFileEnsured(join9(params.workDir, "custom.css"), `${customCss}
 `);
-  await mkdir3(join6(params.workDir, "site", "public", SITE_ASSETS_DIR), {
+  await mkdir5(join9(params.workDir, "site", "public", SITE_ASSETS_DIR), {
     recursive: true
   });
   const customScripts = await Promise.all(sortCustomScriptPaths(collected.files.map((file) => file.path)).map(async (path) => {
-    const source = await readFile3(join6(params.siteRoot, path));
+    const source = await readFile5(join9(params.siteRoot, path));
     const name = path.replace(/\.js$/i, "").replace(/[^A-Za-z0-9_-]+/g, "-");
-    const fileName = `custom-${name}.${createHash2("sha256").update(source).digest("hex").slice(0, 10)}.js`;
-    await writeFileEnsured(join6(params.workDir, "site", "public", SITE_ASSETS_DIR, fileName), source);
+    const fileName = `custom-${name}.${createHash4("sha256").update(source).digest("hex").slice(0, 10)}.js`;
+    await writeFileEnsured(join9(params.workDir, "site", "public", SITE_ASSETS_DIR, fileName), source);
     return { path, fileName };
   }));
-  await Promise.all(validation.entries.map((entry) => writeFileEnsured(join6(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), validation.outputs.get(entry.path) ?? files.get(entry.path) ?? "")));
+  await Promise.all(validation.entries.map((entry) => writeFileEnsured(join9(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), validation.outputs.get(entry.path) ?? files.get(entry.path) ?? "")));
   const fonts = await prepareSiteFonts(validation.config, params.workDir);
-  validation.diagnostics.push(...fonts.diagnostics);
+  const fallbacks = await siteFontFallbacks(validation.config, {
+    siteRoot: params.siteRoot,
+    workDir: params.workDir,
+    publicFiles: new Set(publicFiles),
+    stylesheet: fonts.stylesheet
+  });
+  validation.diagnostics.push(...fonts.diagnostics, ...fallbacks.diagnostics);
   return {
     validation,
     collectDiagnostics: collected.diagnostics,
     publicFiles: [...publicFiles, ...fonts.publicFiles],
     customScripts,
-    fontStylesheet: fonts.stylesheet
+    fontStylesheet: fonts.stylesheet,
+    fontFallbacks: fallbacks.fallbacks
   };
 }
 
 // compiler/utils/astro-log.ts
+import { stripVTControlCharacters } from "node:util";
 function createAstroLogFilter() {
   const reportedLanguages = new Set;
   return (text) => text.split(`
 `).filter((line) => {
-    if (ASTRO_LOG_NOISE.some((pattern) => pattern.test(line))) {
+    const plain = stripVTControlCharacters(line);
+    if (ASTRO_LOG_NOISE.some((pattern) => pattern.test(plain))) {
       return false;
     }
-    const language = SHIKI_UNKNOWN_LANGUAGE.exec(line)?.[1];
+    const language = SHIKI_UNKNOWN_LANGUAGE.exec(plain)?.[1];
     if (language === undefined) {
       return true;
     }
@@ -4320,7 +5307,8 @@ var CONSENT_SHADOWS = {
 var DATABUDDY_CONNECTION_KEYS = new Set([
   "clientId",
   "scriptUrl",
-  "apiUrl"
+  "apiUrl",
+  "replay"
 ]);
 
 // compiler/utils/consent.ts
@@ -4335,6 +5323,7 @@ function consentAnalytics({
     clientId: databuddy.clientId,
     scriptUrl: databuddy.scriptUrl,
     apiUrl: databuddy.apiUrl,
+    replay: databuddy.replay,
     options: Object.fromEntries(Object.entries(databuddy).filter(([key]) => !DATABUDDY_CONNECTION_KEYS.has(key)))
   };
   return {
@@ -4356,12 +5345,16 @@ function consentAnalytics({
     }
   };
 }
-function siteConsent(config, customScripts, analytics, dev) {
+function onHostingDomain(publicOrigin, hostingDomain) {
+  return hostingDomain !== undefined && `.${new URL(publicOrigin).hostname}`.endsWith(`.${hostingDomain}`);
+}
+function siteConsent(config, customScripts, analytics, dev, publicOrigin, hostingDomain) {
   const { c15t } = config.integrations;
   if (!c15t) {
     return null;
   }
   const gated = c15t.scripts ?? {};
+  const crossSubdomain = c15t.crossSubdomain && !onHostingDomain(publicOrigin, hostingDomain);
   return {
     backendURL: analytics ? c15t.backendURL : null,
     devTools: dev && c15t.devTools,
@@ -4374,12 +5367,14 @@ function siteConsent(config, customScripts, analytics, dev) {
     options: {
       ui: "react",
       colorScheme: "none",
+      consentCategories: analytics ? [C15T_ANALYTICS_CATEGORY] : undefined,
       presentation: { prompt: c15t.prompt, preferences: c15t.preferences },
       legalLinks: c15t.legalLinks,
       i18n: c15t.locale ? { locale: c15t.locale, detectLanguage: false } : undefined,
       storageConfig: {
-        crossSubdomain: c15t.crossSubdomain,
-        defaultExpiryDays: c15t.expiryDays
+        defaultDomain: crossSubdomain ? `.${new URL(publicOrigin).hostname.split(".").slice(-2).join(".")}` : undefined,
+        defaultExpiryDays: c15t.expiryDays,
+        storageKey: crossSubdomain || !publicOrigin.startsWith("https:") ? undefined : C15T_HOST_STORAGE_KEY
       },
       disableAnimation: c15t.disableAnimation,
       theme: {
@@ -4392,21 +5387,30 @@ function siteConsent(config, customScripts, analytics, dev) {
     }
   };
 }
-function consentScriptDiagnostics(config, customScripts) {
+function consentDiagnostics(config, customScripts, publicOrigin, hostingDomain) {
   const paths = new Set(customScripts.map((script) => script.path));
-  return Object.keys(config.integrations.c15t?.scripts ?? {}).filter((path) => !paths.has(path)).map((path) => ({
+  const diagnostics = Object.keys(config.integrations.c15t?.scripts ?? {}).filter((path) => !paths.has(path)).map((path) => ({
     severity: "error",
     file: "blog.json",
     code: "consent_script_missing",
     message: `integrations.c15t.scripts lists ${path}, but there is no custom script at that path.`
   }));
+  if (config.integrations.c15t?.crossSubdomain && onHostingDomain(publicOrigin, hostingDomain)) {
+    diagnostics.push({
+      severity: "warning",
+      file: "blog.json",
+      code: "consent_cross_subdomain_ignored",
+      message: `integrations.c15t.crossSubdomain only applies on your own domain. On ${hostingDomain} the consent choice stays on this site's host, so other sites there can't read or change it.`
+    });
+  }
+  return diagnostics;
 }
 
 // compiler/utils/head-scripts.ts
-function siteHeadScripts(config, mount, customScripts, analytics) {
+function siteHeadScripts(config, mount, customScripts, analytics, hostingDomain) {
   const gated = config.integrations.c15t?.scripts ?? {};
   return [
-    ...analytics && !analyticsGatedByConsent(config.integrations) ? integrationHeadScripts(config.integrations) : [],
+    ...analytics && !analyticsGatedByConsent(config.integrations) ? integrationHeadScripts(config.integrations, hostingDomain) : [],
     ...customScripts.filter((script) => !gated[script.path]).map((script) => ({
       kind: "external",
       src: joinMountPath(mount, `${SITE_ASSETS_DIR}/${script.fileName}`),
@@ -4416,7 +5420,7 @@ function siteHeadScripts(config, mount, customScripts, analytics) {
 }
 
 // compiler/utils/inline-scripts.ts
-import { createHash as createHash3 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 
 // compiler/constants/inline-scripts.ts
 var SCRIPT_ELEMENT = /<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi;
@@ -4445,18 +5449,18 @@ function inlineScriptHashes(html) {
 `, `
 `).replaceAll("\r", `
 `);
-    hashes.push(createHash3("sha256").update(text, "utf8").digest("base64"));
+    hashes.push(createHash5("sha256").update(text, "utf8").digest("base64"));
   }
   return hashes;
 }
 
 // compiler/utils/nested-links.ts
-import { SAXParser } from "parse5-sax-parser";
+import { SAXParser as SAXParser2 } from "parse5-sax-parser";
 function unnestLinks(html) {
   if (!/<a(?:\s|\/|>)/i.test(html)) {
     return html;
   }
-  const parser = new SAXParser({ sourceCodeLocationInfo: true });
+  const parser = new SAXParser2({ sourceCodeLocationInfo: true });
   const dropped = [];
   const edits = [];
   parser.on("startTag", (token) => {
@@ -4489,13 +5493,104 @@ function hasReactComponents(outputs) {
   return [...outputs.keys()].some((path) => /\.jsx?$/i.test(path) && !path.startsWith("public/") && !isCustomScriptPath(path));
 }
 
+// compiler/utils/work-lock.ts
+import { randomUUID } from "node:crypto";
+import { link, mkdir as mkdir6, open as open2, rm as rm3, stat as stat3, writeFile as writeFile4 } from "node:fs/promises";
+import { dirname as dirname5 } from "node:path";
+
+// compiler/utils/usage-error.ts
+class UsageError extends Error {
+  name = "UsageError";
+}
+
+// compiler/utils/work-lock.ts
+function isRunning(pid) {
+  if (!(Number.isInteger(pid) && pid > 0)) {
+    return false;
+  }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+async function publish(path) {
+  const draft = `${path}.${process.pid}.${randomUUID()}`;
+  await writeFile4(draft, String(process.pid));
+  try {
+    await link(draft, path);
+    return (await stat3(draft)).ino;
+  } catch (error) {
+    if (error.code === "EEXIST") {
+      return null;
+    }
+    throw error;
+  } finally {
+    await rm3(draft, { force: true });
+  }
+}
+async function ownerOf(path) {
+  const handle = await open2(path, "r").catch(() => null);
+  if (!handle) {
+    return null;
+  }
+  try {
+    const [{ ino }, text] = await Promise.all([
+      handle.stat(),
+      handle.readFile("utf8")
+    ]);
+    return { pid: Number(text), ino };
+  } finally {
+    await handle.close();
+  }
+}
+async function removeIfStill(path, ino) {
+  if ((await ownerOf(path))?.ino === ino) {
+    await rm3(path, { force: true });
+  }
+}
+async function clearStale(lockPath, stale) {
+  const guard = `${lockPath}.takeover`;
+  const guardIno = await publish(guard);
+  if (guardIno === null) {
+    const holder = await ownerOf(guard);
+    if (holder && !isRunning(holder.pid)) {
+      await removeIfStill(guard, holder.ino);
+    }
+    return;
+  }
+  try {
+    await removeIfStill(lockPath, stale.ino);
+  } finally {
+    await removeIfStill(guard, guardIno);
+  }
+}
+async function lockWorkDir(lockPath) {
+  await mkdir6(dirname5(lockPath), { recursive: true });
+  for (let attempt = 0;attempt < 5; attempt += 1) {
+    const ino = await publish(lockPath);
+    if (ino !== null) {
+      return () => removeIfStill(lockPath, ino);
+    }
+    const owner = await ownerOf(lockPath);
+    if (owner && isRunning(owner.pid)) {
+      throw new UsageError(`Another Notra Sites build (process ${owner.pid}) is running with this toolchain. Wait for it to finish, then build again. If none is running, delete ${lockPath}.`);
+    }
+    if (owner) {
+      await clearStale(lockPath, owner);
+    }
+  }
+  throw new UsageError(`Couldn't lock the build folder. Try the build again, or delete ${lockPath} if no build is running.`);
+}
+
 // compiler/build.ts
 function astroBin(toolchainRoot) {
-  const require2 = createRequire2(join7(toolchainRoot, "package.json"));
+  const require2 = createRequire2(join10(toolchainRoot, "package.json"));
   const packageJsonPath = require2.resolve("astro/package.json");
   const packageJson = require2(packageJsonPath);
   const bin = typeof packageJson.bin === "string" ? packageJson.bin : packageJson.bin.astro;
-  return resolve(dirname3(packageJsonPath), bin ?? "astro.js");
+  return resolve2(dirname6(packageJsonPath), bin ?? "astro.js");
 }
 function runAstro(toolchainRoot, command, paramsPath, extraArgs = [], onOutput = (chunk) => process.stderr.write(chunk)) {
   return new Promise((resolvePromise, reject) => {
@@ -4523,7 +5618,7 @@ function runAstro(toolchainRoot, command, paramsPath, extraArgs = [], onOutput =
   });
 }
 async function writeBuildParams(path, params) {
-  await writeFile2(path, JSON.stringify(params));
+  await writeFile5(path, JSON.stringify(params));
 }
 function failedBuild(diagnostics, areas = []) {
   return {
@@ -4537,7 +5632,18 @@ function failedBuild(diagnostics, areas = []) {
   };
 }
 async function buildSite(options) {
-  const workDir = options.workDir ?? join7(options.toolchainRoot, ".notra", "work");
+  if (options.workDir) {
+    return buildInWorkDir(options, options.workDir);
+  }
+  const workDir = join10(options.toolchainRoot, ".notra", "work");
+  const unlock = await lockWorkDir(`${workDir}.lock`);
+  try {
+    return await buildInWorkDir(options, workDir);
+  } finally {
+    await unlock();
+  }
+}
+async function buildInWorkDir(options, workDir) {
   const mounts = normalizeSiteMounts(options.target.mounts);
   const prepared = await prepareSite({
     siteRoot: options.siteRoot,
@@ -4549,8 +5655,10 @@ async function buildSite(options) {
     ...prepared.validation.diagnostics
   ];
   const config = prepared.validation.config;
+  const publicOrigin = new URL(options.target.publicOrigin).origin;
+  const { hostingDomain } = options.target;
   if (config) {
-    diagnostics.push(...consentScriptDiagnostics(config, prepared.customScripts));
+    diagnostics.push(...consentDiagnostics(config, prepared.customScripts, publicOrigin, hostingDomain));
   }
   if (hasErrors(diagnostics) || !(prepared.validation.ok && config)) {
     return failedBuild(diagnostics);
@@ -4571,22 +5679,22 @@ async function buildSite(options) {
 `);
   }
   const publicFileList = [...prepared.publicFiles, ...ogImagePaths];
-  await rm3(join7(workDir, "out"), { recursive: true, force: true });
-  await rm3(join7(workDir, "cache"), { recursive: true, force: true });
-  await rm3(options.outDir, { recursive: true, force: true });
-  await mkdir4(options.outDir, { recursive: true });
-  const publicOrigin = new URL(options.target.publicOrigin).origin;
+  await rm4(join10(workDir, "out"), { recursive: true, force: true });
+  await rm4(join10(workDir, "cache"), { recursive: true, force: true });
+  await rm4(options.outDir, { recursive: true, force: true });
+  await mkdir7(options.outDir, { recursive: true });
   const publicFiles = new Set(publicFileList);
   const areas = [];
   const areaPages = [];
-  const consent = siteConsent(config, prepared.customScripts, options.target.analytics, false);
+  const consent = siteConsent(config, prepared.customScripts, options.target.analytics, false, publicOrigin, hostingDomain);
   const pageHtml = new Map;
   for (const { area, mount } of listMountedAreas(mounts)) {
-    const paramsPath = join7(workDir, `params.${area}.json`);
+    const paramsPath = join10(workDir, `params.${area}.json`);
     await writeBuildParams(paramsPath, {
       area,
       mount,
       publicOrigin,
+      hostingDomain,
       siteId: options.target.siteId,
       deploymentId: options.target.deploymentId,
       noindex: options.target.noindex,
@@ -4595,10 +5703,11 @@ async function buildSite(options) {
       workDir,
       publicFiles: publicFileList,
       fontStylesheet: prepared.fontStylesheet,
+      fontFallbacks: prepared.fontFallbacks,
       mounts,
       config,
       hasReactComponents: hasReactComponents(prepared.validation.outputs),
-      headScripts: siteHeadScripts(config, mount, prepared.customScripts, options.target.analytics),
+      headScripts: siteHeadScripts(config, mount, prepared.customScripts, options.target.analytics, hostingDomain),
       consent
     });
     const started = Date.now();
@@ -4619,11 +5728,11 @@ ${log.trim().split(`
       });
       return failedBuild(diagnostics, areas);
     }
-    const areaOut = join7(workDir, "out", area);
+    const areaOut = join10(workDir, "out", area);
     for (const file of await listFiles(areaOut)) {
-      const relativePath = relative(areaOut, file).split("\\").join("/");
+      const relativePath = relative2(areaOut, file).split("\\").join("/");
       if (relativePath === AREA_PAGES_FILE) {
-        areaPages.push(JSON.parse(await readFile4(file, "utf8")));
+        areaPages.push(JSON.parse(await readFile6(file, "utf8")));
         continue;
       }
       const urlPath = joinMountPath(mount, relativePath);
@@ -4636,22 +5745,44 @@ ${log.trim().split(`
         });
         continue;
       }
-      const target = join7(options.outDir, urlPath);
-      await mkdir4(dirname3(target), { recursive: true });
+      const target = join10(options.outDir, urlPath);
+      await mkdir7(dirname6(target), { recursive: true });
       if (file.endsWith(".html")) {
-        const html = rewritePublicAssetUrls(unnestLinks(await readFile4(file, "utf8")), mount, publicFiles);
+        const html = rewritePublicAssetUrls(unnestLinks(await readFile6(file, "utf8")), mount, publicFiles);
         pageHtml.set(urlPath, html);
-        await writeFile2(target, html);
+        await writeFile5(target, html);
       } else {
         await cp3(file, target);
       }
     }
-    const probePath = join7(options.outDir, mount, "_notra", "probe.txt");
-    await mkdir4(dirname3(probePath), { recursive: true });
-    await writeFile2(probePath, `notra-site=${options.target.siteId}
+    const probePath = join10(options.outDir, mount, "_notra", "probe.txt");
+    await mkdir7(dirname6(probePath), { recursive: true });
+    await writeFile5(probePath, `notra-site=${options.target.siteId}
 area=${area}
 `);
     areas.push({ area, mount, durationMs: Date.now() - started });
+  }
+  const contentImages = await optimizeContentImages({
+    outDir: options.outDir,
+    pageHtml,
+    mounts: listMountedAreas(mounts).map(({ mount }) => mount)
+  });
+  diagnostics.push(...contentImages.diagnostics);
+  for (const [urlPath, html] of contentImages.pages) {
+    pageHtml.set(urlPath, html);
+    await writeFile5(join10(options.outDir, urlPath), html);
+  }
+  if (contentImages.images > 0) {
+    process.stderr.write(`Made ${contentImages.variants} smaller copies of ${contentImages.images} ${contentImages.images === 1 ? "image" : "images"} in ${contentImages.durationMs} ms
+`);
+  }
+  const faviconHost = footerFaviconHost(config);
+  if (options.localFavicons && faviconHost) {
+    await writeLocalFavicons({
+      outDir: options.outDir,
+      mounts: listMountedAreas(mounts).map(({ mount }) => mount),
+      host: faviconHost
+    });
   }
   await writeAgentFiles({
     outDir: options.outDir,
@@ -4680,7 +5811,7 @@ area=${area}
     });
   }
   const outputFiles = await listFiles(options.outDir);
-  const sizes = await Promise.all(outputFiles.map(async (file) => (await stat2(file)).size));
+  const sizes = await Promise.all(outputFiles.map(async (file) => (await stat4(file)).size));
   return {
     ok: !hasErrors(diagnostics),
     diagnostics,
@@ -4690,19 +5821,27 @@ area=${area}
     redirects: config.redirects,
     contentSecurityPolicy,
     analyticsConsent: analyticsGatedByConsent(config.integrations),
-    consentBackendURL: config.integrations.c15t?.backendURL
+    consentStorageKey: consent?.options.storageConfig.storageKey,
+    faviconHost
   };
 }
 async function readBuildTarget(path) {
-  return siteBuildRequestSchema.parse(JSON.parse(await readFile4(path, "utf8")));
+  return siteBuildRequestSchema.parse(JSON.parse(await readFile6(path, "utf8")));
 }
 
 // compiler/constants/cli.ts
+var LOCAL_SITE_ID = "local";
+var LOCAL_BUILD_ORIGIN = "http://localhost";
 var USAGE = `notra-sites <command>
 
   validate [--source <dir>] [--target <file>] [--json]  Check settings, MDX and snippets
-  build --source <dir> --target <file> --out <dir> [--json]
-  dev [--source <dir>] [--target <file>] [--area blog|changelog] [--port 4321]   (serves every area; --area picks the one "/" redirects to)`;
+  build [--source <dir>] --out <dir> [--target <file>] [--mount <area>=<path>]... [--origin <url>] [--json]
+  dev [--source <dir>] [--target <file>] [--mount <area>=<path>]... [--area blog|changelog] [--port 4321]
+
+  dev and build serve the areas with a folder (both when neither has one) at /blog and /changelog, or those in --target.
+  --mount blog=/newsroom serves only the areas listed, at those paths, and replaces the mounts of --target.
+  build without --target makes a local build: noindex, no drafts, links on --origin (default ${LOCAL_BUILD_ORIGIN}).
+  --area picks where "/" redirects in dev and, without --target or --mount, also serves that area.`;
 var DEV_READY_TIMEOUT_MS = 60000;
 var DEV_PORT_SEARCH_RANGE = 100;
 var ASTRO_READY_URL = /http:\/\/127\.0\.0\.1:(\d+)(?=\D)/;
@@ -4720,6 +5859,7 @@ var DEV_PROXY_RETRY_ERRORS = new Set([
   "ETIMEDOUT"
 ]);
 var DEV_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+var DEV_FAVICON_URL = "https://www.google.com/s2/favicons";
 
 // compiler/dev-server.ts
 import { spawn as spawn2 } from "node:child_process";
@@ -4734,12 +5874,12 @@ import {
 } from "node:fs";
 import { createServer, request } from "node:http";
 import { connect, createServer as createNetServer } from "node:net";
-import { dirname as dirname4, join as join8, relative as relative2 } from "node:path";
+import { dirname as dirname7, join as join11, relative as relative3 } from "node:path";
 import { pipeline } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
 
 // compiler/utils/dev-error-page.ts
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash6 } from "node:crypto";
 function escapeHtml(value) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
@@ -4756,7 +5896,7 @@ function devErrorsKey(errors) {
   if (errors.length === 0) {
     return "";
   }
-  return createHash4("sha1").update(JSON.stringify(errors.map((error) => [
+  return createHash6("sha1").update(JSON.stringify(errors.map((error) => [
     error.file,
     error.line,
     error.column,
@@ -4822,7 +5962,7 @@ function isLocalDevHost(host) {
 }
 
 // compiler/utils/dev-markdown.ts
-import { readFile as readFile5 } from "node:fs/promises";
+import { readFile as readFile7 } from "node:fs/promises";
 async function devMarkdown(area, pathname, origin, signal) {
   let path = pathname.replace(/\.md$/, "") || "/";
   const upstreamSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(1e4)]) : AbortSignal.timeout(1e4);
@@ -4864,7 +6004,7 @@ async function devMarkdown(area, pathname, origin, signal) {
   const html = await response.text();
   const url = new URL(path, origin).toString();
   const markdown = entry ? entryMarkdown(entry, url, htmlToMarkdown(html, url)) : indexMarkdown(pages, origin);
-  const params = JSON.parse(await readFile5(area.paramsPath, {
+  const params = JSON.parse(await readFile7(area.paramsPath, {
     encoding: "utf8",
     signal: upstreamSignal
   }));
@@ -4919,29 +6059,37 @@ async function findUnusedPort(from) {
   throw new Error(`No free port between ${from} and ${from + DEV_PORT_SEARCH_RANGE}`);
 }
 async function startAstroDev(toolchainRoot, area) {
-  const root = join8(dirname4(area.paramsPath), "astro", area.area);
+  const root = join11(dirname7(area.paramsPath), "astro", area.area);
   area.hmrToken ??= randomBytes(18).toString("base64url");
   area.hmrGeneration = (area.hmrGeneration ?? 0) + 1;
   mkdirSync(root, { recursive: true });
-  cpSync(join8(toolchainRoot, "src"), join8(root, "src"), { recursive: true });
-  const modules = join8(dirname4(area.paramsPath), "node_modules");
+  cpSync(join11(toolchainRoot, "src"), join11(root, "src"), { recursive: true });
+  const tailwindSources = join11(root, ".notra", "work");
+  mkdirSync(tailwindSources, { recursive: true });
+  for (const dir of ["site", "entries"]) {
+    const link = join11(tailwindSources, dir);
+    if (!existsSync(link)) {
+      symlinkSync(join11(dirname7(area.paramsPath), dir), link, "junction");
+    }
+  }
+  const modules = join11(dirname7(area.paramsPath), "node_modules");
   if (!existsSync(modules)) {
     let dependencyRoot = toolchainRoot;
-    while (!existsSync(join8(dependencyRoot, "node_modules"))) {
-      const parent = dirname4(dependencyRoot);
+    while (!existsSync(join11(dependencyRoot, "node_modules"))) {
+      const parent = dirname7(dependencyRoot);
       if (parent === dependencyRoot) {
         throw new Error("Notra Sites runtime dependencies are missing");
       }
       dependencyRoot = parent;
     }
-    symlinkSync(join8(dependencyRoot, "node_modules"), modules, "junction");
+    symlinkSync(join11(dependencyRoot, "node_modules"), modules, "junction");
   }
-  const sourceWatcher = watch(join8(toolchainRoot, "src"), { recursive: true }, (_event, filename) => {
+  const sourceWatcher = watch(join11(toolchainRoot, "src"), { recursive: true }, (_event, filename) => {
     if (!filename) {
       return;
     }
-    const source = join8(toolchainRoot, "src", filename);
-    const destination = join8(root, "src", filename);
+    const source = join11(toolchainRoot, "src", filename);
+    const destination = join11(root, "src", filename);
     try {
       if (existsSync(source)) {
         cpSync(source, destination, { recursive: true });
@@ -4962,7 +6110,7 @@ async function startAstroDev(toolchainRoot, area) {
       "--root",
       root,
       "--config",
-      relative2(root, join8(toolchainRoot, "astro.config.mjs")),
+      relative3(root, join11(toolchainRoot, "astro.config.mjs")),
       "--host",
       "127.0.0.1",
       "--port",
@@ -5082,7 +6230,7 @@ ${headers.join(`\r
   socket.on("error", () => upstream.destroy());
   socket.on("close", () => upstream.destroy());
 }
-function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => []) {
+function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => [], redirects = () => []) {
   const [fallback] = areas;
   const targetFor = (pathname) => {
     const owner = resolveAreaForPath(mounts, pathname);
@@ -5121,6 +6269,15 @@ function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => [])
       outgoing.end(JSON.stringify({ count: errors.length, key: devErrorsKey(errors) }));
       return;
     }
+    const redirect = matchRedirect(redirects(), pathname);
+    if (redirect) {
+      outgoing.writeHead(redirect.status, {
+        location: redirect.location,
+        "Cache-Control": "no-store"
+      });
+      outgoing.end();
+      return;
+    }
     const errors = siteErrors();
     if (errors.length > 0 && isDocumentRequest(incoming)) {
       outgoing.writeHead(500, {
@@ -5132,6 +6289,14 @@ function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => [])
     }
     if (areas.some((area) => pathname.replace(/\/+$/, "") === joinMountPath(area.mount, AREA_PAGES_FILE))) {
       outgoing.writeHead(404);
+      outgoing.end();
+      return;
+    }
+    const faviconHost = pathname.split(`/${SITE_FAVICON_DIR}/`)[1];
+    if (faviconHost && SITE_FAVICON_HOST.test(faviconHost)) {
+      outgoing.writeHead(302, {
+        location: `${DEV_FAVICON_URL}?domain=${faviconHost}&sz=64`
+      });
       outgoing.end();
       return;
     }
@@ -5334,15 +6499,15 @@ async function startDevAreas(toolchainRoot, areas) {
 }
 
 // compiler/utils/dev-generated-assets.ts
-import { rm as rm4 } from "node:fs/promises";
-import { join as join9, relative as relative3, sep as sep2 } from "node:path";
+import { rm as rm5 } from "node:fs/promises";
+import { join as join12, relative as relative4, sep as sep2 } from "node:path";
 async function cleanDevGeneratedAssets(workDir, publicFiles, customScripts) {
-  const publicDir = join9(workDir, "site", "public");
+  const publicDir = join12(workDir, "site", "public");
   const retained = new Set([
-    ...publicFiles.map((path) => join9(publicDir, path)),
-    ...customScripts.map((name) => join9(publicDir, SITE_ASSETS_DIR, name))
+    ...publicFiles.map((path) => join12(publicDir, path)),
+    ...customScripts.map((name) => join12(publicDir, SITE_ASSETS_DIR, name))
   ]);
-  const generated = await listFiles(join9(publicDir, "_notra")).catch((error) => {
+  const generated = await listFiles(join12(publicDir, "_notra")).catch((error) => {
     if (error.code === "ENOENT") {
       return [];
     }
@@ -5352,9 +6517,9 @@ async function cleanDevGeneratedAssets(workDir, publicFiles, customScripts) {
     if (retained.has(path)) {
       return false;
     }
-    const name = relative3(publicDir, path).split(sep2).join("/");
+    const name = relative4(publicDir, path).split(sep2).join("/");
     return name.startsWith(`${SITE_ASSETS_DIR}/`) && /^custom-[A-Za-z0-9_-]+\.[a-f0-9]{10}\.js$/.test(name.slice(SITE_ASSETS_DIR.length + 1)) || name.startsWith(`${SITE_ASSETS_DIR}/fonts/`) && /^[a-f0-9]{64}\//.test(name.slice(`${SITE_ASSETS_DIR}/fonts/`.length)) || SITE_AREAS.some((area) => name === `${OG_IMAGES_DIR}/${area}.png` || name.startsWith(`${OG_IMAGES_DIR}/${area}/`) && name.endsWith(".png"));
-  }).map((path) => rm4(path, { force: true })));
+  }).map((path) => rm5(path, { force: true })));
 }
 
 // compiler/utils/dev-refresh.ts
@@ -5417,20 +6582,21 @@ function createDevRefresh(options) {
     if (closed || current !== revision) {
       return;
     }
-    const consentDiagnostics = consentScriptDiagnostics(config, prepared.customScripts);
+    const consentChecks = consentDiagnostics(config, prepared.customScripts, options.params.publicOrigin, options.params.hostingDomain);
     options.printDiagnostics([
       ...prepared.collectDiagnostics,
       ...prepared.validation.diagnostics,
       ...ogImages.diagnostics,
-      ...consentDiagnostics
+      ...consentChecks
     ]);
-    if (hasErrors(consentDiagnostics)) {
+    if (hasErrors(consentChecks)) {
       return;
     }
     const params = {
       ...options.params,
       config,
       fontStylesheet: prepared.fontStylesheet,
+      fontFallbacks: prepared.fontFallbacks,
       hasReactComponents: hasReactComponents(prepared.validation.outputs),
       publicFiles: [
         ...new Set([
@@ -5438,8 +6604,8 @@ function createDevRefresh(options) {
           ...Object.values(ogImages.manifest)
         ])
       ].sort(),
-      headScripts: siteHeadScripts(config, options.params.mount, prepared.customScripts, false),
-      consent: siteConsent(config, prepared.customScripts, false, true)
+      headScripts: siteHeadScripts(config, options.params.mount, prepared.customScripts, false, options.params.hostingDomain),
+      consent: siteConsent(config, prepared.customScripts, false, true, options.params.publicOrigin, options.params.hostingDomain)
     };
     const snapshot = JSON.stringify(params);
     if (snapshot === published && active) {
@@ -5518,7 +6684,16 @@ function createDevRefresh(options) {
 }
 
 // compiler/utils/local-options.ts
-import { basename } from "node:path";
+import { realpathSync, statSync } from "node:fs";
+import {
+  basename as basename2,
+  dirname as dirname8,
+  isAbsolute,
+  join as join13,
+  relative as relative5,
+  resolve as resolve3,
+  sep as sep3
+} from "node:path";
 
 // ../../packages/sites-core/src/utils/default-config.ts
 function createDefaultSiteConfig(name) {
@@ -5530,8 +6705,118 @@ function createDefaultSiteConfig(name) {
 }
 
 // compiler/utils/local-options.ts
+function isDirectory(path) {
+  try {
+    return statSync(path).isDirectory();
+  } catch (error) {
+    const { code } = error;
+    if (code === "ENOENT" || code === "ENOTDIR") {
+      return false;
+    }
+    throw error;
+  }
+}
+function isSiteArea(value) {
+  return value === "blog" || value === "changelog";
+}
+function parseMountFlags(flags = []) {
+  if (flags.length === 0) {
+    return;
+  }
+  const mounts = {};
+  for (const flag of flags) {
+    const separator = flag.indexOf("=");
+    const area = flag.slice(0, Math.max(separator, 0)).trim();
+    const path = flag.slice(separator + 1).trim();
+    if (separator === -1 || !isSiteArea(area)) {
+      throw new UsageError(`--mount ${flag}: expected blog=<path> or changelog=<path>, like --mount blog=/newsroom`);
+    }
+    if (!path.startsWith("/")) {
+      throw new UsageError(`--mount ${flag}: the path must start with /`);
+    }
+    if (mounts[area] !== undefined) {
+      throw new UsageError(`--mount ${flag}: ${area} is mounted twice`);
+    }
+    mounts[area] = path;
+  }
+  try {
+    return normalizeSiteMounts(mounts);
+  } catch (error) {
+    throw new UsageError(`--mount: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+function localMounts(siteRoot, target, area, mounts) {
+  if (mounts) {
+    if (area && !mounts[area]) {
+      throw new UsageError(`--area ${area} needs a --mount ${area}=<path>`);
+    }
+    return mounts;
+  }
+  if (target) {
+    return target.mounts;
+  }
+  const blog = area === "blog" || isDirectory(join13(siteRoot, "blog"));
+  const changelog = area === "changelog" || isDirectory(join13(siteRoot, "changelog"));
+  return {
+    ...blog || !changelog ? { blog: "/blog" } : {},
+    ...changelog || !blog ? { changelog: "/changelog" } : {}
+  };
+}
 function localDefaultConfig(siteRoot, target) {
-  return target?.defaultConfig ?? createDefaultSiteConfig(basename(siteRoot).trim().slice(0, siteConfigSchema.shape.name.maxLength ?? 80).trim() || "Local site");
+  return target?.defaultConfig ?? createDefaultSiteConfig(basename2(siteRoot).trim().slice(0, siteConfigSchema.shape.name.maxLength ?? 80).trim() || "Local site");
+}
+function parseOrigin(origin) {
+  const url = URL.canParse(origin) ? new URL(origin) : null;
+  if (!(url?.protocol === "http:" || url?.protocol === "https:")) {
+    throw new UsageError(`--origin ${origin}: expected an http(s) URL, like https://example.com`);
+  }
+  return url.origin;
+}
+function localBuildTarget(siteRoot, target, overrides) {
+  const origin = overrides.origin === undefined ? undefined : parseOrigin(overrides.origin);
+  if (target) {
+    return {
+      ...target,
+      ...origin ? { publicOrigin: origin } : {},
+      ...overrides.mounts ? { mounts: overrides.mounts } : {}
+    };
+  }
+  return siteBuildRequestSchema.parse({
+    siteId: LOCAL_SITE_ID,
+    deploymentId: LOCAL_SITE_ID,
+    publicOrigin: origin ?? LOCAL_BUILD_ORIGIN,
+    mounts: localMounts(siteRoot, undefined, undefined, overrides.mounts),
+    noindex: true,
+    defaultConfig: localDefaultConfig(siteRoot)
+  });
+}
+function realPath(path) {
+  const missing = [];
+  let existing = resolve3(path);
+  for (;; ) {
+    try {
+      return join13(realpathSync(existing), ...missing.reverse());
+    } catch (error) {
+      const parent = dirname8(existing);
+      if (error.code !== "ENOENT" || parent === existing) {
+        throw error;
+      }
+      missing.push(basename2(existing));
+      existing = parent;
+    }
+  }
+}
+function assertOutsideSource(siteRoot, outDir) {
+  const out = realPath(outDir);
+  const source = realPath(siteRoot);
+  const path = relative5(out, source);
+  const outside = path === ".." || path.startsWith(`..${sep3}`) || isAbsolute(path);
+  const [firstSegment] = relative5(source, out).split(sep3);
+  const inSourceFolder = outside && firstSegment !== ".." && SITE_SOURCE_ROOTS.has(firstSegment ?? "");
+  if (!outside || inSourceFolder) {
+    const problem = outside ? `is inside the site's ${firstSegment} folder` : "holds the site source";
+    throw new UsageError(`--out ${outDir} ${problem}, and the build empties it first. Use a separate folder, like ${join13(siteRoot, ".notra", "out")}`);
+  }
 }
 
 // compiler/cli.ts
@@ -5559,6 +6844,8 @@ async function main() {
       source: { type: "string", default: "." },
       target: { type: "string" },
       out: { type: "string" },
+      mount: { type: "string", multiple: true },
+      origin: { type: "string" },
       area: { type: "string" },
       port: { type: "string", default: "4321" },
       json: { type: "boolean", default: false },
@@ -5571,7 +6858,7 @@ async function main() {
 `);
     return;
   }
-  const siteRoot = resolve2(values.source ?? ".");
+  const siteRoot = resolve4(values.source ?? ".");
   if (command === "validate") {
     const target = values.target ? await readBuildTarget(values.target) : undefined;
     if (target) {
@@ -5596,25 +6883,28 @@ async function main() {
     process.exit(ok ? 0 : 1);
   }
   if (command === "build") {
-    if (!(values.target && values.out)) {
-      throw new Error("build needs --target and --out");
+    if (!values.out) {
+      throw new UsageError("build needs --out <dir>");
     }
-    const target = await readBuildTarget(values.target);
+    const outDir = resolve4(values.out);
+    assertOutsideSource(siteRoot, outDir);
+    const target = localBuildTarget(siteRoot, values.target ? await readBuildTarget(values.target) : undefined, { origin: values.origin, mounts: parseMountFlags(values.mount) });
     const result = await buildSite({
       toolchainRoot: TOOLCHAIN_ROOT,
       siteRoot,
       target,
-      outDir: resolve2(values.out)
+      outDir,
+      localFavicons: !values.target
     });
     if (values["result-file"]) {
-      await writeFile3(values["result-file"], JSON.stringify(result));
+      await writeFile6(values["result-file"], JSON.stringify(result));
     }
     if (values.json) {
       process.stdout.write(`${JSON.stringify(result)}
 `);
     } else {
       printDiagnostics(result.diagnostics);
-      process.stderr.write(result.ok ? `✔ Built ${result.areas.map((area) => `${area.area} at ${area.mount} (${area.durationMs} ms)`).join(", ")}: ${result.fileCount} files, ${(result.totalBytes / 1024).toFixed(0)} KB
+      process.stderr.write(result.ok ? `✔ Built ${result.areas.map((area) => `${area.area} at ${area.mount} (${area.durationMs} ms)`).join(", ")}: ${result.fileCount} files, ${(result.totalBytes / 1024).toFixed(0)} KB in ${outDir}
 ` : `Build failed
 `);
     }
@@ -5622,21 +6912,22 @@ async function main() {
   }
   if (command === "dev") {
     const target = values.target ? await readBuildTarget(values.target) : undefined;
-    const mounts = normalizeSiteMounts(target?.mounts ?? { blog: "/blog", changelog: "/changelog" });
+    const { area } = values;
+    if (area !== undefined && area !== "blog" && area !== "changelog") {
+      throw new UsageError("--area must be blog or changelog");
+    }
+    const mounts = normalizeSiteMounts(localMounts(siteRoot, target, area, parseMountFlags(values.mount)));
     const defaultConfig = localDefaultConfig(siteRoot, target);
     const requestedPort = Number(values.port ?? "4321");
     if (!Number.isInteger(requestedPort) || requestedPort < 1 || requestedPort > 65533) {
-      throw new Error("--port must be an integer between 1 and 65533");
+      throw new UsageError("--port must be an integer between 1 and 65533");
     }
     const port = await findUnusedPort(requestedPort);
     if (port !== requestedPort) {
       process.stderr.write(`Port ${requestedPort} is in use, using ${port} instead.
 `);
     }
-    if (values.area && values.area !== "blog" && values.area !== "changelog") {
-      throw new Error("--area must be blog or changelog");
-    }
-    const workDir = await realpath(await mkdtemp2(join10(tmpdir(), "notra-sites-dev-")));
+    const workDir = await realpath(await mkdtemp2(join14(tmpdir(), "notra-sites-dev-")));
     const mounted = listMountedAreas(mounts);
     const areas = [];
     let nextPort = port + 1;
@@ -5647,11 +6938,11 @@ async function main() {
         areas.push({
           ...entry,
           port: areaPort,
-          paramsPath: join10(workDir, `params.dev.${entry.area}.json`)
+          paramsPath: join14(workDir, `params.dev.${entry.area}.json`)
         });
       }
     } catch (error) {
-      await rm5(workDir, { recursive: true, force: true });
+      await rm6(workDir, { recursive: true, force: true });
       throw error;
     }
     const selected = areas.find((entry) => entry.area === values.area) ?? areas[0];
@@ -5663,6 +6954,7 @@ async function main() {
     let documentGeneration = 0;
     let running = [];
     let siteErrors = [];
+    let redirects = [];
     const stopAreas = async () => {
       const stopping = running;
       running = [];
@@ -5673,6 +6965,7 @@ async function main() {
         area: selected.area,
         mount: selected.mount,
         publicOrigin: `http://localhost:${port}`,
+        hostingDomain: target?.hostingDomain,
         siteId: "local",
         deploymentId: "local",
         noindex: true,
@@ -5703,6 +6996,7 @@ async function main() {
           }
           renameSync(temporaryPath, area.paramsPath);
         }
+        redirects = siteRedirectRules(params.config.redirects);
         return true;
       },
       runAstro: async (astroCommand) => {
@@ -5727,7 +7021,7 @@ async function main() {
         watcher?.close();
         proxy?.close();
         await refresh.shutdown();
-        await rm5(workDir, { recursive: true, force: true });
+        await rm6(workDir, { recursive: true, force: true });
       })();
       return stopping;
     };
@@ -5754,7 +7048,7 @@ async function main() {
       });
       proxy = await startDevProxy(port, mounts, ordered, async () => {
         await watchedRefresh;
-      }, () => siteErrors);
+      }, () => siteErrors, () => redirects);
       if (interrupted) {
         proxy.close();
         await stop();
@@ -5783,7 +7077,14 @@ async function main() {
   process.exit(command ? 1 : 0);
 }
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}
+  let message = String(error);
+  const code = error?.code;
+  if (error instanceof UsageError || error instanceof TypeError && code?.startsWith("ERR_PARSE_ARGS")) {
+    message = error.message;
+  } else if (error instanceof Error) {
+    message = error.stack ?? error.message;
+  }
+  process.stderr.write(`${message}
 `);
   process.exit(1);
 });

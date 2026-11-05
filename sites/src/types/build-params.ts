@@ -1,16 +1,23 @@
-import type { C15T_SCRIPT_CATEGORIES } from "@notra/sites-core/constants/integrations";
+import type {
+  C15T_HOST_STORAGE_KEY,
+  C15T_SCRIPT_CATEGORIES,
+} from "@notra/sites-core/constants/integrations";
 import type { SiteMounts } from "@notra/sites-core/types/deployment";
 import type { SiteConfig } from "@notra/sites-core/types/site-config";
 import type {
   SiteC15t,
+  SiteDatabuddy,
   SiteHeadScript,
 } from "@notra/sites-core/types/site-integrations";
+
+import type { FontFallback } from "./theme";
 
 export interface SiteConsentAnalytics {
   databuddy?: {
     clientId: string;
     scriptUrl?: string;
     apiUrl?: string;
+    replay?: SiteDatabuddy["replay"];
     options: Record<string, unknown>;
   };
   gtag?: { id: string };
@@ -30,7 +37,12 @@ export interface SiteConsentOptions {
   presentation: Pick<SiteC15t, "prompt" | "preferences">;
   legalLinks?: SiteC15t["legalLinks"];
   i18n?: { locale: NonNullable<SiteC15t["locale"]>; detectLanguage: false };
-  storageConfig: { crossSubdomain?: boolean; defaultExpiryDays?: number };
+  storageConfig: {
+    defaultDomain?: string;
+    defaultExpiryDays?: number;
+    storageKey?: typeof C15T_HOST_STORAGE_KEY;
+  };
+  consentCategories?: string[];
   disableAnimation?: boolean;
   theme: {
     colors: Record<string, string>;
@@ -54,6 +66,7 @@ export interface BuildParams {
   area: "blog" | "changelog";
   mount: string;
   publicOrigin: string;
+  hostingDomain?: string;
   siteId: string;
   deploymentId: string;
   noindex: boolean;
@@ -62,6 +75,7 @@ export interface BuildParams {
   workDir: string;
   publicFiles: string[];
   fontStylesheet?: string;
+  fontFallbacks?: FontFallback[];
   mounts: SiteMounts;
   config: SiteConfig;
   headScripts: SiteHeadScript[];

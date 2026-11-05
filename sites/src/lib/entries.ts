@@ -40,8 +40,8 @@ export async function listedAreas({ keepCurrent = true } = {}): Promise<
   SiteArea[]
 > {
   const [blog, changelog] = await Promise.all([
-    getBlogEntries(),
-    getChangelogEntries(),
+    params.mounts.blog ? getBlogEntries() : [],
+    params.mounts.changelog ? getChangelogEntries() : [],
   ]);
   const counts: Record<SiteArea, number> = {
     blog: blog.length,

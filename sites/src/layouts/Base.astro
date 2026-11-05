@@ -17,7 +17,8 @@ import { absoluteUrl, areaTitle, config, llmsHref, namedAreaTitle, params } from
 import { extraMetaTags, socialImage, structuredData, themeColors, touchIcon, twitterHandle } from "../lib/seo";
 import { listedAreas } from "../lib/entries";
 import { chromeComponent } from "../lib/site-files";
-import { decorationClass, faviconFor, fontFaces, fontStylesheetUrl, themeStyle } from "../lib/theme";
+import { decorationClass, faviconFor, fontFaces, fontPreloads, fontStylesheetUrl, themeStyle } from "../lib/theme";
+import { slotArea } from "../lib/slot-data";
 import { mountPath } from "../utils/paths";
 
 const { page, title, description, image, imageAlt, generatedImage, type = "website", noindex = false, publishedTime, modifiedTime, tags = [], markdown, jsonLd } = Astro.props;
@@ -34,6 +35,7 @@ const feeds = (await listedAreas({ keepCurrent: false })).flatMap((area) => {
 });
 const fontsUrl = fontStylesheetUrl();
 const preloadInter = !(config.fonts?.body?.family ?? config.fonts?.family);
+const preloadFonts = fontPreloads();
 const appearance = config.appearance;
 const codeDark = config.styling.codeblocks === "dark";
 const lightFavicon = faviconFor("light");
@@ -88,6 +90,7 @@ const pageContext: SitePageContext = { page, area: params.area, path: canonicalP
     {metaTags.filter((tag) => tag.value.toLowerCase() !== "robots" || customRobots).map((tag) => (tag.key === "property" ? <meta property={tag.value} content={tag.content} /> : <meta name={tag.value} content={tag.content} />))}
     {jsonLd && <script type="application/ld+json" set:html={structuredData(jsonLd)} />}
     {preloadInter && <link rel="preload" href={interFont} as="font" type="font/woff2" crossorigin />}
+    {preloadFonts.map((font) => <link rel="preload" href={font} as="font" type="font/woff2" crossorigin />)}
     {fontsUrl && <link rel="stylesheet" href={fontsUrl} />}
     <style is:inline set:html={`${fontFaces()}${themeStyle()}`}></style>
     <script is:inline define:vars={{ appearance }}>
@@ -122,7 +125,7 @@ const pageContext: SitePageContext = { page, area: params.area, path: canonicalP
     {customHeader ? <CustomChrome part="header" context={pageContext} /> : <Header />}
     <main id="content-area" tabindex="-1" class="w-full flex-1 px-4 pt-4 pb-24 outline-none sm:px-6 sm:pt-6">
       <div id="content"><slot /></div>
-      <SiteSlot name="before-footer" data={pageContext} class="mt-16 empty:hidden" />
+      <SiteSlot name="before-footer" data={{ ...pageContext, section: slotArea() }} class="mt-16 empty:hidden" />
     </main>
     {customFooter ? <CustomChrome part="footer" context={pageContext} /> : <Footer />}
     <CodeBlocks />

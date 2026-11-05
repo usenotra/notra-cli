@@ -91,7 +91,7 @@ if (faq.length > 0) {
   {props.kind === "blog" && <BlogPost entry={props.entry} />}
   {
     props.kind === "changelog" && (
-      <div class="mx-auto max-w-(--layout-reading) pt-0 sm:pt-2 lg:pt-4">
+      <div class="mx-auto w-full max-w-(--layout-reading) pt-0 sm:pt-2 lg:pt-4">
         <BackLink href={href()} label={areaTitle("changelog")} />
         <div class="mt-8">
           <ChangelogEntry entry={props.entry} standalone />

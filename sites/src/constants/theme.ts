@@ -6,6 +6,10 @@ export const LAYOUT_CONTAINERS_REM = {
   reading: 44,
 } as const;
 
+// Match --font-body-weight and --font-heading-weight in global.css.
+export const FONT_DEFAULT_BODY_WEIGHT = 400;
+export const FONT_DEFAULT_HEADING_WEIGHT = 500;
+
 export const THEME_MODES = [
   { value: "light", label: "Light", icon: "sun" },
   { value: "dark", label: "Dark", icon: "moon" },

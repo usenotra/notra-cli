@@ -1,5 +1,6 @@
 ---
 import type { CategoryBarProps as Props } from "../types/categories";
+import { BLOG_SEARCH_PARAM } from "../constants/blog-filter";
 import { href } from "../lib/params";
 import Icon from "./Icon.astro";
 
@@ -30,7 +31,7 @@ const options = categories.length > 0 ? [{ name: "All", slug: "" }, ...categorie
         <label class="relative block">
           <span class="sr-only">Search posts</span>
           <Icon name="search" size={16} class="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-muted-foreground" />
-          <input data-blog-search type="search" name="q" placeholder="Search…" autocomplete="off" class="min-h-11 w-full rounded-full border border-border bg-transparent py-2 pr-4 pl-10 text-base text-foreground outline-offset-2 placeholder:text-muted-foreground md:text-sm" />
+          <input data-blog-search type="search" name={BLOG_SEARCH_PARAM} placeholder="Search…" autocomplete="off" class="min-h-11 w-full rounded-full border border-border bg-transparent py-2 pr-4 pl-10 text-base text-foreground outline-offset-2 placeholder:text-muted-foreground md:text-sm" />
         </label>
       </form>}
       <a href={href("feed.xml")} aria-label="RSS feed" class="ml-auto flex size-11 shrink-0 items-center justify-center text-muted-foreground outline-offset-2 hover:text-foreground">
@@ -55,9 +56,9 @@ const options = categories.length > 0 ? [{ name: "All", slug: "" }, ...categorie
 </style>
 
 <script>
-  import { matchesBlogFilter } from "../utils/blog-filter";
+  import { BLOG_CATEGORY_PARAM, BLOG_SEARCH_PARAM } from "../constants/blog-filter";
+  import { blogFilterUrl, isPlainClick, matchesBlogFilter } from "../utils/blog-filter";
 
-  const PARAM = "category";
   for (const bar of document.querySelectorAll<HTMLElement>("[data-category-bar]")) {
     const scroller = bar.querySelector<HTMLElement>(".category-bar-scroll");
     const buttons = [...bar.querySelectorAll<HTMLButtonElement>("[data-category]")];
@@ -91,7 +92,8 @@ const options = categories.length > 0 ? [{ name: "All", slug: "" }, ...categorie
       visible.at(-1)?.setAttribute("data-last-shown", "");
       const shown = visible.length + (unfiltered ? (featured?.children.length ?? 0) : 0);
       if (featured) {
-        featured.hidden = Boolean(query);
+        // Any filter shows pinned posts inline (their data-pinned copies), so the list above would repeat them.
+        featured.hidden = !unfiltered;
       }
       if (status) {
         status.textContent = `${shown} ${shown === 1 ? "post" : "posts"} found`;
@@ -104,18 +106,7 @@ const options = categories.length > 0 ? [{ name: "All", slug: "" }, ...categorie
         }
       }
       if (sync) {
-        const url = new URL(location.href);
-        if (value) {
-          url.searchParams.set(PARAM, value);
-        } else {
-          url.searchParams.delete(PARAM);
-        }
-        if (query) {
-          url.searchParams.set("q", query);
-        } else {
-          url.searchParams.delete("q");
-        }
-        history.replaceState(history.state, "", url);
+        history.replaceState(history.state, "", blogFilterUrl(location.href, value, query));
       }
     };
     bar.addEventListener("click", (event) => {
@@ -125,14 +116,30 @@ const options = categories.length > 0 ? [{ name: "All", slug: "" }, ...categorie
         button.scrollIntoView({ block: "nearest", inline: "nearest" });
       }
     });
+    document.addEventListener("click", (event) => {
+      const link = (event.target as Element).closest<HTMLAnchorElement>("a[data-category-link]");
+      const tab = link && buttons.find((button) => button.dataset.category === link.dataset.categoryLink);
+      if (!tab || !isPlainClick(event)) {
+        return;
+      }
+      event.preventDefault();
+      // Show what the link opens: its category, without the current search.
+      if (search) {
+        search.value = "";
+      }
+      select(tab.dataset.category ?? "", true);
+      // Reveals the tab inside a scrolled bar too, not only the bar.
+      tab.scrollIntoView({ block: "nearest", inline: "nearest" });
+      tab.focus({ preventScroll: true });
+    });
     search?.addEventListener("input", () => select(bar.querySelector<HTMLElement>('[aria-pressed="true"]')?.dataset.category ?? "", true));
     search?.form?.addEventListener("submit", (event) => event.preventDefault());
     scroller?.addEventListener("scroll", fade, { passive: true });
     addEventListener("resize", fade);
     fade();
-    const initial = new URLSearchParams(location.search).get(PARAM);
+    const initial = new URLSearchParams(location.search).get(BLOG_CATEGORY_PARAM);
     if (search) {
-      search.value = new URLSearchParams(location.search).get("q") ?? "";
+      search.value = new URLSearchParams(location.search).get(BLOG_SEARCH_PARAM) ?? "";
     }
     if (initial || search?.value) {
       select(initial ?? "", false);

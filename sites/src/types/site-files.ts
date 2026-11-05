@@ -16,6 +16,8 @@ export interface SlotArea {
   title: string;
   description?: string;
   url: string;
+  /** Root-relative path on the serving host, like `/blog`, built like the theme's own links. */
+  path: string;
 }
 
 export interface SlotPost {
@@ -25,6 +27,7 @@ export interface SlotPost {
   tags: string[];
   authors: { name: string; title?: string; url?: string }[];
   url: string;
+  path: string;
 }
 
 export interface SlotChangelogEntry {
@@ -32,6 +35,13 @@ export interface SlotChangelogEntry {
   version?: string;
   date: string;
   url: string;
+  path: string;
+}
+
+/** Data every slot gets; a slot's own data (like `before-footer`'s `area` id) takes precedence. */
+export interface SlotCommonData {
+  site: SlotSite;
+  area: SlotArea;
 }
 
 /** The kind of page being rendered, passed to header.mdx, footer.mdx and page-wide slots. */

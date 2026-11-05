@@ -147,3 +147,7 @@ dist/
 
 # bundled Notra Sites renderer, exported from the Notra monorepo
 !sites/dist/
+
+# Notra Sites renderer work files and local build output
+sites/.astro/
+.notra/

@@ -18,7 +18,7 @@ import CopyArticle from "./CopyArticle.astro";
 import Icon from "./Icon.astro";
 import PostPagination from "./PostPagination.astro";
 import SiteSlot from "./SiteSlot.astro";
-import TagList from "./TagList.astro";
+import TagLinks from "./TagLinks.astro";
 import Toc from "./Toc.astro";
 
 const { entry } = Astro.props;
@@ -41,6 +41,12 @@ const wide = options.width === "wide" && (options.toc || hasSidebarSlot);
 const hasToc = options.toc && headings.filter((heading) => heading.depth === 2 || heading.depth === 3).length > 1;
 const compact = options.header === "compact";
 const minutes = options.readingTime ? readingMinutes(entry.body) : undefined;
+const metaItems = [
+  { label: formatDate(entry.data.date), tone: "text-foreground", datetime: isoDate(entry.data.date) },
+  ...(updated ? [{ label: `Updated ${formatDate(updated)}`, tone: "", datetime: isoDate(updated) }] : []),
+  ...(minutes === undefined ? [] : [{ label: `${minutes} min read`, tone: "" }]),
+  ...(entry.data.draft ? [{ label: "Draft", tone: "text-warning" }] : []),
+];
 ---
 
 <article
@@ -63,32 +69,22 @@ const minutes = options.readingTime ? readingMinutes(entry.body) : undefined;
             {updated && <span>· Updated <time datetime={isoDate(updated)}>{formatDate(updated)}</time></span>}
             {minutes !== undefined && <span class="whitespace-nowrap">· {minutes} min read</span>}
             {entry.data.draft && <span class="text-warning">· Draft</span>}
+            {tags.length > 0 && <span class="flex items-center gap-x-3"><span aria-hidden="true">·</span><TagLinks tags={tags} /></span>}
           </div>
           <CopyArticle label="Copy article" markdownHref={markdownHref(href(entry.id))} pagePath={href(entry.id)} title={entry.data.title} />
         </div>
-      ) : (
-        <div class="post-meta mt-6 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <time datetime={isoDate(entry.data.date)}>{formatDate(entry.data.date)}</time>
-          {updated && <span>· Updated <time datetime={isoDate(updated)}>{formatDate(updated)}</time></span>}
-          {entry.data.draft && <span class="text-warning">· Draft</span>}
-        </div>
-      )
+      ) : null
     }
     <h1 id="page-title" class:list={[
       "font-heading text-[2.25rem] font-(--font-heading-weight) text-balance",
-      compact ? "mt-6 max-w-3xl leading-[1.05] tracking-[-0.02em] sm:text-5xl" : "mt-3 leading-[1.1] tracking-[-0.035em] sm:text-[2.75rem]",
+      compact ? "mt-6 max-w-3xl leading-[1.05] tracking-[-0.02em] sm:text-5xl" : "mt-8 leading-[1.08] tracking-[-0.045em] sm:text-5xl",
     ]}>{entry.data.title}</h1>
     {!compact && (
       <>
         {entry.data.description && <p class="mt-4 text-lg leading-8 text-pretty text-muted-foreground">{entry.data.description}</p>}
         {authors.length > 0 && <div class="mt-6"><AuthorList authors={authors} /></div>}
-        <div class="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
-          {minutes !== undefined && (
-            <span class="post-meta inline-flex items-center gap-2">
-              <Icon name="clock" size={15} />
-              {minutes} min read
-            </span>
-          )}
+        <div class:list={["mt-6 flex flex-wrap items-center gap-x-4 gap-y-3", wide && "lg:hidden"]}>
+          <div class="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground tabular-nums">{metaItems.map((item, index) => <>{index > 0 && <span aria-hidden="true">·</span>}{"datetime" in item ? <time datetime={item.datetime} class={item.tone}>{item.label}</time> : <span class={item.tone}>{item.label}</span>}</>)}{tags.length > 0 && <><span aria-hidden="true">·</span><TagLinks tags={tags} /></>}</div>
           <CopyArticle markdownHref={markdownHref(href(entry.id))} pagePath={href(entry.id)} title={entry.data.title} />
         </div>
       </>
@@ -107,6 +103,13 @@ const minutes = options.readingTime ? readingMinutes(entry.body) : undefined;
           compact && authors.length > 0 && "mt-8",
           hasSidebarSlot ? "flex" : "hidden lg:flex",
         ]}>
+          {!compact && (
+            <div class="hidden flex-col items-start gap-2 text-sm text-muted-foreground tabular-nums lg:flex">
+              {metaItems.map((item) => ("datetime" in item ? <time datetime={item.datetime} class={item.tone}>{item.label}</time> : <span class={item.tone}>{item.label}</span>))}
+              <TagLinks tags={tags} />
+              <div class="mt-1"><CopyArticle markdownHref={markdownHref(href(entry.id))} pagePath={href(entry.id)} title={entry.data.title} /></div>
+            </div>
+          )}
           {options.toc && <div class="hidden lg:block"><Toc headings={headings} minItems={compact ? 1 : undefined} /></div>}
           <SiteSlot name="sidebar" data={{ post }} />
         </div>
@@ -135,7 +138,6 @@ const minutes = options.readingTime ? readingMinutes(entry.body) : undefined;
         <div class="mdx-content prose prose-notra max-w-none" data-md-root>
           <Content />
         </div>
-        <TagList tags={tags} class="mt-10" />
         <SiteSlot name="after-post" data={{ post }} class="mt-12" />
         {!compact && !wide && <SiteSlot name="sidebar" data={{ post }} class="mt-12" />}
         {options.pagination && <PostPagination next={next} previous={previous} />}
