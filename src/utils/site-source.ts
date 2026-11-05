@@ -13,7 +13,7 @@ export async function resolveSiteSource(source: string): Promise<string> {
   );
   if (!(markers[0]?.isFile() || markers[1]?.isDirectory() || markers[2]?.isDirectory())) {
     throw new Errors.CLIError(
-      `No Notra site found in ${root}. Run this from a folder containing blog.json, blog/, or changelog/, or use --source <folder>.`,
+      `No Notra site found in ${root}. Run this from a folder containing blog.json, blog/, or changelog/, use --source <folder>, or run notra dev --init to create a starter site.`,
       { exit: 2 },
     );
   }

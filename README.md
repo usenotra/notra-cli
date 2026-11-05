@@ -29,7 +29,10 @@ bunx --bun notra@latest dev
 ```
 
 The folder must contain `blog.json`, `blog/`, or `changelog/`; `blog.json` is
-optional. The preview runs at `http://localhost:4321` with live reload for
+optional. In a folder without a site, `notra dev` offers to create a starter
+site (a `blog.json`, a first post and a changelog entry) and previews it;
+`notra dev --init` does the same without asking, and existing files are never
+overwritten. The preview runs at `http://localhost:4321` with live reload for
 content, components, CSS, assets, and configuration; if 4321 is taken, the
 next free port is used. Errors show in the terminal and in the browser, which
 reloads once they are fixed. It includes drafts and does not load analytics
