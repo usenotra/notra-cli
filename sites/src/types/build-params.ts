@@ -10,6 +10,8 @@ import type {
   SiteHeadScript,
 } from "@notra/sites-core/types/site-integrations";
 
+import type { FontFallback } from "./theme";
+
 export interface SiteConsentAnalytics {
   databuddy?: {
     clientId: string;
@@ -73,6 +75,7 @@ export interface BuildParams {
   workDir: string;
   publicFiles: string[];
   fontStylesheet?: string;
+  fontFallbacks?: FontFallback[];
   mounts: SiteMounts;
   config: SiteConfig;
   headScripts: SiteHeadScript[];

@@ -3,9 +3,9 @@
 // compiler/cli.ts
 import { randomBytes as randomBytes2 } from "node:crypto";
 import { renameSync, watch as watch2 } from "node:fs";
-import { mkdtemp as mkdtemp2, realpath, rm as rm5, writeFile as writeFile3 } from "node:fs/promises";
+import { mkdtemp as mkdtemp2, realpath, rm as rm6, writeFile as writeFile5 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join as join11, resolve as resolve2 } from "node:path";
+import { join as join14, resolve as resolve4 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
@@ -375,6 +375,8 @@ var SITE_SUSPENSION_CATEGORIES = [
 ];
 var SITE_FAVICON_DIR = "_notra/favicon";
 var SITE_FAVICON_HOST = /^(?=.{1,253}$)[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+var SITE_FAVICON_MAX_BYTES = 256 * 1024;
+var SITE_FAVICON_FALLBACK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`;
 var SITE_ENGAGEMENT_MAX_VISIBLE_MS = 30 * 60 * 1000;
 
 // ../../packages/sites-core/src/constants/source.ts
@@ -393,6 +395,8 @@ var SITE_AUTHOR_AVATAR = /^(?:\/(?!\/)|https:\/\/)/;
 var SITE_DEFAULT_PRIMARY_COLOR = "#8B5CF6";
 var SITE_APPEARANCE_STORAGE_KEY = /^[A-Za-z0-9._-]{1,64}$/;
 var SITE_DEFAULT_APPEARANCE_STORAGE_KEY = "notra-theme";
+var SITE_FONT_WEIGHT_RANGE = /^(?:[1-8]\d\d|900) (?:[1-8]\d\d|900)$/;
+var SITE_FONT_FACES_MAX = 12;
 
 // ../../packages/sites-core/src/constants/integrations.ts
 var UMAMI_SCRIPT_URL = "https://cloud.umami.is/script.js";
@@ -899,11 +903,23 @@ var imageByModeSchema = z3.object({
   light: sitePathSchema,
   dark: sitePathSchema
 });
+var fontWeightSchema = z3.number().int().min(100).max(900);
+var fontFormatSchema = z3.enum(["woff", "woff2"]);
+var fontFileSchema = z3.strictObject({
+  source: z3.string().trim().min(1),
+  weight: z3.union([
+    fontWeightSchema,
+    z3.string().regex(SITE_FONT_WEIGHT_RANGE, 'Use a weight like 500 or a range like "100 900"')
+  ]).optional().describe('The weight in this file, or a range like "100 900" for a variable font. Defaults to the full range.'),
+  style: z3.enum(["normal", "italic"]).optional(),
+  format: fontFormatSchema.optional()
+});
 var fontSpecSchema = z3.object({
   family: z3.string().trim().min(1).max(80),
-  weight: z3.number().int().min(100).max(900).optional(),
+  weight: fontWeightSchema.optional(),
   source: z3.string().trim().min(1).optional(),
-  format: z3.enum(["woff", "woff2"]).optional()
+  format: fontFormatSchema.optional(),
+  faces: z3.array(fontFileSchema).min(1).max(SITE_FONT_FACES_MAX).optional().describe("More files of the same family, such as other weights or italics.")
 });
 var appearanceSchema = z3.union([
   z3.enum(["light", "dark", "system"]),
@@ -2807,9 +2823,9 @@ function findRedirect(redirects, bare) {
 
 // compiler/build.ts
 import { spawn } from "node:child_process";
-import { cp as cp3, mkdir as mkdir4, readFile as readFile4, rm as rm3, stat as stat2, writeFile as writeFile2 } from "node:fs/promises";
+import { cp as cp3, mkdir as mkdir7, readFile as readFile7, rm as rm4, stat as stat3, writeFile as writeFile4 } from "node:fs/promises";
 import { createRequire as createRequire2 } from "node:module";
-import { dirname as dirname3, join as join7, relative, resolve } from "node:path";
+import { dirname as dirname6, join as join10, relative as relative2, resolve as resolve2 } from "node:path";
 
 // ../../packages/sites-core/src/schemas/deployment.ts
 import { z as z4 } from "zod";
@@ -3148,28 +3164,29 @@ var URL_ATTRIBUTE = /\b(src|href|poster|content|data-src)=(["'])(\/[^"']*)\2/g;
 var SRCSET_ATTRIBUTE = /\bsrcset=(["'])([^"']*)\1/g;
 
 // src/utils/public-assets.ts
+function mountPublicUrl(url, mount, publicFiles) {
+  if (url.startsWith("//")) {
+    return url;
+  }
+  const match = /^([^?#]*)(.*)$/.exec(url);
+  const path = match?.[1] ?? url;
+  let decoded = path;
+  try {
+    decoded = decodeURI(path);
+  } catch {
+    decoded = path;
+  }
+  return publicFiles.has(decoded) ? `${mount}${path}${match?.[2] ?? ""}` : url;
+}
 function rewritePublicAssetUrls(html, mount, publicFiles) {
   if (mount === "/" || publicFiles.size === 0) {
     return html;
   }
-  const rewrite = (url) => {
-    const match = /^([^?#]*)(.*)$/.exec(url);
-    const path = match?.[1] ?? url;
-    let decoded = path;
-    try {
-      decoded = decodeURI(path);
-    } catch {
-      decoded = path;
-    }
-    return publicFiles.has(decoded) ? `${mount}${path}${match?.[2] ?? ""}` : url;
-  };
-  return html.replace(URL_ATTRIBUTE, (whole, name, quote, url) => url.startsWith("//") ? whole : `${name}=${quote}${rewrite(url)}${quote}`).replace(SRCSET_ATTRIBUTE, (_whole, quote, value) => {
+  const rewrite = (url) => mountPublicUrl(url, mount, publicFiles);
+  return html.replace(URL_ATTRIBUTE, (_whole, name, quote, url) => `${name}=${quote}${rewrite(url)}${quote}`).replace(SRCSET_ATTRIBUTE, (_whole, quote, value) => {
     const rewritten = value.split(",").map((candidate) => {
       const [url = "", ...descriptor] = candidate.trim().split(/\s+/);
-      return [
-        url.startsWith("/") && !url.startsWith("//") ? rewrite(url) : url,
-        ...descriptor
-      ].join(" ");
+      return [url.startsWith("/") ? rewrite(url) : url, ...descriptor].join(" ");
     }).join(", ");
     return `srcset=${quote}${rewritten}${quote}`;
   });
@@ -3574,6 +3591,7 @@ ${instructions}` : `# ${name}`,
 
 // compiler/constants/build.ts
 var AREA_PAGES_FILE = "notra-pages.json";
+var LOCAL_FAVICON_FETCH_TIMEOUT_MS = 5000;
 var ASTRO_LOG_NOISE = [
   /\[glob-loader\] No files found matching/,
   /\[glob-loader\] The base directory .* does not exist/,
@@ -3586,10 +3604,379 @@ var ASTRO_LOG_NOISE = [
 ];
 var SHIKI_UNKNOWN_LANGUAGE = /\[Shiki\] The language "([^"]+)" doesn't exist/;
 
+// compiler/content-images.ts
+import { createHash } from "node:crypto";
+import { mkdir as mkdir2, readFile as readFile2, stat, writeFile as writeFile2 } from "node:fs/promises";
+import { basename, extname, join as join3, relative, resolve } from "node:path";
+
+// compiler/constants/content-images.ts
+var CONTENT_ROOT_CLASS = "mdx-content";
+var CONTENT_IMAGE_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp"
+]);
+var CONTENT_IMAGE_WIDTHS = [640, 960, 1280, 1920, 2560];
+var CONTENT_IMAGE_WEBP = {
+  lossless: { nearLossless: true, quality: 60 },
+  lossy: { quality: 90, smartSubsample: true }
+};
+var CONTENT_IMAGE_LOSSLESS_FORMATS = new Set(["png"]);
+var CONTENT_IMAGE_RGB_SPACES = new Set([
+  "srgb",
+  "rgb",
+  "rgb16",
+  "scrgb"
+]);
+var CONTENT_IMAGES_DIR = "_notra/assets/images";
+var CONTENT_IMAGE_SETTINGS_VERSION = "2";
+var CONTENT_IMAGE_ENCODE_TIMEOUT_SECONDS = 30;
+var CONTENT_IMAGE_BUDGET = {
+  maxImages: 500,
+  maxDurationMs: 120000,
+  concurrency: 4
+};
+
+// compiler/utils/animated-png.ts
+var PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
+function isAnimatedPng(data) {
+  if (!PNG_SIGNATURE.every((byte, index) => data[index] === byte)) {
+    return false;
+  }
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  let offset = PNG_SIGNATURE.length;
+  while (offset + 8 <= data.byteLength) {
+    const length = view.getUint32(offset);
+    const type = String.fromCharCode(...data.subarray(offset + 4, offset + 8));
+    if (type === "acTL") {
+      return true;
+    }
+    if (type === "IDAT" || type === "IEND") {
+      return false;
+    }
+    offset += 12 + length;
+  }
+  return false;
+}
+
+// compiler/utils/content-image-tags.ts
+import { SAXParser } from "parse5-sax-parser";
+var attribute = (attrs, name) => attrs.find((attr) => attr.name === name)?.value;
+var OPTIMIZABLE_SRC = /^\/(?!\/)[^\s,?#&"'<>]+$/;
+function findContentImages(html) {
+  if (!(html.includes(CONTENT_ROOT_CLASS) && /<img[\s/>]/i.test(html))) {
+    return [];
+  }
+  const parser = new SAXParser({ sourceCodeLocationInfo: true });
+  const images = [];
+  let rootTag = null;
+  let depth = 0;
+  parser.on("startTag", (token) => {
+    if (rootTag === null) {
+      const classes = attribute(token.attrs, "class")?.split(/\s+/) ?? [];
+      if (classes.includes(CONTENT_ROOT_CLASS) && !token.selfClosing) {
+        rootTag = token.tagName;
+        depth = 1;
+      }
+      return;
+    }
+    if (token.tagName === rootTag && !token.selfClosing) {
+      depth += 1;
+      return;
+    }
+    if (token.tagName !== "img" || !token.sourceCodeLocation) {
+      return;
+    }
+    const src = attribute(token.attrs, "src");
+    if (!src || !OPTIMIZABLE_SRC.test(src) || attribute(token.attrs, "srcset") !== undefined) {
+      return;
+    }
+    const { endOffset } = token.sourceCodeLocation;
+    images.push({
+      src,
+      insertAt: html[endOffset - 2] === "/" ? endOffset - 2 : endOffset - 1,
+      loading: attribute(token.attrs, "loading")?.toLowerCase(),
+      hasSizes: attribute(token.attrs, "sizes") !== undefined,
+      hasDimensions: attribute(token.attrs, "width") !== undefined && attribute(token.attrs, "height") !== undefined
+    });
+  });
+  parser.on("endTag", (token) => {
+    if (rootTag !== null && token.tagName === rootTag) {
+      depth -= 1;
+      if (depth === 0) {
+        rootTag = null;
+      }
+    }
+  });
+  parser.end(html);
+  return images;
+}
+function contentImageSizes(image, originalWidth) {
+  const sizes = `min(${originalWidth}px, 100vw)`;
+  return image.loading === "lazy" && image.hasDimensions ? `auto, ${sizes}` : sizes;
+}
+function addContentImageSrcsets(html, images, variantsFor) {
+  let result = "";
+  let offset = 0;
+  for (const image of [...images].sort((a, b) => a.insertAt - b.insertAt)) {
+    const variants = variantsFor(image.src);
+    const original = variants?.at(-1);
+    if (!(variants && original) || variants.length < 2) {
+      continue;
+    }
+    const srcset = variants.map((candidate) => `${candidate.url} ${candidate.width}w`).join(", ");
+    let added = ` srcset="${srcset}"`;
+    if (!image.hasSizes) {
+      added += ` sizes="${contentImageSizes(image, original.width)}"`;
+    }
+    result += html.slice(offset, image.insertAt) + added;
+    offset = image.insertAt;
+  }
+  return result + html.slice(offset);
+}
+
+// compiler/content-images.ts
+async function importSharp() {
+  return (await import("sharp")).default;
+}
+function mountOf(path, mounts) {
+  return [...mounts].filter((mount) => mount === "/" || path === mount || path.startsWith(`${mount}/`)).sort((a, b) => b.length - a.length)[0] ?? null;
+}
+function outputFile(outDir, src, mounts) {
+  let path;
+  try {
+    path = decodeURI(src);
+  } catch {
+    return null;
+  }
+  if (path.split("/").some((segment) => segment === "." || segment === "..") || !mountOf(path, mounts) || path.includes("/_notra/") || !CONTENT_IMAGE_EXTENSIONS.has(extname(path).toLowerCase())) {
+    return null;
+  }
+  const file = resolve(outDir, `.${path}`);
+  return relative(outDir, file).startsWith("..") ? null : file;
+}
+function assetsUrl(src, mounts) {
+  return joinMountPath(mountOf(decodeURI(src), mounts) ?? "/", CONTENT_IMAGES_DIR);
+}
+async function makeVariants(sharp, outDir, mounts, src, file, deadline, now) {
+  const none = { variants: null, created: 0 };
+  const data = await readFile2(file);
+  const metadata = await sharp(data).metadata();
+  const width = metadata.autoOrient?.width ?? metadata.width;
+  if (!width || (metadata.pages ?? 1) > 1 || isAnimatedPng(data)) {
+    return none;
+  }
+  const widths = CONTENT_IMAGE_WIDTHS.filter((candidate) => candidate < width);
+  if (widths.length === 0) {
+    return none;
+  }
+  const hash = createHash("sha256").update(CONTENT_IMAGE_SETTINGS_VERSION).update(data).digest("hex").slice(0, 10);
+  const stem = basename(file, extname(file)).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "image";
+  const encoding = CONTENT_IMAGE_LOSSLESS_FORMATS.has(metadata.format ?? "") ? CONTENT_IMAGE_WEBP.lossless : CONTENT_IMAGE_WEBP.lossy;
+  const keepProfile = Boolean(metadata.icc && CONTENT_IMAGE_RGB_SPACES.has(metadata.space ?? ""));
+  const baseUrl = assetsUrl(src, mounts);
+  const directory = join3(outDir, `.${baseUrl}`);
+  await mkdir2(directory, { recursive: true });
+  const candidates = [];
+  for (const target of widths) {
+    if (now() > deadline) {
+      if (candidates.length === 0) {
+        return { ...none, outOfTime: true };
+      }
+      break;
+    }
+    let output;
+    try {
+      const pipeline = sharp(data).timeout({ seconds: CONTENT_IMAGE_ENCODE_TIMEOUT_SECONDS }).autoOrient().resize({ width: target, withoutEnlargement: true });
+      output = await (keepProfile ? pipeline.keepIccProfile() : pipeline).webp(encoding).toBuffer();
+    } catch (error) {
+      if (candidates.length === 0) {
+        throw error;
+      }
+      break;
+    }
+    if (output.byteLength >= data.byteLength) {
+      break;
+    }
+    const name = `${stem}-${hash}-${target}.webp`;
+    await writeFile2(join3(directory, name), output);
+    candidates.push({ url: `${baseUrl}/${name}`, width: target });
+  }
+  if (candidates.length === 0) {
+    return none;
+  }
+  return {
+    variants: [...candidates, { url: src, width }],
+    created: candidates.length
+  };
+}
+async function optimizeContentImages(params) {
+  const now = params.now ?? Date.now;
+  const started = now();
+  const result = {
+    pages: new Map,
+    diagnostics: [],
+    images: 0,
+    variants: 0,
+    durationMs: 0
+  };
+  const tagsByPage = new Map;
+  const sources = new Map;
+  for (const [urlPath, html] of params.pageHtml) {
+    const tags = findContentImages(html).filter((tag) => {
+      const file = outputFile(params.outDir, tag.src, params.mounts);
+      if (file) {
+        sources.set(tag.src, file);
+      }
+      return file !== null;
+    });
+    if (tags.length > 0) {
+      tagsByPage.set(urlPath, tags);
+    }
+  }
+  if (sources.size === 0) {
+    return result;
+  }
+  let sharp;
+  try {
+    sharp = await (params.loadSharp ?? importSharp)();
+  } catch (error) {
+    result.diagnostics.push({
+      severity: "warning",
+      file: null,
+      code: "content_images_unavailable",
+      message: `Images in posts were published without smaller copies: the image library could not load (${error instanceof Error ? error.message : String(error)}).`
+    });
+    result.durationMs = now() - started;
+    return result;
+  }
+  const budget = params.budget ?? CONTENT_IMAGE_BUDGET;
+  const variants = new Map;
+  const failed = [];
+  const queue = [...sources].slice(0, budget.maxImages);
+  let skippedForBudget = sources.size - queue.length;
+  const worker = async () => {
+    for (let next = queue.shift();next; next = queue.shift()) {
+      if (now() - started > budget.maxDurationMs) {
+        skippedForBudget += 1;
+        continue;
+      }
+      const [src, file] = next;
+      try {
+        if (!(await stat(file).catch(() => null))?.isFile()) {
+          continue;
+        }
+        const made = await makeVariants(sharp, params.outDir, params.mounts, src, file, started + budget.maxDurationMs, now);
+        if (made.outOfTime) {
+          skippedForBudget += 1;
+          continue;
+        }
+        variants.set(src, made.variants);
+        if (made.variants) {
+          result.images += 1;
+          result.variants += made.created;
+        }
+      } catch {
+        failed.push(src);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: budget.concurrency }, worker));
+  for (const [urlPath, tags] of tagsByPage) {
+    if (!tags.some((tag) => variants.get(tag.src))) {
+      continue;
+    }
+    const html = params.pageHtml.get(urlPath) ?? "";
+    result.pages.set(urlPath, addContentImageSrcsets(html, tags, (src) => variants.get(src) ?? null));
+  }
+  if (failed.length > 0) {
+    result.diagnostics.push({
+      severity: "warning",
+      file: null,
+      code: "content_image_failed",
+      message: `${failed.length} image${failed.length === 1 ? "" : "s"} could not be read and kept only the original: ${failed.slice(0, 5).join(", ")}${failed.length > 5 ? ", …" : ""}`
+    });
+  }
+  if (skippedForBudget > 0) {
+    result.diagnostics.push({
+      severity: "warning",
+      file: null,
+      code: "content_images_budget",
+      message: `${skippedForBudget} image${skippedForBudget === 1 ? "" : "s"} in posts kept only the original because the build reached its image limit (${budget.maxImages} images or ${budget.maxDurationMs / 1000} seconds).`
+    });
+  }
+  result.durationMs = now() - started;
+  return result;
+}
+
+// compiler/local-favicons.ts
+import { mkdir as mkdir3, writeFile as writeFile3 } from "node:fs/promises";
+import { dirname as dirname2, join as join4 } from "node:path";
+
+// ../../packages/utils/src/constants/favicon.ts
+var FAVICON_DOMAIN_OVERRIDES = {
+  "digitalocean.com": "cloud.digitalocean.com"
+};
+
+// ../../packages/utils/src/google-favicon.ts
+var GOOGLE_FAVICON_SIZE = 128;
+var RESERVED_EXAMPLE_DOMAIN = /(?:^|\.)example(?:\.(?:com|net|org))?$/i;
+function isReservedExampleDomain(domain) {
+  return domain !== null && RESERVED_EXAMPLE_DOMAIN.test(domain);
+}
+function googleFaviconUrl(domain, size = GOOGLE_FAVICON_SIZE) {
+  if (!domain || isReservedExampleDomain(domain)) {
+    return null;
+  }
+  const url = new URL("https://www.google.com/s2/favicons");
+  const host = domain.toLowerCase().replace(/^www\./, "");
+  url.searchParams.set("domain", FAVICON_DOMAIN_OVERRIDES[host] ?? domain);
+  url.searchParams.set("sz", String(size));
+  return url.toString();
+}
+
+// compiler/local-favicons.ts
+async function fetchFavicon(host, fetcher) {
+  const url = googleFaviconUrl(host);
+  if (!url) {
+    return null;
+  }
+  try {
+    const response = await fetcher(url, {
+      redirect: "follow",
+      signal: AbortSignal.timeout(LOCAL_FAVICON_FETCH_TIMEOUT_MS)
+    });
+    if (!response.headers.get("Content-Type")?.startsWith("image/")) {
+      return null;
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return response.ok && bytes.byteLength > 0 && bytes.byteLength <= SITE_FAVICON_MAX_BYTES ? bytes : null;
+  } catch {
+    return null;
+  }
+}
+async function fallbackIcon() {
+  try {
+    const sharp = (await import("sharp")).default;
+    return await sharp(Buffer.from(SITE_FAVICON_FALLBACK_SVG), { density: 288 }).resize(64, 64).png().toBuffer();
+  } catch {
+    return new TextEncoder().encode(SITE_FAVICON_FALLBACK_SVG);
+  }
+}
+async function writeLocalFavicons(params) {
+  const icon = await fetchFavicon(params.host, params.fetch ?? fetch) ?? await fallbackIcon();
+  await Promise.all(params.mounts.map(async (mount) => {
+    const file = join4(params.outDir, joinMountPath(mount, `${SITE_FAVICON_DIR}/${params.host}`));
+    await mkdir3(dirname2(file), { recursive: true });
+    await writeFile3(file, icon);
+  }));
+}
+
 // compiler/og-images.ts
-import { readFile as readFile2 } from "node:fs/promises";
+import { readFile as readFile3 } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { extname, join as join3 } from "node:path";
+import { extname as extname2, join as join5 } from "node:path";
 import { Resvg } from "@resvg/resvg-js";
 import satori from "satori";
 
@@ -3974,7 +4361,7 @@ function loadFonts() {
       name: `Inter ${subset}`,
       weight,
       style: "normal",
-      data: await readFile2(require2.resolve(`@fontsource/inter/files/inter-${subset}-${weight}-normal.woff`))
+      data: await readFile3(require2.resolve(`@fontsource/inter/files/inter-${subset}-${weight}-normal.woff`))
     })));
   })();
   return fontsPromise;
@@ -4002,7 +4389,7 @@ async function loadBackground(params) {
     return {};
   }
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  const mimeType = OG_BACKGROUND_MIME_TYPES[extname(normalized).toLowerCase()];
+  const mimeType = OG_BACKGROUND_MIME_TYPES[extname2(normalized).toLowerCase()];
   if (!(mimeType && params.publicFiles.includes(normalized))) {
     return {
       diagnostic: {
@@ -4013,7 +4400,7 @@ async function loadBackground(params) {
       }
     };
   }
-  const bytes = await readFile2(join3(params.workDir, "site", "public", normalized));
+  const bytes = await readFile3(join5(params.workDir, "site", "public", normalized));
   return { dataUri: `data:${mimeType};base64,${bytes.toString("base64")}` };
 }
 async function publicImage(params, path) {
@@ -4021,11 +4408,11 @@ async function publicImage(params, path) {
     return;
   }
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  const mimeType = OG_BACKGROUND_MIME_TYPES[extname(normalized).toLowerCase()];
+  const mimeType = OG_BACKGROUND_MIME_TYPES[extname2(normalized).toLowerCase()];
   if (!(mimeType && params.publicFiles.includes(normalized))) {
     return;
   }
-  const bytes = await readFile2(join3(params.workDir, "site", "public", normalized));
+  const bytes = await readFile3(join5(params.workDir, "site", "public", normalized));
   return `data:${mimeType};base64,${bytes.toString("base64")}`;
 }
 async function resolveAuthor(params, ref) {
@@ -4090,7 +4477,7 @@ function areaCard(params, area, style) {
   });
 }
 async function writeCard(params, card, fonts, urlPath) {
-  await writeFileEnsured(join3(params.workDir, "site", "public", urlPath), await renderPng(card, fonts));
+  await writeFileEnsured(join5(params.workDir, "site", "public", urlPath), await renderPng(card, fonts));
 }
 async function writeOgImages(params) {
   const started = Date.now();
@@ -4122,7 +4509,7 @@ async function writeOgImages(params) {
       manifest[area] = urlPath;
     }));
     await Promise.all(params.entries.map(async (entry) => {
-      const source = await readFile2(join3(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), "utf8");
+      const source = await readFile3(join5(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), "utf8");
       const { data } = parseEntryFrontmatter(entry.path, entry.area, source);
       if (!data || data.image || data.draft && !params.includeDrafts) {
         return;
@@ -4170,15 +4557,15 @@ async function writeOgImages(params) {
     }));
   }
   const sorted = Object.fromEntries(Object.entries(manifest).sort(([a], [b]) => a.localeCompare(b)));
-  await writeFileEnsured(join3(params.workDir, OG_MANIFEST_FILE), `${JSON.stringify(sorted, null, 2)}
+  await writeFileEnsured(join5(params.workDir, OG_MANIFEST_FILE), `${JSON.stringify(sorted, null, 2)}
 `);
   return { manifest: sorted, diagnostics, durationMs: Date.now() - started };
 }
 
 // compiler/prepare.ts
-import { createHash as createHash2 } from "node:crypto";
-import { cp as cp2, mkdir as mkdir3, readFile as readFile3, rm as rm2, stat } from "node:fs/promises";
-import { dirname as dirname2, join as join6, sep } from "node:path";
+import { createHash as createHash4 } from "node:crypto";
+import { cp as cp2, mkdir as mkdir5, readFile as readFile5, rm as rm2, stat as stat2 } from "node:fs/promises";
+import { dirname as dirname4, join as join9, sep } from "node:path";
 
 // ../../packages/sites-core/src/utils/source-files.ts
 function isSiteContentPath(path) {
@@ -4203,14 +4590,14 @@ function isCollectedSiteSourcePath(path) {
 // compiler/collect.ts
 import { constants } from "node:fs";
 import { lstat, open, opendir } from "node:fs/promises";
-import { join as join4 } from "node:path";
+import { join as join6 } from "node:path";
 async function collectSiteSource(siteRoot) {
   const files = [];
   const diagnostics = [];
   let totalBytes = 0;
   let ignoreContent = null;
   try {
-    const file = await open(join4(siteRoot, SITE_IGNORE_FILENAME), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    const file = await open(join6(siteRoot, SITE_IGNORE_FILENAME), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
     try {
       const stats = await file.stat();
       if (!stats.isFile() || stats.size > SITE_IGNORE_MAX_BYTES) {
@@ -4252,7 +4639,7 @@ async function collectSiteSource(siteRoot) {
         }
       };
     }
-    const stats = await lstat(join4(siteRoot, relativePath));
+    const stats = await lstat(join6(siteRoot, relativePath));
     if (isIgnored(stats.isDirectory() ? `${relativePath}/` : relativePath)) {
       return { kind: "skip" };
     }
@@ -4290,7 +4677,7 @@ async function collectSiteSource(siteRoot) {
   let stopped = false;
   while (directories.length > 0 && !stopped) {
     const relativeDir = directories.pop() ?? "";
-    const directory = await opendir(join4(siteRoot, relativeDir));
+    const directory = await opendir(join6(siteRoot, relativeDir));
     for await (const entry of directory) {
       const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
       const result = await inspect(relativePath);
@@ -4332,10 +4719,73 @@ async function collectSiteSource(siteRoot) {
   return { files, totalBytes, diagnostics, ignoreContent };
 }
 
-// compiler/utils/site-fonts.ts
-import { createHash } from "node:crypto";
-import { cp, mkdir as mkdir2, mkdtemp, readdir as readdir2, rename, rm } from "node:fs/promises";
-import { join as join5 } from "node:path";
+// compiler/utils/font-fallbacks.ts
+import { createHash as createHash2 } from "node:crypto";
+import { readFile as readFile4 } from "node:fs/promises";
+import { dirname as dirname3, join as join7 } from "node:path";
+import { fromBuffer } from "@capsizecss/unpack";
+
+// src/constants/theme.ts
+var FONT_DEFAULT_BODY_WEIGHT = 400;
+var FONT_DEFAULT_HEADING_WEIGHT = 500;
+
+// src/utils/theme-fonts.ts
+function specFaces(spec) {
+  const family = spec?.family;
+  if (!family) {
+    return [];
+  }
+  return [
+    {
+      family,
+      weight: spec.weight,
+      source: spec.source,
+      format: spec.format
+    },
+    ...(spec.faces ?? []).map((face) => ({
+      family,
+      weight: face.weight,
+      style: face.style,
+      source: face.source,
+      format: face.format ?? spec.format
+    }))
+  ];
+}
+function fontRoles(fonts) {
+  const body = fonts?.body?.family ? fonts.body : fonts;
+  const heading = [fonts?.heading, fonts, fonts?.body].find((spec) => spec?.family);
+  return [
+    {
+      role: "body",
+      spec: body,
+      weight: fonts?.body?.weight ?? fonts?.weight ?? FONT_DEFAULT_BODY_WEIGHT
+    },
+    {
+      role: "heading",
+      spec: heading,
+      weight: fonts?.heading?.weight ?? FONT_DEFAULT_HEADING_WEIGHT
+    }
+  ].flatMap(({ role, spec, weight }) => spec?.family ? [{ role, family: spec.family, weight, faces: specFaces(spec) }] : []);
+}
+function coversWeight(weight, target) {
+  if (weight === undefined) {
+    return true;
+  }
+  const [low = Number.NaN, high = low] = String(weight).trim().split(/\s+/).map(Number);
+  return Math.min(low, high) <= target && target <= Math.max(low, high);
+}
+function uprightFaces(role) {
+  return role.faces.filter((face) => face.source && (face.style ?? "normal") === "normal");
+}
+function roleFace(role) {
+  return uprightFaces(role).find((face) => coversWeight(face.weight, role.weight));
+}
+function metricsFace(role) {
+  return roleFace(role) ?? uprightFaces(role)[0];
+}
+function isSiteFontPath(source) {
+  return !/^[a-z][a-z\d+.-]*:|^\/\//i.test(source);
+}
 
 // compiler/constants/fonts.ts
 var GOOGLE_FONTS_CSS_URL = "https://fonts.googleapis.com/css2";
@@ -4359,8 +4809,107 @@ var FONT_WEIGHT_RANGES = [
 ];
 var FONT_COMMON_WEIGHTS = [300, 400, 500, 600, 700];
 var DEFAULT_HEADING_WEIGHT = 600;
+var FONT_FALLBACK_LOCAL = "Arial";
+var FONT_FALLBACK_METRICS = {
+  ascent: 1854,
+  descent: -434,
+  lineGap: 67,
+  unitsPerEm: 2048,
+  xWidthAvg: 913
+};
+var GOOGLE_FONT_FACE_RE = /(?:\/\*\s*([\w-]+)\s*\*\/\s*)?@font-face\s*\{([^}]*)\}/g;
+
+// compiler/utils/font-fallbacks.ts
+var metricsCache = new Map;
+async function fontMetrics(bytes) {
+  const key = createHash2("sha256").update(bytes).digest("hex");
+  const cached = metricsCache.get(key);
+  if (cached) {
+    return cached;
+  }
+  const { ascent, descent, lineGap, unitsPerEm, xWidthAvg } = await fromBuffer(bytes);
+  if (!(unitsPerEm > 0 && xWidthAvg > 0 && ascent > 0)) {
+    throw new Error("The font file has no usable metrics");
+  }
+  const metrics = { ascent, descent, lineGap, unitsPerEm, xWidthAvg };
+  metricsCache.set(key, metrics);
+  return metrics;
+}
+function percent(value) {
+  return Math.round(value * 1e4) / 100;
+}
+function fallbackFor(family, metrics) {
+  const sizeAdjust = metrics.xWidthAvg / metrics.unitsPerEm / (FONT_FALLBACK_METRICS.xWidthAvg / FONT_FALLBACK_METRICS.unitsPerEm);
+  const em = metrics.unitsPerEm * sizeAdjust;
+  return {
+    family,
+    local: FONT_FALLBACK_LOCAL,
+    sizeAdjust: percent(sizeAdjust),
+    ascentOverride: percent(metrics.ascent / em),
+    descentOverride: percent(Math.abs(metrics.descent) / em),
+    lineGapOverride: percent(metrics.lineGap / em)
+  };
+}
+function googleFontFile(css, family, weight) {
+  const faces = [...css.matchAll(GOOGLE_FONT_FACE_RE)].map(([, subset, body = ""]) => ({
+    subset,
+    family: /font-family:\s*['"]?([^;'"]+)/.exec(body)?.[1]?.trim(),
+    style: /font-style:\s*(\w+)/.exec(body)?.[1] ?? "normal",
+    weight: /font-weight:\s*([\d ]+)/.exec(body)?.[1],
+    url: /url\(\s*["']?([^\s"')]+)/.exec(body)?.[1]
+  })).filter((face) => face.family?.toLowerCase() === family.toLowerCase() && face.style === "normal" && face.url);
+  const matching = faces.filter((face) => coversWeight(face.weight, weight));
+  const face = matching.find((item) => item.subset === "latin") ?? matching[0] ?? faces.find((item) => item.subset === "latin") ?? faces[0];
+  return face?.url;
+}
+async function roleFontFile(role, params) {
+  const face = metricsFace(role);
+  if (face?.source) {
+    if (!isSiteFontPath(face.source)) {
+      return;
+    }
+    const path = `/${face.source.replace(/[?#].*$/, "").replace(/^\/+/, "")}`;
+    if (!params.publicFiles.has(path)) {
+      throw new Error(`${face.source} is not a file in public/`);
+    }
+    return join7(params.siteRoot, "public", path);
+  }
+  if (role.faces.some((item) => item.source) || !params.stylesheet) {
+    return;
+  }
+  const stylesheet = join7(params.workDir, "site", "public", params.stylesheet);
+  const file = googleFontFile(await readFile4(stylesheet, "utf8"), role.family, role.weight);
+  return file?.startsWith("./") ? join7(dirname3(stylesheet), file.slice(2)) : undefined;
+}
+async function siteFontFallbacks(config, params) {
+  const result = { fallbacks: [], diagnostics: [] };
+  const families = new Set;
+  for (const role of fontRoles(config.fonts)) {
+    if (families.has(role.family)) {
+      continue;
+    }
+    families.add(role.family);
+    try {
+      const file = await roleFontFile(role, params);
+      if (file) {
+        result.fallbacks.push(fallbackFor(role.family, await fontMetrics(await readFile4(file))));
+      }
+    } catch (error) {
+      result.diagnostics.push({
+        severity: "warning",
+        file: SITE_CONFIG_FILENAME,
+        code: "font_fallback",
+        message: `Could not measure ${role.family} for its fallback font, so text may shift when it loads. ${error instanceof Error ? error.message : String(error)}`
+      });
+    }
+  }
+  return result;
+}
 
 // compiler/utils/site-fonts.ts
+import { createHash as createHash3 } from "node:crypto";
+import { cp, mkdir as mkdir4, mkdtemp, readdir as readdir2, rename, rm } from "node:fs/promises";
+import { join as join8 } from "node:path";
 class FontRequestError extends Error {
   status;
   constructor(status) {
@@ -4404,7 +4953,7 @@ function requestedWeights(fonts) {
   ];
   const families = new Map;
   for (const { spec, weights } of uses) {
-    if (spec?.family && !spec.source) {
+    if (spec?.family && !spec.source && !spec.faces) {
       families.set(spec.family, [
         ...families.get(spec.family) ?? [],
         ...weights
@@ -4490,14 +5039,14 @@ async function prepareSiteFonts(config, workDir) {
       weightCandidates(weights)
     ]));
     const url = googleFontsUrl(new Map([...candidates].map(([family, specs]) => [family, specs[0] ?? ""])));
-    const key = createHash("sha256").update(url.toString()).update(JSON.stringify([...candidates])).digest("hex");
-    const cacheRoot = join5(workDir, "font-cache");
-    const cacheDir = join5(cacheRoot, key);
+    const key = createHash3("sha256").update(url.toString()).update(JSON.stringify([...candidates])).digest("hex");
+    const cacheRoot = join8(workDir, "font-cache");
+    const cacheDir = join8(cacheRoot, key);
     const publicPath = `/${SITE_ASSETS_DIR}/fonts/${key}`;
-    publicDir = join5(workDir, "site", "public", publicPath);
+    publicDir = join8(workDir, "site", "public", publicPath);
     if (!await exists(cacheDir)) {
-      await mkdir2(cacheRoot, { recursive: true });
-      stagingDir = await mkdtemp(join5(cacheRoot, "batch-"));
+      await mkdir4(cacheRoot, { recursive: true });
+      stagingDir = await mkdtemp(join8(cacheRoot, "batch-"));
       try {
         await downloadSiteFonts(url, [...families.keys()], stagingDir, true);
       } catch (error) {
@@ -4505,7 +5054,7 @@ async function prepareSiteFonts(config, workDir) {
           throw error;
         }
         await rm(stagingDir, { recursive: true, force: true });
-        stagingDir = await mkdtemp(join5(cacheRoot, "batch-"));
+        stagingDir = await mkdtemp(join8(cacheRoot, "batch-"));
         await downloadSiteFonts(await supportedFontsUrl(candidates), [...families.keys()], stagingDir, false);
       }
       await rename(stagingDir, cacheDir);
@@ -4559,14 +5108,14 @@ async function downloadSiteFonts(url, families, stagingDir, requireEveryFamily) 
   const replacements = new Map;
   const downloads = families.map((family) => async () => {
     const license = await fetchFontLicense(family);
-    const hash = createHash("sha256").update(license).digest("hex").slice(0, 16);
-    await writeFileEnsured(join5(stagingDir, `font-license-${hash}.txt`), license);
+    const hash = createHash3("sha256").update(license).digest("hex").slice(0, 16);
+    await writeFileEnsured(join8(stagingDir, `font-license-${hash}.txt`), license);
   });
   downloads.push(...sources.map(({ source, extension }) => async () => {
     const bytes = await fetchFontAsset(source, FONT_FILE_MAX_BYTES);
-    const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 16);
+    const hash = createHash3("sha256").update(bytes).digest("hex").slice(0, 16);
     const name = `font-${hash}.${extension}`;
-    await writeFileEnsured(join5(stagingDir, name), bytes);
+    await writeFileEnsured(join8(stagingDir, name), bytes);
     replacements.set(source, `./${name}`);
   }));
   const results = await Promise.allSettled(Array.from({ length: FONT_DOWNLOAD_CONCURRENCY }, async () => {
@@ -4585,9 +5134,9 @@ async function downloadSiteFonts(url, families, stagingDir, requireEveryFamily) 
   if (/https?:\/\//i.test(localCss) || /@import/i.test(localCss)) {
     throw new Error("Unsupported external font stylesheet reference");
   }
-  const hash = createHash("sha256").update(localCss).digest("hex").slice(0, 16);
+  const hash = createHash3("sha256").update(localCss).digest("hex").slice(0, 16);
   const stylesheet = `fonts-${hash}.css`;
-  await writeFileEnsured(join5(stagingDir, stylesheet), localCss);
+  await writeFileEnsured(join8(stagingDir, stylesheet), localCss);
 }
 
 // compiler/prepare.ts
@@ -4596,7 +5145,7 @@ async function readSiteFiles(siteRoot) {
   if (hasErrors(collected.diagnostics)) {
     return { collected, files: new Map };
   }
-  const texts = await Promise.all(collected.files.map((file) => isTextSourceFile(file.path) ? readFile3(join6(siteRoot, file.path), "utf8") : null));
+  const texts = await Promise.all(collected.files.map((file) => isTextSourceFile(file.path) ? readFile5(join9(siteRoot, file.path), "utf8") : null));
   const files = new Map(collected.files.map((file, index) => [file.path, texts[index] ?? null]));
   if (collected.ignoreContent !== null) {
     files.set(SITE_IGNORE_FILENAME, collected.ignoreContent);
@@ -4633,68 +5182,75 @@ async function prepareSite(params) {
     };
   }
   if (params.incremental) {
-    const siteDir = join6(params.workDir, "site");
-    const entriesDir = join6(params.workDir, "entries");
+    const siteDir = join9(params.workDir, "site");
+    const entriesDir = join9(params.workDir, "entries");
     const expected = new Set([
-      ...collected.files.map((file) => join6(siteDir, file.path)),
-      ...[...validation.outputs.keys()].map((path) => join6(siteDir, path)),
-      ...validation.entries.map((entry) => join6(entriesDir, entry.area, `${entry.slug}.${entry.format}`))
+      ...collected.files.map((file) => join9(siteDir, file.path)),
+      ...[...validation.outputs.keys()].map((path) => join9(siteDir, path)),
+      ...validation.entries.map((entry) => join9(entriesDir, entry.area, `${entry.slug}.${entry.format}`))
     ]);
     const staged = [
       ...await listFiles(siteDir).catch(() => []),
       ...await listFiles(entriesDir).catch(() => [])
     ];
-    const generated = `${join6(siteDir, "public", "_notra")}${sep}`;
+    const generated = `${join9(siteDir, "public", "_notra")}${sep}`;
     await Promise.all(staged.filter((path) => !expected.has(path) && !path.startsWith(generated)).map((path) => rm2(path, { force: true })));
     await Promise.all([...expected].map(async (path) => {
-      const existing = await stat(path).catch(() => null);
+      const existing = await stat2(path).catch(() => null);
       if (existing?.isDirectory()) {
         await rm2(path, { recursive: true, force: true });
       }
     }));
   } else {
-    await rm2(join6(params.workDir, "site"), { recursive: true, force: true });
-    await rm2(join6(params.workDir, "entries"), { recursive: true, force: true });
+    await rm2(join9(params.workDir, "site"), { recursive: true, force: true });
+    await rm2(join9(params.workDir, "entries"), { recursive: true, force: true });
   }
-  await Promise.all(SITE_AREAS.map((area) => mkdir3(join6(params.workDir, "entries", area), { recursive: true })));
+  await Promise.all(SITE_AREAS.map((area) => mkdir5(join9(params.workDir, "entries", area), { recursive: true })));
   await Promise.all(collected.files.map(async (file) => {
-    const target = join6(params.workDir, "site", file.path);
+    const target = join9(params.workDir, "site", file.path);
     const transformed = validation.outputs.get(file.path);
     if (transformed !== undefined) {
       await writeFileEnsured(target, transformed);
       return;
     }
     if (params.incremental) {
-      await writeFileEnsured(target, await readFile3(join6(params.siteRoot, file.path)));
+      await writeFileEnsured(target, await readFile5(join9(params.siteRoot, file.path)));
     } else {
-      await mkdir3(dirname2(target), { recursive: true });
-      await cp2(join6(params.siteRoot, file.path), target);
+      await mkdir5(dirname4(target), { recursive: true });
+      await cp2(join9(params.siteRoot, file.path), target);
     }
   }));
-  await Promise.all([...validation.outputs].filter(([path]) => !files.has(path)).map(([path, source]) => writeFileEnsured(join6(params.workDir, "site", path), source)));
-  const customCss = collected.files.filter((file) => isSiteStylesheet(file.path)).map((file) => `@import ${JSON.stringify(join6(params.workDir, "site", file.path))};`).join(`
+  await Promise.all([...validation.outputs].filter(([path]) => !files.has(path)).map(([path, source]) => writeFileEnsured(join9(params.workDir, "site", path), source)));
+  const customCss = collected.files.filter((file) => isSiteStylesheet(file.path)).map((file) => `@import ${JSON.stringify(join9(params.workDir, "site", file.path))};`).join(`
 `);
-  await writeFileEnsured(join6(params.workDir, "custom.css"), `${customCss}
+  await writeFileEnsured(join9(params.workDir, "custom.css"), `${customCss}
 `);
-  await mkdir3(join6(params.workDir, "site", "public", SITE_ASSETS_DIR), {
+  await mkdir5(join9(params.workDir, "site", "public", SITE_ASSETS_DIR), {
     recursive: true
   });
   const customScripts = await Promise.all(sortCustomScriptPaths(collected.files.map((file) => file.path)).map(async (path) => {
-    const source = await readFile3(join6(params.siteRoot, path));
+    const source = await readFile5(join9(params.siteRoot, path));
     const name = path.replace(/\.js$/i, "").replace(/[^A-Za-z0-9_-]+/g, "-");
-    const fileName = `custom-${name}.${createHash2("sha256").update(source).digest("hex").slice(0, 10)}.js`;
-    await writeFileEnsured(join6(params.workDir, "site", "public", SITE_ASSETS_DIR, fileName), source);
+    const fileName = `custom-${name}.${createHash4("sha256").update(source).digest("hex").slice(0, 10)}.js`;
+    await writeFileEnsured(join9(params.workDir, "site", "public", SITE_ASSETS_DIR, fileName), source);
     return { path, fileName };
   }));
-  await Promise.all(validation.entries.map((entry) => writeFileEnsured(join6(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), validation.outputs.get(entry.path) ?? files.get(entry.path) ?? "")));
+  await Promise.all(validation.entries.map((entry) => writeFileEnsured(join9(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), validation.outputs.get(entry.path) ?? files.get(entry.path) ?? "")));
   const fonts = await prepareSiteFonts(validation.config, params.workDir);
-  validation.diagnostics.push(...fonts.diagnostics);
+  const fallbacks = await siteFontFallbacks(validation.config, {
+    siteRoot: params.siteRoot,
+    workDir: params.workDir,
+    publicFiles: new Set(publicFiles),
+    stylesheet: fonts.stylesheet
+  });
+  validation.diagnostics.push(...fonts.diagnostics, ...fallbacks.diagnostics);
   return {
     validation,
     collectDiagnostics: collected.diagnostics,
     publicFiles: [...publicFiles, ...fonts.publicFiles],
     customScripts,
-    fontStylesheet: fonts.stylesheet
+    fontStylesheet: fonts.stylesheet,
+    fontFallbacks: fallbacks.fallbacks
   };
 }
 
@@ -4864,7 +5420,7 @@ function siteHeadScripts(config, mount, customScripts, analytics, hostingDomain)
 }
 
 // compiler/utils/inline-scripts.ts
-import { createHash as createHash3 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 
 // compiler/constants/inline-scripts.ts
 var SCRIPT_ELEMENT = /<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi;
@@ -4893,18 +5449,18 @@ function inlineScriptHashes(html) {
 `, `
 `).replaceAll("\r", `
 `);
-    hashes.push(createHash3("sha256").update(text, "utf8").digest("base64"));
+    hashes.push(createHash5("sha256").update(text, "utf8").digest("base64"));
   }
   return hashes;
 }
 
 // compiler/utils/nested-links.ts
-import { SAXParser } from "parse5-sax-parser";
+import { SAXParser as SAXParser2 } from "parse5-sax-parser";
 function unnestLinks(html) {
   if (!/<a(?:\s|\/|>)/i.test(html)) {
     return html;
   }
-  const parser = new SAXParser({ sourceCodeLocationInfo: true });
+  const parser = new SAXParser2({ sourceCodeLocationInfo: true });
   const dropped = [];
   const edits = [];
   parser.on("startTag", (token) => {
@@ -4937,13 +5493,53 @@ function hasReactComponents(outputs) {
   return [...outputs.keys()].some((path) => /\.jsx?$/i.test(path) && !path.startsWith("public/") && !isCustomScriptPath(path));
 }
 
+// compiler/utils/work-lock.ts
+import { mkdir as mkdir6, open as open2, readFile as readFile6, rm as rm3 } from "node:fs/promises";
+import { dirname as dirname5 } from "node:path";
+
+// compiler/utils/usage-error.ts
+class UsageError extends Error {
+  name = "UsageError";
+}
+
+// compiler/utils/work-lock.ts
+function isRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+async function lockWorkDir(lockPath) {
+  await mkdir6(dirname5(lockPath), { recursive: true });
+  for (let attempt = 0;attempt < 2; attempt += 1) {
+    try {
+      const handle = await open2(lockPath, "wx");
+      await handle.writeFile(String(process.pid));
+      await handle.close();
+      return () => rm3(lockPath, { force: true });
+    } catch (error) {
+      if (error.code !== "EEXIST") {
+        throw error;
+      }
+      const owner = Number(await readFile6(lockPath, "utf8").catch(() => ""));
+      if (Number.isInteger(owner) && owner > 0 && isRunning(owner)) {
+        throw new UsageError(`Another Notra Sites build (process ${owner}) is running with this toolchain. Wait for it to finish, then build again. If none is running, delete ${lockPath}.`);
+      }
+      await rm3(lockPath, { force: true });
+    }
+  }
+  throw new UsageError("Couldn't lock the build folder. Try the build again.");
+}
+
 // compiler/build.ts
 function astroBin(toolchainRoot) {
-  const require2 = createRequire2(join7(toolchainRoot, "package.json"));
+  const require2 = createRequire2(join10(toolchainRoot, "package.json"));
   const packageJsonPath = require2.resolve("astro/package.json");
   const packageJson = require2(packageJsonPath);
   const bin = typeof packageJson.bin === "string" ? packageJson.bin : packageJson.bin.astro;
-  return resolve(dirname3(packageJsonPath), bin ?? "astro.js");
+  return resolve2(dirname6(packageJsonPath), bin ?? "astro.js");
 }
 function runAstro(toolchainRoot, command, paramsPath, extraArgs = [], onOutput = (chunk) => process.stderr.write(chunk)) {
   return new Promise((resolvePromise, reject) => {
@@ -4971,7 +5567,7 @@ function runAstro(toolchainRoot, command, paramsPath, extraArgs = [], onOutput =
   });
 }
 async function writeBuildParams(path, params) {
-  await writeFile2(path, JSON.stringify(params));
+  await writeFile4(path, JSON.stringify(params));
 }
 function failedBuild(diagnostics, areas = []) {
   return {
@@ -4985,7 +5581,18 @@ function failedBuild(diagnostics, areas = []) {
   };
 }
 async function buildSite(options) {
-  const workDir = options.workDir ?? join7(options.toolchainRoot, ".notra", "work");
+  if (options.workDir) {
+    return buildInWorkDir(options, options.workDir);
+  }
+  const workDir = join10(options.toolchainRoot, ".notra", "work");
+  const unlock = await lockWorkDir(`${workDir}.lock`);
+  try {
+    return await buildInWorkDir(options, workDir);
+  } finally {
+    await unlock();
+  }
+}
+async function buildInWorkDir(options, workDir) {
   const mounts = normalizeSiteMounts(options.target.mounts);
   const prepared = await prepareSite({
     siteRoot: options.siteRoot,
@@ -5021,17 +5628,17 @@ async function buildSite(options) {
 `);
   }
   const publicFileList = [...prepared.publicFiles, ...ogImagePaths];
-  await rm3(join7(workDir, "out"), { recursive: true, force: true });
-  await rm3(join7(workDir, "cache"), { recursive: true, force: true });
-  await rm3(options.outDir, { recursive: true, force: true });
-  await mkdir4(options.outDir, { recursive: true });
+  await rm4(join10(workDir, "out"), { recursive: true, force: true });
+  await rm4(join10(workDir, "cache"), { recursive: true, force: true });
+  await rm4(options.outDir, { recursive: true, force: true });
+  await mkdir7(options.outDir, { recursive: true });
   const publicFiles = new Set(publicFileList);
   const areas = [];
   const areaPages = [];
   const consent = siteConsent(config, prepared.customScripts, options.target.analytics, false, publicOrigin, hostingDomain);
   const pageHtml = new Map;
   for (const { area, mount } of listMountedAreas(mounts)) {
-    const paramsPath = join7(workDir, `params.${area}.json`);
+    const paramsPath = join10(workDir, `params.${area}.json`);
     await writeBuildParams(paramsPath, {
       area,
       mount,
@@ -5045,6 +5652,7 @@ async function buildSite(options) {
       workDir,
       publicFiles: publicFileList,
       fontStylesheet: prepared.fontStylesheet,
+      fontFallbacks: prepared.fontFallbacks,
       mounts,
       config,
       hasReactComponents: hasReactComponents(prepared.validation.outputs),
@@ -5069,11 +5677,11 @@ ${log.trim().split(`
       });
       return failedBuild(diagnostics, areas);
     }
-    const areaOut = join7(workDir, "out", area);
+    const areaOut = join10(workDir, "out", area);
     for (const file of await listFiles(areaOut)) {
-      const relativePath = relative(areaOut, file).split("\\").join("/");
+      const relativePath = relative2(areaOut, file).split("\\").join("/");
       if (relativePath === AREA_PAGES_FILE) {
-        areaPages.push(JSON.parse(await readFile4(file, "utf8")));
+        areaPages.push(JSON.parse(await readFile7(file, "utf8")));
         continue;
       }
       const urlPath = joinMountPath(mount, relativePath);
@@ -5086,22 +5694,44 @@ ${log.trim().split(`
         });
         continue;
       }
-      const target = join7(options.outDir, urlPath);
-      await mkdir4(dirname3(target), { recursive: true });
+      const target = join10(options.outDir, urlPath);
+      await mkdir7(dirname6(target), { recursive: true });
       if (file.endsWith(".html")) {
-        const html = rewritePublicAssetUrls(unnestLinks(await readFile4(file, "utf8")), mount, publicFiles);
+        const html = rewritePublicAssetUrls(unnestLinks(await readFile7(file, "utf8")), mount, publicFiles);
         pageHtml.set(urlPath, html);
-        await writeFile2(target, html);
+        await writeFile4(target, html);
       } else {
         await cp3(file, target);
       }
     }
-    const probePath = join7(options.outDir, mount, "_notra", "probe.txt");
-    await mkdir4(dirname3(probePath), { recursive: true });
-    await writeFile2(probePath, `notra-site=${options.target.siteId}
+    const probePath = join10(options.outDir, mount, "_notra", "probe.txt");
+    await mkdir7(dirname6(probePath), { recursive: true });
+    await writeFile4(probePath, `notra-site=${options.target.siteId}
 area=${area}
 `);
     areas.push({ area, mount, durationMs: Date.now() - started });
+  }
+  const contentImages = await optimizeContentImages({
+    outDir: options.outDir,
+    pageHtml,
+    mounts: listMountedAreas(mounts).map(({ mount }) => mount)
+  });
+  diagnostics.push(...contentImages.diagnostics);
+  for (const [urlPath, html] of contentImages.pages) {
+    pageHtml.set(urlPath, html);
+    await writeFile4(join10(options.outDir, urlPath), html);
+  }
+  if (contentImages.images > 0) {
+    process.stderr.write(`Made ${contentImages.variants} smaller copies of ${contentImages.images} ${contentImages.images === 1 ? "image" : "images"} in ${contentImages.durationMs} ms
+`);
+  }
+  const faviconHost = footerFaviconHost(config);
+  if (options.localFavicons && faviconHost) {
+    await writeLocalFavicons({
+      outDir: options.outDir,
+      mounts: listMountedAreas(mounts).map(({ mount }) => mount),
+      host: faviconHost
+    });
   }
   await writeAgentFiles({
     outDir: options.outDir,
@@ -5130,7 +5760,7 @@ area=${area}
     });
   }
   const outputFiles = await listFiles(options.outDir);
-  const sizes = await Promise.all(outputFiles.map(async (file) => (await stat2(file)).size));
+  const sizes = await Promise.all(outputFiles.map(async (file) => (await stat3(file)).size));
   return {
     ok: !hasErrors(diagnostics),
     diagnostics,
@@ -5141,11 +5771,11 @@ area=${area}
     contentSecurityPolicy,
     analyticsConsent: analyticsGatedByConsent(config.integrations),
     consentStorageKey: consent?.options.storageConfig.storageKey,
-    faviconHost: footerFaviconHost(config)
+    faviconHost
   };
 }
 async function readBuildTarget(path) {
-  return siteBuildRequestSchema.parse(JSON.parse(await readFile4(path, "utf8")));
+  return siteBuildRequestSchema.parse(JSON.parse(await readFile7(path, "utf8")));
 }
 
 // compiler/constants/cli.ts
@@ -5193,12 +5823,12 @@ import {
 } from "node:fs";
 import { createServer, request } from "node:http";
 import { connect, createServer as createNetServer } from "node:net";
-import { dirname as dirname4, join as join8, relative as relative2 } from "node:path";
+import { dirname as dirname7, join as join11, relative as relative3 } from "node:path";
 import { pipeline } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
 
 // compiler/utils/dev-error-page.ts
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash6 } from "node:crypto";
 function escapeHtml(value) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
@@ -5215,7 +5845,7 @@ function devErrorsKey(errors) {
   if (errors.length === 0) {
     return "";
   }
-  return createHash4("sha1").update(JSON.stringify(errors.map((error) => [
+  return createHash6("sha1").update(JSON.stringify(errors.map((error) => [
     error.file,
     error.line,
     error.column,
@@ -5281,7 +5911,7 @@ function isLocalDevHost(host) {
 }
 
 // compiler/utils/dev-markdown.ts
-import { readFile as readFile5 } from "node:fs/promises";
+import { readFile as readFile8 } from "node:fs/promises";
 async function devMarkdown(area, pathname, origin, signal) {
   let path = pathname.replace(/\.md$/, "") || "/";
   const upstreamSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(1e4)]) : AbortSignal.timeout(1e4);
@@ -5323,7 +5953,7 @@ async function devMarkdown(area, pathname, origin, signal) {
   const html = await response.text();
   const url = new URL(path, origin).toString();
   const markdown = entry ? entryMarkdown(entry, url, htmlToMarkdown(html, url)) : indexMarkdown(pages, origin);
-  const params = JSON.parse(await readFile5(area.paramsPath, {
+  const params = JSON.parse(await readFile8(area.paramsPath, {
     encoding: "utf8",
     signal: upstreamSignal
   }));
@@ -5378,37 +6008,37 @@ async function findUnusedPort(from) {
   throw new Error(`No free port between ${from} and ${from + DEV_PORT_SEARCH_RANGE}`);
 }
 async function startAstroDev(toolchainRoot, area) {
-  const root = join8(dirname4(area.paramsPath), "astro", area.area);
+  const root = join11(dirname7(area.paramsPath), "astro", area.area);
   area.hmrToken ??= randomBytes(18).toString("base64url");
   area.hmrGeneration = (area.hmrGeneration ?? 0) + 1;
   mkdirSync(root, { recursive: true });
-  cpSync(join8(toolchainRoot, "src"), join8(root, "src"), { recursive: true });
-  const tailwindSources = join8(root, ".notra", "work");
+  cpSync(join11(toolchainRoot, "src"), join11(root, "src"), { recursive: true });
+  const tailwindSources = join11(root, ".notra", "work");
   mkdirSync(tailwindSources, { recursive: true });
   for (const dir of ["site", "entries"]) {
-    const link = join8(tailwindSources, dir);
+    const link = join11(tailwindSources, dir);
     if (!existsSync(link)) {
-      symlinkSync(join8(dirname4(area.paramsPath), dir), link, "junction");
+      symlinkSync(join11(dirname7(area.paramsPath), dir), link, "junction");
     }
   }
-  const modules = join8(dirname4(area.paramsPath), "node_modules");
+  const modules = join11(dirname7(area.paramsPath), "node_modules");
   if (!existsSync(modules)) {
     let dependencyRoot = toolchainRoot;
-    while (!existsSync(join8(dependencyRoot, "node_modules"))) {
-      const parent = dirname4(dependencyRoot);
+    while (!existsSync(join11(dependencyRoot, "node_modules"))) {
+      const parent = dirname7(dependencyRoot);
       if (parent === dependencyRoot) {
         throw new Error("Notra Sites runtime dependencies are missing");
       }
       dependencyRoot = parent;
     }
-    symlinkSync(join8(dependencyRoot, "node_modules"), modules, "junction");
+    symlinkSync(join11(dependencyRoot, "node_modules"), modules, "junction");
   }
-  const sourceWatcher = watch(join8(toolchainRoot, "src"), { recursive: true }, (_event, filename) => {
+  const sourceWatcher = watch(join11(toolchainRoot, "src"), { recursive: true }, (_event, filename) => {
     if (!filename) {
       return;
     }
-    const source = join8(toolchainRoot, "src", filename);
-    const destination = join8(root, "src", filename);
+    const source = join11(toolchainRoot, "src", filename);
+    const destination = join11(root, "src", filename);
     try {
       if (existsSync(source)) {
         cpSync(source, destination, { recursive: true });
@@ -5429,7 +6059,7 @@ async function startAstroDev(toolchainRoot, area) {
       "--root",
       root,
       "--config",
-      relative2(root, join8(toolchainRoot, "astro.config.mjs")),
+      relative3(root, join11(toolchainRoot, "astro.config.mjs")),
       "--host",
       "127.0.0.1",
       "--port",
@@ -5818,15 +6448,15 @@ async function startDevAreas(toolchainRoot, areas) {
 }
 
 // compiler/utils/dev-generated-assets.ts
-import { rm as rm4 } from "node:fs/promises";
-import { join as join9, relative as relative3, sep as sep2 } from "node:path";
+import { rm as rm5 } from "node:fs/promises";
+import { join as join12, relative as relative4, sep as sep2 } from "node:path";
 async function cleanDevGeneratedAssets(workDir, publicFiles, customScripts) {
-  const publicDir = join9(workDir, "site", "public");
+  const publicDir = join12(workDir, "site", "public");
   const retained = new Set([
-    ...publicFiles.map((path) => join9(publicDir, path)),
-    ...customScripts.map((name) => join9(publicDir, SITE_ASSETS_DIR, name))
+    ...publicFiles.map((path) => join12(publicDir, path)),
+    ...customScripts.map((name) => join12(publicDir, SITE_ASSETS_DIR, name))
   ]);
-  const generated = await listFiles(join9(publicDir, "_notra")).catch((error) => {
+  const generated = await listFiles(join12(publicDir, "_notra")).catch((error) => {
     if (error.code === "ENOENT") {
       return [];
     }
@@ -5836,9 +6466,9 @@ async function cleanDevGeneratedAssets(workDir, publicFiles, customScripts) {
     if (retained.has(path)) {
       return false;
     }
-    const name = relative3(publicDir, path).split(sep2).join("/");
+    const name = relative4(publicDir, path).split(sep2).join("/");
     return name.startsWith(`${SITE_ASSETS_DIR}/`) && /^custom-[A-Za-z0-9_-]+\.[a-f0-9]{10}\.js$/.test(name.slice(SITE_ASSETS_DIR.length + 1)) || name.startsWith(`${SITE_ASSETS_DIR}/fonts/`) && /^[a-f0-9]{64}\//.test(name.slice(`${SITE_ASSETS_DIR}/fonts/`.length)) || SITE_AREAS.some((area) => name === `${OG_IMAGES_DIR}/${area}.png` || name.startsWith(`${OG_IMAGES_DIR}/${area}/`) && name.endsWith(".png"));
-  }).map((path) => rm4(path, { force: true })));
+  }).map((path) => rm5(path, { force: true })));
 }
 
 // compiler/utils/dev-refresh.ts
@@ -5915,6 +6545,7 @@ function createDevRefresh(options) {
       ...options.params,
       config,
       fontStylesheet: prepared.fontStylesheet,
+      fontFallbacks: prepared.fontFallbacks,
       hasReactComponents: hasReactComponents(prepared.validation.outputs),
       publicFiles: [
         ...new Set([
@@ -6002,8 +6633,16 @@ function createDevRefresh(options) {
 }
 
 // compiler/utils/local-options.ts
-import { statSync } from "node:fs";
-import { basename, isAbsolute, join as join10, relative as relative4, sep as sep3 } from "node:path";
+import { realpathSync, statSync } from "node:fs";
+import {
+  basename as basename2,
+  dirname as dirname8,
+  isAbsolute,
+  join as join13,
+  relative as relative5,
+  resolve as resolve3,
+  sep as sep3
+} from "node:path";
 
 // ../../packages/sites-core/src/utils/default-config.ts
 function createDefaultSiteConfig(name) {
@@ -6012,11 +6651,6 @@ function createDefaultSiteConfig(name) {
     blog: siteBlogSchema.parse({}),
     changelog: siteChangelogSchema.parse({})
   });
-}
-
-// compiler/utils/usage-error.ts
-class UsageError extends Error {
-  name = "UsageError";
 }
 
 // compiler/utils/local-options.ts
@@ -6070,15 +6704,15 @@ function localMounts(siteRoot, target, area, mounts) {
   if (target) {
     return target.mounts;
   }
-  const blog = area === "blog" || isDirectory(join10(siteRoot, "blog"));
-  const changelog = area === "changelog" || isDirectory(join10(siteRoot, "changelog"));
+  const blog = area === "blog" || isDirectory(join13(siteRoot, "blog"));
+  const changelog = area === "changelog" || isDirectory(join13(siteRoot, "changelog"));
   return {
     ...blog || !changelog ? { blog: "/blog" } : {},
     ...changelog || !blog ? { changelog: "/changelog" } : {}
   };
 }
 function localDefaultConfig(siteRoot, target) {
-  return target?.defaultConfig ?? createDefaultSiteConfig(basename(siteRoot).trim().slice(0, siteConfigSchema.shape.name.maxLength ?? 80).trim() || "Local site");
+  return target?.defaultConfig ?? createDefaultSiteConfig(basename2(siteRoot).trim().slice(0, siteConfigSchema.shape.name.maxLength ?? 80).trim() || "Local site");
 }
 function parseOrigin(origin) {
   const url = URL.canParse(origin) ? new URL(origin) : null;
@@ -6105,11 +6739,27 @@ function localBuildTarget(siteRoot, target, overrides) {
     defaultConfig: localDefaultConfig(siteRoot)
   });
 }
+function realPath(path) {
+  const missing = [];
+  let existing = resolve3(path);
+  for (;; ) {
+    try {
+      return join13(realpathSync(existing), ...missing.reverse());
+    } catch (error) {
+      const parent = dirname8(existing);
+      if (error.code !== "ENOENT" || parent === existing) {
+        throw error;
+      }
+      missing.push(basename2(existing));
+      existing = parent;
+    }
+  }
+}
 function assertOutsideSource(siteRoot, outDir) {
-  const path = relative4(outDir, siteRoot);
+  const path = relative5(realPath(outDir), realPath(siteRoot));
   const outside = path === ".." || path.startsWith(`..${sep3}`) || isAbsolute(path);
   if (!outside) {
-    throw new UsageError(`--out ${outDir} holds the site source, and the build empties it first. Use a separate folder, like ${join10(siteRoot, ".notra", "out")}`);
+    throw new UsageError(`--out ${outDir} holds the site source, and the build empties it first. Use a separate folder, like ${join13(siteRoot, ".notra", "out")}`);
   }
 }
 
@@ -6152,7 +6802,7 @@ async function main() {
 `);
     return;
   }
-  const siteRoot = resolve2(values.source ?? ".");
+  const siteRoot = resolve4(values.source ?? ".");
   if (command === "validate") {
     const target = values.target ? await readBuildTarget(values.target) : undefined;
     if (target) {
@@ -6180,17 +6830,18 @@ async function main() {
     if (!values.out) {
       throw new UsageError("build needs --out <dir>");
     }
-    const outDir = resolve2(values.out);
+    const outDir = resolve4(values.out);
     assertOutsideSource(siteRoot, outDir);
     const target = localBuildTarget(siteRoot, values.target ? await readBuildTarget(values.target) : undefined, { origin: values.origin, mounts: parseMountFlags(values.mount) });
     const result = await buildSite({
       toolchainRoot: TOOLCHAIN_ROOT,
       siteRoot,
       target,
-      outDir
+      outDir,
+      localFavicons: !values.target
     });
     if (values["result-file"]) {
-      await writeFile3(values["result-file"], JSON.stringify(result));
+      await writeFile5(values["result-file"], JSON.stringify(result));
     }
     if (values.json) {
       process.stdout.write(`${JSON.stringify(result)}
@@ -6220,7 +6871,7 @@ async function main() {
       process.stderr.write(`Port ${requestedPort} is in use, using ${port} instead.
 `);
     }
-    const workDir = await realpath(await mkdtemp2(join11(tmpdir(), "notra-sites-dev-")));
+    const workDir = await realpath(await mkdtemp2(join14(tmpdir(), "notra-sites-dev-")));
     const mounted = listMountedAreas(mounts);
     const areas = [];
     let nextPort = port + 1;
@@ -6231,11 +6882,11 @@ async function main() {
         areas.push({
           ...entry,
           port: areaPort,
-          paramsPath: join11(workDir, `params.dev.${entry.area}.json`)
+          paramsPath: join14(workDir, `params.dev.${entry.area}.json`)
         });
       }
     } catch (error) {
-      await rm5(workDir, { recursive: true, force: true });
+      await rm6(workDir, { recursive: true, force: true });
       throw error;
     }
     const selected = areas.find((entry) => entry.area === values.area) ?? areas[0];
@@ -6314,7 +6965,7 @@ async function main() {
         watcher?.close();
         proxy?.close();
         await refresh.shutdown();
-        await rm5(workDir, { recursive: true, force: true });
+        await rm6(workDir, { recursive: true, force: true });
       })();
       return stopping;
     };

@@ -4,7 +4,7 @@ import { getChangelogEntries } from "../lib/entries";
 import { formatDate } from "../lib/dates";
 import { changelogOptions } from "../lib/options";
 import { areaDescription, areaTitle } from "../lib/params";
-import { slotArea, slotChangelogEntry, slotSite } from "../lib/slot-data";
+import { slotChangelogEntry } from "../lib/slot-data";
 import AreaHero from "./AreaHero.astro";
 import ChangelogEntry from "./ChangelogEntry.astro";
 import ChangelogMinimap from "./ChangelogMinimap.astro";
@@ -19,7 +19,7 @@ const minimap = timeline && showMinimap
   : [];
 ---
 
-<SiteSlot name="changelog-hero" data={{ site: slotSite(), area: slotArea() }}>
+<SiteSlot name="changelog-hero">
   <AreaHero title={areaTitle("changelog")} description={areaDescription("changelog")} width={timeline ? "reading" : "index"} />
 </SiteSlot>
 

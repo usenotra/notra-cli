@@ -6,6 +6,8 @@ import mdx from "@astrojs/mdx";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 
+import { rewritePublicCssUrls } from "./src/utils/public-assets.ts";
+
 const paramsPath = process.env.NOTRA_BUILD_PARAMS;
 if (!paramsPath) {
   throw new Error(
@@ -14,6 +16,9 @@ if (!paramsPath) {
 }
 const params = JSON.parse(readFileSync(paramsPath, "utf8"));
 const ASTRO_VIRTUAL_MODULE = /\.astro\?astro&/;
+const SITE_STYLESHEET = /\.css$/i;
+const DEV_CSS_AREA_QUERY = "notra-area";
+const publicFiles = new Set(params.publicFiles);
 const srcDir = process.env.NOTRA_DEV_ROOT
   ? resolve(process.env.NOTRA_DEV_ROOT, "src")
   : fileURLToPath(new URL("src", import.meta.url));
@@ -117,6 +122,31 @@ export default defineConfig({
                 return outsideRoot ? `/@fs${id}` : null;
               },
             },
+            {
+              // The dev proxy sends every area's /@fs requests to one Astro
+              // server, so the stylesheet id carries the area it was built for.
+              name: "notra-dev-public-css-urls",
+              apply: "serve",
+              transform(code, id) {
+                const [file = "", query = ""] = id.split("?");
+                if (
+                  !(
+                    SITE_STYLESHEET.test(file) &&
+                    file.startsWith(`${workDir.replaceAll("\\", "/")}/`)
+                  )
+                ) {
+                  return null;
+                }
+                const area = new URLSearchParams(query).get(DEV_CSS_AREA_QUERY);
+                const css = rewritePublicCssUrls(
+                  code,
+                  (Object.hasOwn(params.mounts, area) && params.mounts[area]) ||
+                    params.mount,
+                  publicFiles
+                );
+                return css === code ? null : { code: css, map: null };
+              },
+            },
           ]
         : []),
       ...(process.env.NOTRA_DEV_HMR_TOKEN
@@ -191,7 +221,9 @@ export default defineConfig({
           "components/ThemeToggle.astro"
         ),
         "@notra/builtins": resolve(srcDir, "builtins"),
-        "@notra/custom-css": resolve(workDir, "custom.css"),
+        "@notra/custom-css": process.env.NOTRA_DEV_ROOT
+          ? `${resolve(workDir, "custom.css")}?${DEV_CSS_AREA_QUERY}=${params.area}`
+          : resolve(workDir, "custom.css"),
         "@notra/consent-devtools": resolve(
           srcDir,
           consent?.devTools

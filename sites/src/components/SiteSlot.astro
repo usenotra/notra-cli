@@ -1,6 +1,7 @@
 ---
 import type { SiteSlotProps as Props } from "../types/site-files";
 import { slotComponent } from "../lib/site-files";
+import { slotCommonData } from "../lib/slot-data";
 
 const { name, data = {}, class: className } = Astro.props;
 const Component = slotComponent(name);
@@ -9,7 +10,7 @@ const Component = slotComponent(name);
 {
   Component ? (
     <div data-slot={name} class={className}>
-      <Component {...data} />
+      <Component {...slotCommonData()} {...data} />
     </div>
   ) : (
     <slot />

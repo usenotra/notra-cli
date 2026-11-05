@@ -6,7 +6,6 @@ import { getBlogEntries } from "../lib/entries";
 import { splitFeatured } from "../lib/featured";
 import { blogOptions } from "../lib/options";
 import { areaDescription, areaTitle } from "../lib/params";
-import { slotArea, slotSite } from "../lib/slot-data";
 import AreaHero from "./AreaHero.astro";
 import CategoryBar from "./CategoryBar.astro";
 import PostCard from "./PostCard.astro";
@@ -32,7 +31,7 @@ const searchTextOf = (entry: (typeof entries)[number]) => (blogOptions.search ? 
 ---
 
 <div class="blog-index flex flex-col items-center gap-10 md:gap-14">
-  <SiteSlot name="blog-hero" data={{ site: slotSite(), area: slotArea() }} class="w-full">
+  <SiteSlot name="blog-hero" class="w-full">
     <AreaHero title={areaTitle("blog")} description={areaDescription("blog")} />
   </SiteSlot>
 

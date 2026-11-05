@@ -3,11 +3,17 @@ import {
   LAYOUT_CONTAINERS_REM,
 } from "../constants/theme";
 import { readableOn } from "../utils/color";
-import { declaredFonts } from "../utils/theme-fonts";
+import { declaredFonts, preloadFaces } from "../utils/theme-fonts";
 import { assetUrl, config, params } from "./params";
 
 function fontStack(family: string | undefined, fallback: string): string {
-  return family ? `"${family}", ${fallback}` : fallback;
+  if (!family) {
+    return fallback;
+  }
+  const sized = params.fontFallbacks?.some((font) => font.family === family);
+  return sized
+    ? `"${family}", "${family} Fallback", ${fallback}`
+    : `"${family}", ${fallback}`;
 }
 
 export function themeStyle(): string {
@@ -85,13 +91,26 @@ function layoutWidths(): string[] {
 }
 
 export function fontFaces(): string {
-  return declaredFonts(config.fonts)
+  const faces = declaredFonts(config.fonts)
     .filter((font) => font.source)
     .map((font) => {
       const url = assetUrl(font.source) ?? font.source;
-      return `@font-face{font-family:"${font.family}";src:url("${url}") format("${font.format ?? "woff2"}");font-weight:${font.weight ?? "100 900"};font-display:swap}`;
-    })
-    .join("");
+      const style = font.style === "italic" ? ";font-style:italic" : "";
+      return `@font-face{font-family:"${font.family}";src:url("${url}") format("${font.format ?? "woff2"}");font-weight:${font.weight ?? "100 900"}${style};font-display:swap}`;
+    });
+  const fallbacks = (params.fontFallbacks ?? []).map(
+    (font) =>
+      `@font-face{font-family:"${font.family} Fallback";src:local("${font.local}");size-adjust:${font.sizeAdjust}%;ascent-override:${font.ascentOverride}%;descent-override:${font.descentOverride}%;line-gap-override:${font.lineGapOverride}%}`
+  );
+  return [...faces, ...fallbacks].join("").replaceAll("<", "\\3c ");
+}
+
+/** Mount-aware URLs of the body and heading font files worth fetching before CSS asks for them. */
+export function fontPreloads(): string[] {
+  return preloadFaces(config.fonts).flatMap((font) => {
+    const url = assetUrl(font.source);
+    return url ? [url] : [];
+  });
 }
 
 export function fontStylesheetUrl(): string | undefined {
