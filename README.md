@@ -112,16 +112,21 @@ notra api call getGeoSentiment --param projectId=project_123
 Run `notra <topic> --help` to see every command and flag. Every API command
 accepts `--json` for machine-readable output.
 
-GEO commands cover projects, settings, prompts, sequences, competitors, scans,
-visibility, sentiment, scan changes, prompt history, citation shelf sources,
-content gaps, briefs, agent readiness, and AI traffic. Run
-`notra geo --help` to browse the complete command tree.
+GEO commands cover projects, settings, answer engines, prompts and Search
+Console prompt suggestions, sequences, competitors, scans, visibility,
+sentiment, scan changes, prompt history, citation shelf sources, content gaps,
+briefs, agent readiness, and AI traffic. Rescan a single prompt with
+`notra geo scans start <projectId> --prompt <promptId>`. Run `notra geo --help`
+to browse the complete command tree.
 
 ### Content and workspace workflows
 
 | Command group | Available workflows |
 |---|---|
 | `posts` | List, get, create, update, delete, generate, generation status; schedule, inspect or cancel publishing |
+| `schedules` | List, create, update, delete; run once now, list recent runs |
+| `brands colors` | List, create, update, delete brand guideline colors |
+| `integrations activity` | List merged pull requests, commits or releases of a connected GitHub repository |
 | `event-triggers` | List, get, create, replace configuration, delete |
 | `webhooks endpoints` | List, create, delete subscriptions |
 | `webhooks deliveries` | List, inspect payload and attempts, retry failed deliveries |
@@ -173,7 +178,8 @@ publishing schedules are separate from recurring content-generation `schedules`.
 Deleting resources or cancelling publishing requires confirmation; use `--yes`
 in scripts. Creating chats, sending chat messages or tool approvals, and starting
 or continuing durable agent sessions also require confirmation because they use
-AI credits and their tools may act on data or external services.
+AI credits and their tools may act on data or external services. So do GEO
+scans, prompt rescans, and `schedules run`.
 
 Chat commands return `{ "chatId": "…", "text": "…" }` after reading the reply
 stream. When tools need approval, `pendingApprovals` includes their IDs, tool-call

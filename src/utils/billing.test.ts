@@ -15,6 +15,8 @@ describe('isBillableRequest', () => {
     expect(isBillableRequest('POST', '/v1/projects/proj_123/geo/scans')).toBe(true);
     expect(isBillableRequest('POST', '/v1/projects/proj_123/geo/briefs')).toBe(true);
     expect(isBillableRequest('POST', '/v1/projects/proj_123/geo/sequences/seq_1/run')).toBe(true);
+    expect(isBillableRequest('POST', '/v1/projects/proj_123/geo/scans/prompts/prompt_1')).toBe(true);
+    expect(isBillableRequest('POST', '/v1/schedules/schedule_1/run')).toBe(true);
   });
 
   test('ignores other methods and paths on the same resources', () => {

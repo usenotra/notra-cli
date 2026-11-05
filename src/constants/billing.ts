@@ -4,8 +4,10 @@
  */
 export const BILLABLE_OPERATION_IDS: ReadonlySet<string> = new Set([
   'createGeoScan',
+  'createGeoPromptScan',
   'planGeoContentBrief',
   'runGeoSequence',
+  'runSchedule',
   'createChat',
   'postChatMessage',
   'createAgentSession',

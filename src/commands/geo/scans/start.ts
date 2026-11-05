@@ -5,7 +5,12 @@ import { ExitCode } from '../../../constants/exit';
 import { confirmAction } from '../../../utils/confirm';
 
 export default class GeoScansStart extends NotraCommand {
-  static override description = 'Start a GEO scan for a project.';
+  static override description = 'Start a GEO scan for a project, or rescan one prompt with --prompt.';
+
+  static override examples = [
+    '<%= config.bin %> <%= command.id %> project_1 --yes --wait',
+    '<%= config.bin %> <%= command.id %> project_1 --prompt prompt_1 --yes',
+  ];
 
   static override args = {
     projectId: Args.string({ description: 'GEO project ID.', required: true }),
@@ -13,6 +18,9 @@ export default class GeoScansStart extends NotraCommand {
 
   static override flags = {
     yes: Flags.boolean({ char: 'y', description: 'Confirm use of AI credits.' }),
+    prompt: Flags.string({
+      description: 'Rescan only this enabled tracked prompt ID. Costs less than a full scan.',
+    }),
     wait: Flags.boolean({ description: 'Wait for the scan to finish before returning.' }),
     'poll-interval': Flags.integer({
       description: 'Polling interval in seconds when --wait is set.',
@@ -28,14 +36,23 @@ export default class GeoScansStart extends NotraCommand {
 
   public async run(): Promise<void> {
     const { args, flags } = await this.parse(GeoScansStart);
-    const confirmed = await confirmAction('Start this billed GEO scan?', { yes: flags.yes });
+    // An empty --prompt must not fall back to the pricier full scan.
+    if (flags.prompt !== undefined && !flags.prompt.trim()) {
+      this.error('--prompt must be a prompt ID.', { exit: ExitCode.Usage });
+    }
+    const confirmed = await confirmAction(
+      flags.prompt ? 'Rescan this GEO prompt? It uses AI credits.' : 'Start this billed GEO scan?',
+      { yes: flags.yes },
+    );
     if (!confirmed) {
       this.error('Confirmation required. Re-run with --yes.', { exit: ExitCode.Usage });
     }
     const projectId = encodeURIComponent(args.projectId);
     const created = await this.geo().request(
       'POST',
-      `/v1/projects/${projectId}/geo/scans`,
+      flags.prompt
+        ? `/v1/projects/${projectId}/geo/scans/prompts/${encodeURIComponent(flags.prompt)}`
+        : `/v1/projects/${projectId}/geo/scans`,
       {},
     );
 
