@@ -1,0 +1,19 @@
+src/cli/geo-scans-start.test.ts
+  s_7cd61f875ec07f::t_6b7595c3de9dd6 1-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "877317f19ee6e1588cbc0dacd33babb7c5ca1c69",
+  "prompts": {},
+  "sessions": {
+    "s_7cd61f875ec07f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dde47fce-dfcb-4a3c-ac72-2c607b49ad9a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jan Burzinski <156842394+janburzinski@users.noreply.github.com>"
+    }
+  }
+}
