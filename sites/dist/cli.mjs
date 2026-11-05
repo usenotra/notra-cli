@@ -5,13 +5,63 @@ import { randomBytes as randomBytes2 } from "node:crypto";
 import { renameSync, watch as watch2 } from "node:fs";
 import { mkdtemp as mkdtemp2, realpath, rm as rm5, writeFile as writeFile3 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join as join10, resolve as resolve2 } from "node:path";
+import { join as join11, resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+
+// ../../packages/sites-compiler/src/constants/validate.ts
+var TEXT_SOURCE_FILE = /\.(?:mdx?|jsx?|json|txt|css|svg)$/i;
+var ENTRY_FILE = /^(blog|changelog)\/(.+)\.(mdx?)$/;
+var ENTRY_SLUG = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
+var MDX_FILE = /\.mdx$/i;
+var SCRIPT_FILE = /\.jsx?$/i;
+var COLLAPSED_WARNING_CODES = new Set([
+  "unknown_prop",
+  "frontmatter_unknown_key"
+]);
+var COLLAPSED_WARNING_EXAMPLES = 3;
 
 // ../../packages/sites-compiler/src/utils/diagnostics.ts
 function hasErrors(diagnostics) {
   return diagnostics.some((diagnostic) => diagnostic.severity === "error");
+}
+function location(diagnostic) {
+  return diagnostic.line ? `${diagnostic.file}:${diagnostic.line}` : String(diagnostic.file);
+}
+function collapseRepeatedWarnings(diagnostics) {
+  const groups = new Map;
+  for (const diagnostic of diagnostics) {
+    if (COLLAPSED_WARNING_CODES.has(diagnostic.code)) {
+      const key = `${diagnostic.code}\x00${diagnostic.message}`;
+      const group = groups.get(key);
+      if (group) {
+        group.push(diagnostic);
+      } else {
+        groups.set(key, [diagnostic]);
+      }
+    }
+  }
+  return diagnostics.flatMap((diagnostic) => {
+    const group = groups.get(`${diagnostic.code}\x00${diagnostic.message}`);
+    if (!group) {
+      return [diagnostic];
+    }
+    if (group[0] !== diagnostic) {
+      return [];
+    }
+    const rest = group.slice(1);
+    if (rest.length === 0) {
+      return [diagnostic];
+    }
+    const examples = rest.slice(0, COLLAPSED_WARNING_EXAMPLES).map(location).join(", ");
+    const more = rest.length > COLLAPSED_WARNING_EXAMPLES ? ", …" : "";
+    return [
+      {
+        ...diagnostic,
+        message: `${diagnostic.message} Also in ${rest.length} more place${rest.length === 1 ? "" : "s"}: ${examples}${more}.`
+      }
+    ];
+  });
 }
 
 // ../../packages/sites-core/src/constants/site-layout.ts
@@ -60,6 +110,97 @@ var SITE_SLOT_NAMES = [
   "after-changelog-entry",
   "before-footer"
 ];
+var SITE_ICON_NAMES = [
+  "arrow-left",
+  "arrow-right",
+  "arrow-up-right",
+  "bell",
+  "book",
+  "book-marked",
+  "book-open",
+  "bookmark",
+  "box",
+  "briefcase",
+  "building-2",
+  "calendar",
+  "chart-line",
+  "check",
+  "chevron-down",
+  "circle-check",
+  "circle-help",
+  "clock",
+  "close",
+  "cloud",
+  "code",
+  "compass",
+  "copy",
+  "cpu",
+  "credit-card",
+  "database",
+  "dollar-sign",
+  "download",
+  "external-link",
+  "file-text",
+  "flag",
+  "gift",
+  "git-branch",
+  "github",
+  "globe",
+  "graduation-cap",
+  "handshake",
+  "headphones",
+  "heart",
+  "house",
+  "image",
+  "info",
+  "layers",
+  "layout-dashboard",
+  "library",
+  "life-buoy",
+  "lightbulb",
+  "link",
+  "linkedin",
+  "lock",
+  "mail",
+  "map",
+  "megaphone",
+  "menu",
+  "message-circle",
+  "message-square",
+  "mic",
+  "monitor",
+  "moon",
+  "newspaper",
+  "notebook-pen",
+  "octagon-alert",
+  "package",
+  "palette",
+  "pen-line",
+  "play",
+  "plus",
+  "puzzle",
+  "rocket",
+  "rss",
+  "search",
+  "settings",
+  "shield",
+  "sparkles",
+  "star",
+  "sticky-note",
+  "sun",
+  "tag",
+  "terminal",
+  "text-align-start",
+  "triangle-alert",
+  "trophy",
+  "user",
+  "users",
+  "video",
+  "wrench",
+  "x",
+  "youtube",
+  "zap"
+];
 
 // ../../packages/sites-core/src/constants/sites.ts
 var SITE_AREAS = ["blog", "changelog"];
@@ -84,23 +225,67 @@ var SITE_UNAVAILABLE_SLUGS = new Set([
   "abuse",
   "account",
   "accounts",
+  "administrator",
   "auth",
   "autoconfig",
   "autodiscover",
   "billing",
+  "checkout",
   "cname",
   "console",
   "dashboard",
+  "dns",
+  "email",
   "fallback",
+  "ftp",
+  "gateway",
   "help",
+  "hostmaster",
+  "identity",
+  "imap",
   "ingest",
+  "internal",
+  "intranet",
+  "invoice",
+  "invoices",
+  "localhost",
   "login",
+  "logout",
   "mta-sts",
+  "no-reply",
+  "noreply",
+  "ns1",
+  "ns2",
+  "oauth",
+  "oauth2",
   "origin",
+  "password",
+  "pay",
+  "payment",
+  "payments",
+  "pop3",
+  "portal",
+  "postmaster",
+  "recovery",
+  "register",
+  "reset",
+  "root",
+  "secure",
   "security",
+  "sftp",
   "signin",
+  "signout",
+  "signup",
   "sites",
-  "support"
+  "smtp",
+  "sso",
+  "staging",
+  "support",
+  "verify",
+  "vpn",
+  "wallet",
+  "webmail",
+  "webmaster"
 ]);
 var SITE_MOUNT_MAX_SEGMENTS = 3;
 var SITE_PREVIEW_SESSION_SECONDS = 60 * 60 * 12;
@@ -181,6 +366,15 @@ var SITE_INJECTED_REACT_HOOKS = [
 ];
 var SITE_PREVIEW_VISIBILITIES = ["public", "protected"];
 var SITE_STATUSES = ["active", "suspended"];
+var SITE_SUSPENSION_CATEGORIES = [
+  "phishing",
+  "malware",
+  "deceptive_redirects",
+  "spam",
+  "terms"
+];
+var SITE_FAVICON_DIR = "_notra/favicon";
+var SITE_FAVICON_HOST = /^(?=.{1,253}$)[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
 var SITE_ENGAGEMENT_MAX_VISIBLE_MS = 30 * 60 * 1000;
 
 // ../../packages/sites-core/src/constants/source.ts
@@ -193,6 +387,7 @@ var SITE_SOURCE_SAFE_SEGMENT = /^[A-Za-z0-9._@()+ -]+$/;
 var SITE_HEX_COLOR = /^#(?:[0-9a-fA-F]{3}){1,2}$/;
 var SITE_LINK_HREF = /^(?:\/(?!\/)|https?:\/\/|mailto:)/;
 var SITE_ICON_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+var SITE_META_TAG_NAME = /^[a-z][a-z0-9:_.-]*$/i;
 var SITE_AUTHOR_ID = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
 var SITE_AUTHOR_AVATAR = /^(?:\/(?!\/)|https:\/\/)/;
 var SITE_DEFAULT_PRIMARY_COLOR = "#8B5CF6";
@@ -210,6 +405,7 @@ var GOOGLE_ANALYTICS_CONNECT_ORIGINS = [
 ];
 var GA4_MEASUREMENT_ID = /^G-[A-Z0-9]{4,16}$/;
 var DATABUDDY_SCRIPT_URL = "https://cdn.databuddy.cc/databuddy.js";
+var DATABUDDY_REPLAY_SCRIPT_URL = "https://cdn.databuddy.cc/replay.js";
 var DATABUDDY_API_URL = "https://basket.databuddy.cc";
 var DATABUDDY_CLIENT_ID = /^[A-Za-z0-9_-]{8,64}$/;
 var DATABUDDY_CLIENT_ID_MESSAGE = "Copy the Client ID from your Databuddy website settings";
@@ -232,6 +428,8 @@ var HTTPS_BASE_URL = new RegExp(String.raw`^https:\/\/${HOST}${PORT}(?:\/[A-Za-z
 var HTTPS_SCRIPT_URL = new RegExp(String.raw`^https:\/\/${HOST}${PORT}(?:\/(?!\.{1,2}(?:\/|$))[A-Za-z0-9._~-]+)+$`);
 var CSP_ORIGIN = new RegExp(String.raw`^(?:https|wss):\/\/(?:\*\.)?${HOST}${PORT}$`);
 var POSTHOG_API_KEY = /^phc_[A-Za-z0-9]{20,64}$/;
+var C15T_ANALYTICS_CATEGORY = "measurement";
+var C15T_HOST_STORAGE_KEY = "__Host-c15t";
 var C15T_SCRIPT_CATEGORIES = [
   "measurement",
   "marketing",
@@ -422,7 +620,15 @@ var databuddySchema = z.strictObject({
   batchTimeout: databuddyDelaySchema.optional().describe("Milliseconds before a partial batch is sent (default: 5000)."),
   enableRetries: optionalBooleanSchema.describe("Retry failed requests (default: true)."),
   maxRetries: z.number().int().min(0).max(DATABUDDY_MAX_RETRIES).optional().describe("Retries per failed request (default: 3)."),
-  initialRetryDelay: databuddyDelaySchema.optional().describe("Milliseconds before the first retry (default: 500).")
+  initialRetryDelay: databuddyDelaySchema.optional().describe("Milliseconds before the first retry (default: 500)."),
+  replay: z.union([
+    z.boolean(),
+    z.strictObject({
+      maskText: optionalBooleanSchema.describe("Mask page text in recordings (default: true). Set false only on pages that show no personal data; typed input stays masked."),
+      recordIframes: optionalBooleanSchema.describe("Record your own embedded pages into the parent page's recording. Set it on the framed page too (default: false)."),
+      scriptUrl: httpsScriptUrlSchema.describe("Recorder script URL. Defaults to https://cdn.databuddy.cc/replay.js; set it for a self-hosted or proxied script.")
+    })
+  ]).optional().describe("Record session replays with Databuddy's recorder (default: false). Turn session replay on for the website in Databuddy too.")
 });
 var siteIntegrationUpdateSchema = z.discriminatedUnion("provider", [
   z.object({
@@ -519,7 +725,21 @@ var siteNavbarSchema = z2.object({
     })
   ])).max(8).default([]),
   cta: siteLinkSchema.optional(),
-  primary: z2.object({ type: z2.enum(SITE_NAVBAR_LINK_TYPES), href: platformHref }).optional()
+  primary: z2.discriminatedUnion("type", [
+    z2.object({
+      type: z2.enum(SITE_NAVBAR_LINK_TYPES),
+      href: platformHref
+    }),
+    siteLinkSchema.extend({ type: z2.literal("button") })
+  ], {
+    error: `Use one of ${SITE_NAVBAR_LINK_TYPES.join(", ")}. For a button with your own label, use navbar.cta`
+  }).optional()
+}).transform(({ primary, ...navbar }) => {
+  if (primary?.type !== "button") {
+    return primary ? { ...navbar, primary } : { ...navbar };
+  }
+  const { type: _type, ...button } = primary;
+  return { ...navbar, cta: navbar.cta ?? button };
 }).default({ links: [] });
 var footerColumnSchema = z2.object({
   header: z2.string().trim().min(1).max(60).optional(),
@@ -530,7 +750,7 @@ var siteFooterSchema = z2.object({
     z2.array(siteLinkSchema).max(16),
     z2.array(footerColumnSchema).max(6)
   ]).default([]),
-  socials: z2.partialRecord(z2.enum(SITE_SOCIAL_PLATFORMS), z2.url()).default({})
+  socials: z2.partialRecord(z2.enum(SITE_SOCIAL_PLATFORMS), platformHref).default({})
 }).default({ links: [], socials: {} });
 var siteBannerSchema = z2.object({
   content: z2.string().trim().min(1).max(300),
@@ -554,7 +774,7 @@ var siteContextualSchema = z2.object({
   display: "meta"
 });
 var siteSeoSchema = z2.object({
-  metatags: z2.record(z2.string().regex(/^[a-z][a-z0-9:_.-]*$/i), z2.string().max(500)).default({}),
+  metatags: z2.record(z2.string().regex(SITE_META_TAG_NAME), z2.string().max(500)).default({}),
   indexing: z2.enum(["navigable", "all"]).default("navigable"),
   image: sitePathSchema.optional(),
   imageAlt: z2.string().trim().max(200).optional(),
@@ -615,13 +835,15 @@ var siteBlogSchema = z2.object({
     excerpt: z2.boolean().default(true),
     author: z2.boolean().default(true),
     date: z2.boolean().default(true),
-    readingTime: z2.boolean().default(false)
+    readingTime: z2.boolean().default(false),
+    style: z2.enum(["auto", "tile", "plain"]).default("auto")
   }).default({
     image: "auto",
     excerpt: true,
     author: true,
     date: true,
-    readingTime: false
+    readingTime: false,
+    style: "auto"
   }),
   authorPage: z2.enum(["inline", "stacked"]).default("inline"),
   post: z2.object({
@@ -647,7 +869,8 @@ var siteChangelogSchema = z2.object({
   description: z2.string().trim().max(400).optional(),
   layout: z2.enum(["timeline", "cards", "compact"]).default("timeline"),
   hero: blogHeroSchema,
-  pageActions: z2.boolean().default(false)
+  pageActions: z2.boolean().default(false),
+  minimap: z2.boolean().default(true)
 });
 var siteMetadataSchema = z2.object({
   timestamp: z2.boolean().default(true),
@@ -767,6 +990,9 @@ var frontmatterAuthorSchema = z3.object({
   github: frontmatterLinkSchema.optional(),
   youtube: frontmatterLinkSchema.optional()
 });
+var frontmatterDate = z3.coerce.date({
+  error: "Use a date in YYYY-MM-DD format, like 2026-11-01"
+});
 var frontmatterAuthorRefSchema = z3.union([
   z3.string(),
   frontmatterAuthorSchema
@@ -774,8 +1000,8 @@ var frontmatterAuthorRefSchema = z3.union([
 var blogFrontmatterSchema = z3.object({
   title: z3.string().trim().min(1),
   description: z3.string().trim().optional(),
-  date: z3.coerce.date(),
-  updated: z3.coerce.date().optional(),
+  date: frontmatterDate,
+  updated: frontmatterDate.optional(),
   author: z3.union([frontmatterAuthorRefSchema, z3.array(frontmatterAuthorRefSchema)]).optional(),
   image: z3.string().optional(),
   imageAlt: z3.string().trim().optional(),
@@ -788,7 +1014,7 @@ var blogFrontmatterSchema = z3.object({
 var changelogFrontmatterSchema = z3.object({
   title: z3.string().trim().min(1),
   description: z3.string().trim().optional(),
-  date: z3.coerce.date(),
+  date: frontmatterDate,
   version: z3.string().trim().optional(),
   tags: z3.array(z3.string()).default([]),
   image: z3.string().optional(),
@@ -839,18 +1065,38 @@ function tagSlug(tag) {
 // ../../packages/sites-compiler/src/validate.ts
 import { Parser as Parser2 } from "acorn";
 
-// ../../packages/sites-compiler/src/constants/validate.ts
-var TEXT_SOURCE_FILE = /\.(?:mdx?|jsx?|json|txt|css|svg)$/i;
-var ENTRY_FILE = /^(blog|changelog)\/(.+)\.(mdx?)$/;
-var ENTRY_SLUG = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
-var MDX_FILE = /\.mdx$/i;
-var SCRIPT_FILE = /\.jsx?$/i;
-
 // ../../packages/sites-compiler/src/frontmatter.ts
 import { parse as parseYaml } from "yaml";
 
 // ../../packages/sites-compiler/src/constants/frontmatter.ts
 var FRONTMATTER_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
+var YAML_KEY = /^(["']?)(.+?)\1\s*:(?:\s|$)/;
+var FRONTMATTER_EXAMPLES = {
+  title: "title: Launch week recap",
+  date: "date: 2026-11-01"
+};
+
+// ../../packages/sites-compiler/src/utils/closest-name.ts
+function editDistance(a, b) {
+  const row = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1;i <= a.length; i += 1) {
+    let previous = row[0] ?? 0;
+    row[0] = i;
+    for (let j = 1;j <= b.length; j += 1) {
+      const current = row[j] ?? 0;
+      row[j] = Math.min(current + 1, (row[j - 1] ?? 0) + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
+      previous = current;
+    }
+  }
+  return row[b.length] ?? 0;
+}
+function closestName(name, candidates) {
+  const best = candidates.map((candidate) => ({
+    candidate,
+    score: editDistance(name.toLowerCase(), candidate.toLowerCase())
+  })).sort((a, b) => a.score - b.score)[0];
+  return best && best.score <= 2 ? best.candidate : undefined;
+}
 
 // ../../packages/sites-compiler/src/constants/errors.ts
 var ACORN_LOCATION_SUFFIX = /\s*\(\d+:\d+\)$/;
@@ -880,6 +1126,10 @@ function micromarkErrorPosition(error) {
 function frontmatterError(path, code, message) {
   return { severity: "error", file: path, line: 1, code, message };
 }
+function keyLine(yaml, key) {
+  const index = yaml.split(/\r?\n/).findIndex((line) => YAML_KEY.exec(line)?.[2] === key);
+  return index === -1 ? 1 : index + 2;
+}
 function parseEntryFrontmatter(path, area, source) {
   const yaml = FRONTMATTER_BLOCK.exec(source)?.[1];
   if (yaml === undefined) {
@@ -902,13 +1152,32 @@ function parseEntryFrontmatter(path, area, source) {
     };
   }
   const schema = area === "blog" ? blogFrontmatterSchema : changelogFrontmatterSchema;
+  const known = Object.keys(schema.shape);
+  const fields = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const warnings = Object.keys(fields).filter((key) => !known.includes(key)).map((key) => {
+    const suggestion = closestName(key, known);
+    return {
+      severity: "warning",
+      file: path,
+      line: keyLine(yaml, key),
+      code: "frontmatter_unknown_key",
+      message: `Frontmatter key "${key}" is not supported in ${area} entries and is ignored.${suggestion ? ` Did you mean "${suggestion}"?` : ""}`
+    };
+  });
   const parsed = schema.safeParse(raw);
   if (parsed.success) {
-    return { data: parsed.data, diagnostics: [] };
+    return { data: parsed.data, diagnostics: warnings };
   }
   return {
     data: null,
-    diagnostics: parsed.error.issues.map((issue) => frontmatterError(path, "frontmatter_invalid", `Frontmatter ${issue.path.join(".") || "value"}: ${issue.message}`))
+    diagnostics: [
+      ...parsed.error.issues.map((issue) => {
+        const [key] = issue.path;
+        const example = typeof key === "string" && fields[key] === undefined ? FRONTMATTER_EXAMPLES[key] : undefined;
+        return example ? frontmatterError(path, "frontmatter_invalid", `${path} is missing "${String(key)}" in its frontmatter. Add a line like ${example} between the --- lines.`) : frontmatterError(path, "frontmatter_invalid", `Frontmatter ${issue.path.join(".") || "value"}: ${issue.message}`);
+      }),
+      ...warnings
+    ]
   };
 }
 
@@ -943,6 +1212,33 @@ var BUILTIN_COMPONENTS = [
   "SiteAreas",
   "PrivacySettings"
 ];
+var BUILTIN_COMPONENT_PROPS = {
+  Note: ["title"],
+  Tip: ["title"],
+  Info: ["title"],
+  Warning: ["title"],
+  Check: ["title"],
+  Danger: ["title"],
+  Callout: ["variant", "title"],
+  Card: ["title", "href", "img", "cta"],
+  CardGroup: ["cols"],
+  Columns: ["cols"],
+  Tabs: [],
+  Tab: ["title"],
+  Accordion: ["title", "defaultOpen"],
+  AccordionGroup: [],
+  Steps: [],
+  Step: ["title"],
+  CodeGroup: [],
+  Frame: ["caption"],
+  Badge: [],
+  Update: ["label", "description"],
+  Video: ["src", "poster", "title"],
+  YouTube: ["id", "title"],
+  ThemeToggle: [],
+  SiteAreas: ["sections"],
+  PrivacySettings: ["class", "className"]
+};
 var BUILTIN_COMPONENT_NAMES = new Set(BUILTIN_COMPONENTS);
 var INJECTED_HOOK_NAMES = new Set(SITE_INJECTED_REACT_HOOKS);
 var BUILTINS_IMPORT_SOURCE = "@notra/builtins";
@@ -1078,7 +1374,7 @@ function referencedIdentifiers(root) {
       return;
     }
     const jsx = node;
-    if (jsx.type === "JSXIdentifier" && key === "name" && jsx.name && COMPONENT_NAME.test(jsx.name)) {
+    if (jsx.type === "JSXIdentifier" && key === "name" && parent?.type === "JSXOpeningElement" && jsx.name && COMPONENT_NAME.test(jsx.name)) {
       references.push({
         name: jsx.name,
         start: jsx.start ?? -1,
@@ -1430,9 +1726,9 @@ function applyEdits(source, edits) {
 }
 
 // ../../packages/sites-compiler/src/mdx.ts
-function report(pass, code, message, offset) {
+function report(pass, code, message, offset, severity = "error") {
   pass.diagnostics.push({
-    severity: "error",
+    severity,
     code,
     message,
     file: pass.path,
@@ -1563,13 +1859,19 @@ function checkInlineComponents(pass, scan) {
     }
   }
 }
-function snippetPropEdits(program, localNames) {
+function unresolvedReferences(program, localNames) {
   const declared = declaredNames(program);
-  return referencedIdentifiers(program).filter((reference) => reference.start >= 0 && !localNames.has(reference.name) && !declared.has(reference.name) && !KNOWN_GLOBALS.has(reference.name) && !BUILTIN_COMPONENT_NAMES.has(reference.name) && !INJECTED_HOOK_NAMES.has(reference.name) && !COMPONENT_NAME.test(reference.name) && !(reference.name in globalThis)).map((reference) => ({
-    start: reference.start,
-    end: reference.start,
-    text: reference.shorthand ? `${reference.name}: props.` : "props."
-  }));
+  return referencedIdentifiers(program).filter((reference) => reference.start >= 0 && !localNames.has(reference.name) && !declared.has(reference.name) && !KNOWN_GLOBALS.has(reference.name) && !BUILTIN_COMPONENT_NAMES.has(reference.name) && !INJECTED_HOOK_NAMES.has(reference.name) && !(reference.name in globalThis));
+}
+function checkBuiltinProps(pass, element) {
+  const name = element.name;
+  const props = BUILTIN_COMPONENT_PROPS[name];
+  for (const attribute of element.attributes) {
+    if (attribute.type !== "mdxJsxAttribute" || attribute.name.startsWith("client:") || props.includes(attribute.name)) {
+      continue;
+    }
+    report(pass, "unknown_prop", props.length > 0 ? `<${name}> has no "${attribute.name}" prop, so it is ignored. Its props are ${props.join(", ")}.` : `<${name}> takes no props, so "${attribute.name}" is ignored.`, attribute.position?.start.offset ?? element.position?.start.offset ?? 0, "warning");
+  }
 }
 function walkContent(pass, tree, scan) {
   const localNames = new Set([...scan.importedNames, ...scan.exportedNames]);
@@ -1596,9 +1898,15 @@ function walkContent(pass, tree, scan) {
     pass.edits.push(...edits);
     for (const program of programs) {
       checkForbidden(pass, program);
-      if (!pass.context.isEntry) {
-        for (const edit of snippetPropEdits(program, localNames)) {
-          propEdits.set(edit.start, edit);
+      for (const reference of unresolvedReferences(program, localNames)) {
+        if (pass.context.isEntry) {
+          report(pass, "expression_undefined", `"${reference.name}" is not defined, so this page would fail to build. To show the braces as text, escape them: \\{${reference.name}\\}. To insert a site variable, write {{ ${reference.name} }} and add "${reference.name}" to variables in ${SITE_CONFIG_FILENAME}.`, reference.start);
+        } else if (!COMPONENT_NAME.test(reference.name)) {
+          propEdits.set(reference.start, {
+            start: reference.start,
+            end: reference.start,
+            text: reference.shorthand ? `${reference.name}: props.` : "props."
+          });
         }
       }
     }
@@ -1622,8 +1930,12 @@ function walkContent(pass, tree, scan) {
       }
     } else if (BUILTIN_COMPONENT_NAMES.has(root) && !localNames.has(root)) {
       usedBuiltins.add(root);
+      if (name === root) {
+        checkBuiltinProps(pass, node);
+      }
     } else if (!(localNames.has(root) || scan.contentComponents.has(root))) {
-      report(pass, "unknown_component", `Unknown component <${name}>. Import it from a snippet or use a built-in component.`, start);
+      const suggestion = closestName(root, BUILTIN_COMPONENTS);
+      report(pass, "unknown_component", suggestion ? `Unknown component <${name}>. Did you mean <${suggestion}>?` : `Unknown component <${name}>. Import it from a snippet or use a built-in component.`, start);
     }
   });
   const removed = pass.edits.filter((edit) => edit.text === "" && edit.end > edit.start);
@@ -1718,35 +2030,65 @@ function analyzeMdxFile(path, source, context) {
 }
 
 // ../../packages/sites-compiler/src/utils/config-checks.ts
-function distance(a, b) {
-  const row = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let i = 1;i <= a.length; i += 1) {
-    let previous = row[0] ?? 0;
-    row[0] = i;
-    for (let j = 1;j <= b.length; j += 1) {
-      const current = row[j] ?? 0;
-      row[j] = Math.min(current + 1, (row[j - 1] ?? 0) + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
-      previous = current;
-    }
-  }
-  return row[b.length] ?? 0;
-}
 function unknownConfigKeyWarnings(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return [];
   }
   const known = Object.keys(siteConfigSchema.shape);
   return Object.keys(raw).filter((key) => !known.includes(key)).map((key) => {
-    const suggestion = known.map((candidate) => ({
-      candidate,
-      score: distance(key.toLowerCase(), candidate.toLowerCase())
-    })).sort((a, b) => a.score - b.score)[0];
-    const hint = suggestion && suggestion.score <= 2 ? ` Did you mean "${suggestion.candidate}"?` : "";
+    const suggestion = closestName(key, known);
+    const hint = suggestion ? ` Did you mean "${suggestion}"?` : "";
     return {
       severity: "warning",
       file: SITE_CONFIG_FILENAME,
       code: "config_unknown_key",
       message: `Unknown setting "${key}" is ignored.${hint}`
+    };
+  });
+}
+function record(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function navbarPrimaryButtonWarnings(raw) {
+  const navbar = record(record(raw).navbar);
+  if (record(navbar.primary).type !== "button") {
+    return [];
+  }
+  return [
+    {
+      severity: "warning",
+      file: SITE_CONFIG_FILENAME,
+      code: "navbar_primary_button",
+      message: navbar.cta === undefined ? 'navbar.primary with type "button" is used as navbar.cta. Rename it to "cta" and drop "type"; navbar.primary is for platform buttons like github.' : 'navbar.primary with type "button" is ignored because navbar.cta is set. Remove it; navbar.primary is for platform buttons like github.'
+    }
+  ];
+}
+function iconSettings(value, path = []) {
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) => iconSettings(item, [...path, String(index)]));
+  }
+  return Object.entries(record(value)).flatMap(([key, child]) => key === "icon" && typeof child === "string" ? [{ name: child, setting: [...path, key].join(".") }] : iconSettings(child, [...path, key]));
+}
+function unknownIconWarnings(config, source) {
+  const known = SITE_ICON_NAMES;
+  const navbar = record(record(JSON.parse(source)).navbar);
+  const aliased = record(navbar.primary).type === "button" && navbar.cta === undefined;
+  const unknown = new Map;
+  for (const icon of iconSettings({ ...config, variables: undefined })) {
+    if (!known.includes(icon.name)) {
+      const setting = aliased && icon.setting === "navbar.cta.icon" ? "navbar.primary.icon" : icon.setting;
+      unknown.set(icon.name, [...unknown.get(icon.name) ?? [], setting]);
+    }
+  }
+  return [...unknown].map(([name, settings]) => {
+    const suggestion = closestName(name, known);
+    const offset = source.search(new RegExp(`"icon"\\s*:\\s*"${name}"`));
+    return {
+      severity: "warning",
+      file: SITE_CONFIG_FILENAME,
+      ...offset === -1 ? {} : offsetToLineColumn(source, offset),
+      code: "icon_unknown",
+      message: `Icon "${name}" (${settings.join(", ")}) is not bundled with Notra and is skipped.${suggestion ? ` Did you mean "${suggestion}"?` : ""} See the icon list in the blog.json reference.`
     };
   });
 }
@@ -2128,7 +2470,10 @@ function parseSiteConfig(raw) {
       ]
     };
   }
-  const diagnostics = unknownConfigKeyWarnings(json);
+  const diagnostics = [
+    ...unknownConfigKeyWarnings(json),
+    ...navbarPrimaryButtonWarnings(json)
+  ];
   const parsed = siteConfigSchema.safeParse(json);
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
@@ -2136,6 +2481,7 @@ function parseSiteConfig(raw) {
     }
     return { config: null, diagnostics };
   }
+  diagnostics.push(...unknownIconWarnings(parsed.data, raw));
   const settings = substituteSettingVariables(parsed.data);
   diagnostics.push(...settings.diagnostics);
   return {
@@ -2332,7 +2678,7 @@ function validateSite(input) {
   }
   entries.sort((a, b) => a.path.localeCompare(b.path));
   return {
-    diagnostics,
+    diagnostics: collapseRepeatedWarnings(diagnostics),
     config,
     entries,
     outputs,
@@ -2425,6 +2771,40 @@ function pathCollidesWithOtherMount(mounts, area, urlPath) {
   return owner !== null && owner.area !== area;
 }
 
+// ../../packages/sites-core/src/utils/redirects.ts
+function siteRedirectRules(redirects) {
+  return redirects.map((rule) => ({
+    source: rule.source,
+    destination: rule.destination,
+    status: rule.permanent ? 308 : 307
+  }));
+}
+function withoutTrailingSlash(path) {
+  return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+}
+function headerSafeLocation(location) {
+  return location.replace(/[^\u0021-\u007E]/gu, encodeURIComponent);
+}
+function matchRedirect(redirects, path) {
+  const match = findRedirect(redirects, withoutTrailingSlash(path));
+  return match && { ...match, location: headerSafeLocation(match.location) };
+}
+function findRedirect(redirects, bare) {
+  for (const rule of redirects) {
+    if (rule.source.endsWith("/*")) {
+      const prefix = rule.source.slice(0, -2);
+      if (bare === prefix || bare.startsWith(`${prefix}/`)) {
+        const rest = bare.slice(prefix.length).split("/").map(encodeURIComponent).join("/");
+        const destination = rule.destination.endsWith("/*") ? `${rule.destination.slice(0, -2)}${rest}` : rule.destination;
+        return { location: destination, status: rule.status };
+      }
+    } else if (withoutTrailingSlash(rule.source) === bare) {
+      return { location: rule.destination, status: rule.status };
+    }
+  }
+  return null;
+}
+
 // compiler/build.ts
 import { spawn } from "node:child_process";
 import { cp as cp3, mkdir as mkdir4, readFile as readFile4, rm as rm3, stat as stat2, writeFile as writeFile2 } from "node:fs/promises";
@@ -2479,7 +2859,8 @@ var siteManifestSchema = z4.object({
   redirects: z4.array(siteRedirectRuleSchema),
   contentSecurityPolicy: siteContentSecurityPolicySchema.optional(),
   analyticsConsent: z4.boolean().optional(),
-  consentBackendURL: z4.url().optional()
+  consentStorageKey: z4.literal(C15T_HOST_STORAGE_KEY).optional(),
+  faviconHost: z4.string().regex(SITE_FAVICON_HOST).optional()
 });
 var siteServingPointerSchema = z4.object({
   deploymentId: z4.string(),
@@ -2508,6 +2889,7 @@ var siteServingStateSchema = z4.object({
   siteId: z4.string(),
   slug: z4.string(),
   status: z4.enum(SITE_STATUSES),
+  suspension: z4.object({ category: z4.enum(SITE_SUSPENSION_CATEGORIES) }).nullable().default(null),
   production: siteServingPointerSchema.nullable(),
   productionRollback: z4.boolean().default(false),
   previews: z4.record(z4.string(), sitePreviewPointerSchema),
@@ -2546,7 +2928,8 @@ var siteBuildRequestSchema = z5.object({
   includeDrafts: z5.boolean().default(false),
   analytics: z5.boolean().default(false),
   branding: z5.boolean().default(true),
-  defaultConfig: siteConfigSchema.optional()
+  defaultConfig: siteConfigSchema.optional(),
+  hostingDomain: z5.string().regex(/^[a-z0-9.-]+$/).optional()
 });
 var siteBuildRedirectSchema = z5.object({
   source: z5.string().startsWith("/").max(500),
@@ -2566,13 +2949,17 @@ var siteBuildResultSchema = z5.object({
   redirects: z5.array(siteBuildRedirectSchema).max(500),
   contentSecurityPolicy: siteContentSecurityPolicySchema.nullable().default(null),
   analyticsConsent: z5.boolean().optional(),
-  consentBackendURL: z5.url().optional()
+  consentStorageKey: z5.literal(C15T_HOST_STORAGE_KEY).optional(),
+  faviconHost: z5.string().regex(SITE_FAVICON_HOST).optional()
 });
 
 // ../../packages/sites-core/src/utils/data-attributes.ts
 function dataAttributes(options) {
   const attributes = {};
   for (const [key, value] of Object.entries(options)) {
+    if (value === undefined) {
+      continue;
+    }
     const name = key.replace(CAMEL_CASE_BOUNDARY, (letter) => `-${letter.toLowerCase()}`);
     attributes[`data-${name}`] = typeof value === "string" ? value : JSON.stringify(value);
   }
@@ -2583,11 +2970,12 @@ function dataAttributes(options) {
 function inlineScriptLiteral(value) {
   return JSON.stringify(value).replaceAll("<", "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 }
-function integrationHeadScripts(integrations) {
+function integrationHeadScripts(integrations, hostingDomain) {
   const scripts = [];
+  const onHostingDomain = hostingDomain && `("."+location.hostname).endsWith(${inlineScriptLiteral(`.${hostingDomain}`)})`;
   const { databuddy, ga4, plausible, posthog, umami } = integrations;
   if (databuddy) {
-    const { scriptUrl, ...options } = databuddy;
+    const { scriptUrl, replay, ...options } = databuddy;
     scripts.push({
       kind: "external",
       src: scriptUrl ?? DATABUDDY_SCRIPT_URL,
@@ -2597,6 +2985,23 @@ function integrationHeadScripts(integrations) {
         ...dataAttributes(options)
       }
     });
+    if (replay) {
+      const { scriptUrl: replayScriptUrl, ...replayOptions } = replay === true ? {} : replay;
+      scripts.push({
+        kind: "external",
+        src: replayScriptUrl ?? DATABUDDY_REPLAY_SCRIPT_URL,
+        attributes: {
+          async: true,
+          crossorigin: "anonymous",
+          ...dataAttributes({
+            clientId: options.clientId,
+            apiUrl: options.apiUrl,
+            maskPatterns: options.maskPatterns,
+            ...replayOptions
+          })
+        }
+      });
+    }
   }
   if (ga4) {
     scripts.push({
@@ -2605,7 +3010,7 @@ function integrationHeadScripts(integrations) {
       attributes: { async: true }
     }, {
       kind: "inline",
-      code: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config",${inlineScriptLiteral(ga4.measurementId)});`
+      code: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config",${inlineScriptLiteral(ga4.measurementId)}${onHostingDomain ? `,${onHostingDomain}?{cookie_domain:"none"}:{}` : ""});`
     });
   }
   if (plausible) {
@@ -2622,7 +3027,7 @@ function integrationHeadScripts(integrations) {
     };
     scripts.push({
       kind: "inline",
-      code: `${POSTHOG_LOADER}posthog.init(${inlineScriptLiteral(posthog.apiKey)},${inlineScriptLiteral(options)});`
+      code: `${POSTHOG_LOADER}posthog.init(${inlineScriptLiteral(posthog.apiKey)},${onHostingDomain ? `Object.assign(${inlineScriptLiteral(options)},${onHostingDomain}?{cross_subdomain_cookie:false}:{})` : inlineScriptLiteral(options)});`
     });
   }
   if (umami) {
@@ -2651,6 +3056,10 @@ function integrationCspSources(integrations) {
   if (databuddy) {
     scriptSrc.push(new URL(databuddy.scriptUrl ?? DATABUDDY_SCRIPT_URL).origin);
     connectSrc.push(new URL(databuddy.apiUrl ?? DATABUDDY_API_URL).origin);
+    if (databuddy.replay) {
+      const replayScriptUrl = databuddy.replay === true ? undefined : databuddy.replay.scriptUrl;
+      scriptSrc.push(new URL(replayScriptUrl ?? DATABUDDY_REPLAY_SCRIPT_URL).origin);
+    }
   }
   if (ga4) {
     scriptSrc.push(GOOGLE_TAG_ORIGIN);
@@ -2711,11 +3120,27 @@ function buildSiteContentSecurityPolicy(params) {
   return [
     `script-src ${scriptSrc.join(" ")}`,
     `connect-src ${connectSrc.join(" ")}`,
-    ...params.integrations.posthog && params.integrations.posthog.sessionRecording !== false ? [
+    ...params.integrations.posthog && params.integrations.posthog.sessionRecording !== false || params.integrations.databuddy?.replay ? [
       `worker-src 'self' blob: data: ${sortedUnique(scriptOrigins).join(" ")}`
     ] : [],
     ...SITE_CSP_STATIC_DIRECTIVES
   ].join("; ");
+}
+
+// src/constants/favicons.ts
+var FAVICON_HOST = /^(?=.{1,253}$)[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+
+// src/utils/favicons.ts
+function faviconHost(url) {
+  if (!URL.canParse(url)) {
+    return null;
+  }
+  const { protocol, hostname } = new URL(url);
+  return (protocol === "https:" || protocol === "http:") && FAVICON_HOST.test(hostname) ? hostname : null;
+}
+function footerFaviconHost(config) {
+  const website = config.footer.socials.website;
+  return website && faviconHost(website) || undefined;
 }
 
 // src/constants/public-assets.ts
@@ -3153,7 +3578,11 @@ var ASTRO_LOG_NOISE = [
   /\[glob-loader\] No files found matching/,
   /\[glob-loader\] The base directory .* does not exist/,
   /\[content\] The collection "(?:blog|changelog)" does not exist or is empty/,
-  /┃ (?:Local|Network)\s+http:\/\/127\.0\.0\.1:\d+/
+  /┃ (?:Local|Network)\s+http:\/\/127\.0\.0\.1:\d+/,
+  /astro\s+v[\d.]+\s+ready in/,
+  /watching for file changes\.\.\./,
+  /\[types\] Generated/,
+  /\[content\] Sync(?:ing|ed) content/
 ];
 var SHIKI_UNKNOWN_LANGUAGE = /\[Shiki\] The language "([^"]+)" doesn't exist/;
 
@@ -4270,14 +4699,16 @@ async function prepareSite(params) {
 }
 
 // compiler/utils/astro-log.ts
+import { stripVTControlCharacters } from "node:util";
 function createAstroLogFilter() {
   const reportedLanguages = new Set;
   return (text) => text.split(`
 `).filter((line) => {
-    if (ASTRO_LOG_NOISE.some((pattern) => pattern.test(line))) {
+    const plain = stripVTControlCharacters(line);
+    if (ASTRO_LOG_NOISE.some((pattern) => pattern.test(plain))) {
       return false;
     }
-    const language = SHIKI_UNKNOWN_LANGUAGE.exec(line)?.[1];
+    const language = SHIKI_UNKNOWN_LANGUAGE.exec(plain)?.[1];
     if (language === undefined) {
       return true;
     }
@@ -4320,7 +4751,8 @@ var CONSENT_SHADOWS = {
 var DATABUDDY_CONNECTION_KEYS = new Set([
   "clientId",
   "scriptUrl",
-  "apiUrl"
+  "apiUrl",
+  "replay"
 ]);
 
 // compiler/utils/consent.ts
@@ -4335,6 +4767,7 @@ function consentAnalytics({
     clientId: databuddy.clientId,
     scriptUrl: databuddy.scriptUrl,
     apiUrl: databuddy.apiUrl,
+    replay: databuddy.replay,
     options: Object.fromEntries(Object.entries(databuddy).filter(([key]) => !DATABUDDY_CONNECTION_KEYS.has(key)))
   };
   return {
@@ -4356,12 +4789,16 @@ function consentAnalytics({
     }
   };
 }
-function siteConsent(config, customScripts, analytics, dev) {
+function onHostingDomain(publicOrigin, hostingDomain) {
+  return hostingDomain !== undefined && `.${new URL(publicOrigin).hostname}`.endsWith(`.${hostingDomain}`);
+}
+function siteConsent(config, customScripts, analytics, dev, publicOrigin, hostingDomain) {
   const { c15t } = config.integrations;
   if (!c15t) {
     return null;
   }
   const gated = c15t.scripts ?? {};
+  const crossSubdomain = c15t.crossSubdomain && !onHostingDomain(publicOrigin, hostingDomain);
   return {
     backendURL: analytics ? c15t.backendURL : null,
     devTools: dev && c15t.devTools,
@@ -4374,12 +4811,14 @@ function siteConsent(config, customScripts, analytics, dev) {
     options: {
       ui: "react",
       colorScheme: "none",
+      consentCategories: analytics ? [C15T_ANALYTICS_CATEGORY] : undefined,
       presentation: { prompt: c15t.prompt, preferences: c15t.preferences },
       legalLinks: c15t.legalLinks,
       i18n: c15t.locale ? { locale: c15t.locale, detectLanguage: false } : undefined,
       storageConfig: {
-        crossSubdomain: c15t.crossSubdomain,
-        defaultExpiryDays: c15t.expiryDays
+        defaultDomain: crossSubdomain ? `.${new URL(publicOrigin).hostname.split(".").slice(-2).join(".")}` : undefined,
+        defaultExpiryDays: c15t.expiryDays,
+        storageKey: crossSubdomain || !publicOrigin.startsWith("https:") ? undefined : C15T_HOST_STORAGE_KEY
       },
       disableAnimation: c15t.disableAnimation,
       theme: {
@@ -4392,21 +4831,30 @@ function siteConsent(config, customScripts, analytics, dev) {
     }
   };
 }
-function consentScriptDiagnostics(config, customScripts) {
+function consentDiagnostics(config, customScripts, publicOrigin, hostingDomain) {
   const paths = new Set(customScripts.map((script) => script.path));
-  return Object.keys(config.integrations.c15t?.scripts ?? {}).filter((path) => !paths.has(path)).map((path) => ({
+  const diagnostics = Object.keys(config.integrations.c15t?.scripts ?? {}).filter((path) => !paths.has(path)).map((path) => ({
     severity: "error",
     file: "blog.json",
     code: "consent_script_missing",
     message: `integrations.c15t.scripts lists ${path}, but there is no custom script at that path.`
   }));
+  if (config.integrations.c15t?.crossSubdomain && onHostingDomain(publicOrigin, hostingDomain)) {
+    diagnostics.push({
+      severity: "warning",
+      file: "blog.json",
+      code: "consent_cross_subdomain_ignored",
+      message: `integrations.c15t.crossSubdomain only applies on your own domain. On ${hostingDomain} the consent choice stays on this site's host, so other sites there can't read or change it.`
+    });
+  }
+  return diagnostics;
 }
 
 // compiler/utils/head-scripts.ts
-function siteHeadScripts(config, mount, customScripts, analytics) {
+function siteHeadScripts(config, mount, customScripts, analytics, hostingDomain) {
   const gated = config.integrations.c15t?.scripts ?? {};
   return [
-    ...analytics && !analyticsGatedByConsent(config.integrations) ? integrationHeadScripts(config.integrations) : [],
+    ...analytics && !analyticsGatedByConsent(config.integrations) ? integrationHeadScripts(config.integrations, hostingDomain) : [],
     ...customScripts.filter((script) => !gated[script.path]).map((script) => ({
       kind: "external",
       src: joinMountPath(mount, `${SITE_ASSETS_DIR}/${script.fileName}`),
@@ -4549,8 +4997,10 @@ async function buildSite(options) {
     ...prepared.validation.diagnostics
   ];
   const config = prepared.validation.config;
+  const publicOrigin = new URL(options.target.publicOrigin).origin;
+  const { hostingDomain } = options.target;
   if (config) {
-    diagnostics.push(...consentScriptDiagnostics(config, prepared.customScripts));
+    diagnostics.push(...consentDiagnostics(config, prepared.customScripts, publicOrigin, hostingDomain));
   }
   if (hasErrors(diagnostics) || !(prepared.validation.ok && config)) {
     return failedBuild(diagnostics);
@@ -4575,11 +5025,10 @@ async function buildSite(options) {
   await rm3(join7(workDir, "cache"), { recursive: true, force: true });
   await rm3(options.outDir, { recursive: true, force: true });
   await mkdir4(options.outDir, { recursive: true });
-  const publicOrigin = new URL(options.target.publicOrigin).origin;
   const publicFiles = new Set(publicFileList);
   const areas = [];
   const areaPages = [];
-  const consent = siteConsent(config, prepared.customScripts, options.target.analytics, false);
+  const consent = siteConsent(config, prepared.customScripts, options.target.analytics, false, publicOrigin, hostingDomain);
   const pageHtml = new Map;
   for (const { area, mount } of listMountedAreas(mounts)) {
     const paramsPath = join7(workDir, `params.${area}.json`);
@@ -4587,6 +5036,7 @@ async function buildSite(options) {
       area,
       mount,
       publicOrigin,
+      hostingDomain,
       siteId: options.target.siteId,
       deploymentId: options.target.deploymentId,
       noindex: options.target.noindex,
@@ -4598,7 +5048,7 @@ async function buildSite(options) {
       mounts,
       config,
       hasReactComponents: hasReactComponents(prepared.validation.outputs),
-      headScripts: siteHeadScripts(config, mount, prepared.customScripts, options.target.analytics),
+      headScripts: siteHeadScripts(config, mount, prepared.customScripts, options.target.analytics, hostingDomain),
       consent
     });
     const started = Date.now();
@@ -4690,7 +5140,8 @@ area=${area}
     redirects: config.redirects,
     contentSecurityPolicy,
     analyticsConsent: analyticsGatedByConsent(config.integrations),
-    consentBackendURL: config.integrations.c15t?.backendURL
+    consentStorageKey: consent?.options.storageConfig.storageKey,
+    faviconHost: footerFaviconHost(config)
   };
 }
 async function readBuildTarget(path) {
@@ -4698,11 +5149,18 @@ async function readBuildTarget(path) {
 }
 
 // compiler/constants/cli.ts
+var LOCAL_SITE_ID = "local";
+var LOCAL_BUILD_ORIGIN = "http://localhost";
 var USAGE = `notra-sites <command>
 
   validate [--source <dir>] [--target <file>] [--json]  Check settings, MDX and snippets
-  build --source <dir> --target <file> --out <dir> [--json]
-  dev [--source <dir>] [--target <file>] [--area blog|changelog] [--port 4321]   (serves every area; --area picks the one "/" redirects to)`;
+  build [--source <dir>] --out <dir> [--target <file>] [--mount <area>=<path>]... [--origin <url>] [--json]
+  dev [--source <dir>] [--target <file>] [--mount <area>=<path>]... [--area blog|changelog] [--port 4321]
+
+  dev and build serve the areas with a folder (both when neither has one) at /blog and /changelog, or those in --target.
+  --mount blog=/newsroom serves only the areas listed, at those paths, and replaces the mounts of --target.
+  build without --target makes a local build: noindex, no drafts, links on --origin (default ${LOCAL_BUILD_ORIGIN}).
+  --area picks where "/" redirects in dev and, without --target or --mount, also serves that area.`;
 var DEV_READY_TIMEOUT_MS = 60000;
 var DEV_PORT_SEARCH_RANGE = 100;
 var ASTRO_READY_URL = /http:\/\/127\.0\.0\.1:(\d+)(?=\D)/;
@@ -4720,6 +5178,7 @@ var DEV_PROXY_RETRY_ERRORS = new Set([
   "ETIMEDOUT"
 ]);
 var DEV_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+var DEV_FAVICON_URL = "https://www.google.com/s2/favicons";
 
 // compiler/dev-server.ts
 import { spawn as spawn2 } from "node:child_process";
@@ -4924,6 +5383,14 @@ async function startAstroDev(toolchainRoot, area) {
   area.hmrGeneration = (area.hmrGeneration ?? 0) + 1;
   mkdirSync(root, { recursive: true });
   cpSync(join8(toolchainRoot, "src"), join8(root, "src"), { recursive: true });
+  const tailwindSources = join8(root, ".notra", "work");
+  mkdirSync(tailwindSources, { recursive: true });
+  for (const dir of ["site", "entries"]) {
+    const link = join8(tailwindSources, dir);
+    if (!existsSync(link)) {
+      symlinkSync(join8(dirname4(area.paramsPath), dir), link, "junction");
+    }
+  }
   const modules = join8(dirname4(area.paramsPath), "node_modules");
   if (!existsSync(modules)) {
     let dependencyRoot = toolchainRoot;
@@ -5082,7 +5549,7 @@ ${headers.join(`\r
   socket.on("error", () => upstream.destroy());
   socket.on("close", () => upstream.destroy());
 }
-function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => []) {
+function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => [], redirects = () => []) {
   const [fallback] = areas;
   const targetFor = (pathname) => {
     const owner = resolveAreaForPath(mounts, pathname);
@@ -5121,6 +5588,15 @@ function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => [])
       outgoing.end(JSON.stringify({ count: errors.length, key: devErrorsKey(errors) }));
       return;
     }
+    const redirect = matchRedirect(redirects(), pathname);
+    if (redirect) {
+      outgoing.writeHead(redirect.status, {
+        location: redirect.location,
+        "Cache-Control": "no-store"
+      });
+      outgoing.end();
+      return;
+    }
     const errors = siteErrors();
     if (errors.length > 0 && isDocumentRequest(incoming)) {
       outgoing.writeHead(500, {
@@ -5132,6 +5608,14 @@ function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => [])
     }
     if (areas.some((area) => pathname.replace(/\/+$/, "") === joinMountPath(area.mount, AREA_PAGES_FILE))) {
       outgoing.writeHead(404);
+      outgoing.end();
+      return;
+    }
+    const faviconHost = pathname.split(`/${SITE_FAVICON_DIR}/`)[1];
+    if (faviconHost && SITE_FAVICON_HOST.test(faviconHost)) {
+      outgoing.writeHead(302, {
+        location: `${DEV_FAVICON_URL}?domain=${faviconHost}&sz=64`
+      });
       outgoing.end();
       return;
     }
@@ -5417,14 +5901,14 @@ function createDevRefresh(options) {
     if (closed || current !== revision) {
       return;
     }
-    const consentDiagnostics = consentScriptDiagnostics(config, prepared.customScripts);
+    const consentChecks = consentDiagnostics(config, prepared.customScripts, options.params.publicOrigin, options.params.hostingDomain);
     options.printDiagnostics([
       ...prepared.collectDiagnostics,
       ...prepared.validation.diagnostics,
       ...ogImages.diagnostics,
-      ...consentDiagnostics
+      ...consentChecks
     ]);
-    if (hasErrors(consentDiagnostics)) {
+    if (hasErrors(consentChecks)) {
       return;
     }
     const params = {
@@ -5438,8 +5922,8 @@ function createDevRefresh(options) {
           ...Object.values(ogImages.manifest)
         ])
       ].sort(),
-      headScripts: siteHeadScripts(config, options.params.mount, prepared.customScripts, false),
-      consent: siteConsent(config, prepared.customScripts, false, true)
+      headScripts: siteHeadScripts(config, options.params.mount, prepared.customScripts, false, options.params.hostingDomain),
+      consent: siteConsent(config, prepared.customScripts, false, true, options.params.publicOrigin, options.params.hostingDomain)
     };
     const snapshot = JSON.stringify(params);
     if (snapshot === published && active) {
@@ -5518,7 +6002,8 @@ function createDevRefresh(options) {
 }
 
 // compiler/utils/local-options.ts
-import { basename } from "node:path";
+import { statSync } from "node:fs";
+import { basename, isAbsolute, join as join10, relative as relative4, sep as sep3 } from "node:path";
 
 // ../../packages/sites-core/src/utils/default-config.ts
 function createDefaultSiteConfig(name) {
@@ -5529,9 +6014,103 @@ function createDefaultSiteConfig(name) {
   });
 }
 
+// compiler/utils/usage-error.ts
+class UsageError extends Error {
+  name = "UsageError";
+}
+
 // compiler/utils/local-options.ts
+function isDirectory(path) {
+  try {
+    return statSync(path).isDirectory();
+  } catch (error) {
+    const { code } = error;
+    if (code === "ENOENT" || code === "ENOTDIR") {
+      return false;
+    }
+    throw error;
+  }
+}
+function isSiteArea(value) {
+  return value === "blog" || value === "changelog";
+}
+function parseMountFlags(flags = []) {
+  if (flags.length === 0) {
+    return;
+  }
+  const mounts = {};
+  for (const flag of flags) {
+    const separator = flag.indexOf("=");
+    const area = flag.slice(0, Math.max(separator, 0)).trim();
+    const path = flag.slice(separator + 1).trim();
+    if (separator === -1 || !isSiteArea(area)) {
+      throw new UsageError(`--mount ${flag}: expected blog=<path> or changelog=<path>, like --mount blog=/newsroom`);
+    }
+    if (!path.startsWith("/")) {
+      throw new UsageError(`--mount ${flag}: the path must start with /`);
+    }
+    if (mounts[area] !== undefined) {
+      throw new UsageError(`--mount ${flag}: ${area} is mounted twice`);
+    }
+    mounts[area] = path;
+  }
+  try {
+    return normalizeSiteMounts(mounts);
+  } catch (error) {
+    throw new UsageError(`--mount: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+function localMounts(siteRoot, target, area, mounts) {
+  if (mounts) {
+    if (area && !mounts[area]) {
+      throw new UsageError(`--area ${area} needs a --mount ${area}=<path>`);
+    }
+    return mounts;
+  }
+  if (target) {
+    return target.mounts;
+  }
+  const blog = area === "blog" || isDirectory(join10(siteRoot, "blog"));
+  const changelog = area === "changelog" || isDirectory(join10(siteRoot, "changelog"));
+  return {
+    ...blog || !changelog ? { blog: "/blog" } : {},
+    ...changelog || !blog ? { changelog: "/changelog" } : {}
+  };
+}
 function localDefaultConfig(siteRoot, target) {
   return target?.defaultConfig ?? createDefaultSiteConfig(basename(siteRoot).trim().slice(0, siteConfigSchema.shape.name.maxLength ?? 80).trim() || "Local site");
+}
+function parseOrigin(origin) {
+  const url = URL.canParse(origin) ? new URL(origin) : null;
+  if (!(url?.protocol === "http:" || url?.protocol === "https:")) {
+    throw new UsageError(`--origin ${origin}: expected an http(s) URL, like https://example.com`);
+  }
+  return url.origin;
+}
+function localBuildTarget(siteRoot, target, overrides) {
+  const origin = overrides.origin === undefined ? undefined : parseOrigin(overrides.origin);
+  if (target) {
+    return {
+      ...target,
+      ...origin ? { publicOrigin: origin } : {},
+      ...overrides.mounts ? { mounts: overrides.mounts } : {}
+    };
+  }
+  return siteBuildRequestSchema.parse({
+    siteId: LOCAL_SITE_ID,
+    deploymentId: LOCAL_SITE_ID,
+    publicOrigin: origin ?? LOCAL_BUILD_ORIGIN,
+    mounts: localMounts(siteRoot, undefined, undefined, overrides.mounts),
+    noindex: true,
+    defaultConfig: localDefaultConfig(siteRoot)
+  });
+}
+function assertOutsideSource(siteRoot, outDir) {
+  const path = relative4(outDir, siteRoot);
+  const outside = path === ".." || path.startsWith(`..${sep3}`) || isAbsolute(path);
+  if (!outside) {
+    throw new UsageError(`--out ${outDir} holds the site source, and the build empties it first. Use a separate folder, like ${join10(siteRoot, ".notra", "out")}`);
+  }
 }
 
 // compiler/cli.ts
@@ -5559,6 +6138,8 @@ async function main() {
       source: { type: "string", default: "." },
       target: { type: "string" },
       out: { type: "string" },
+      mount: { type: "string", multiple: true },
+      origin: { type: "string" },
       area: { type: "string" },
       port: { type: "string", default: "4321" },
       json: { type: "boolean", default: false },
@@ -5596,15 +6177,17 @@ async function main() {
     process.exit(ok ? 0 : 1);
   }
   if (command === "build") {
-    if (!(values.target && values.out)) {
-      throw new Error("build needs --target and --out");
+    if (!values.out) {
+      throw new UsageError("build needs --out <dir>");
     }
-    const target = await readBuildTarget(values.target);
+    const outDir = resolve2(values.out);
+    assertOutsideSource(siteRoot, outDir);
+    const target = localBuildTarget(siteRoot, values.target ? await readBuildTarget(values.target) : undefined, { origin: values.origin, mounts: parseMountFlags(values.mount) });
     const result = await buildSite({
       toolchainRoot: TOOLCHAIN_ROOT,
       siteRoot,
       target,
-      outDir: resolve2(values.out)
+      outDir
     });
     if (values["result-file"]) {
       await writeFile3(values["result-file"], JSON.stringify(result));
@@ -5614,7 +6197,7 @@ async function main() {
 `);
     } else {
       printDiagnostics(result.diagnostics);
-      process.stderr.write(result.ok ? `✔ Built ${result.areas.map((area) => `${area.area} at ${area.mount} (${area.durationMs} ms)`).join(", ")}: ${result.fileCount} files, ${(result.totalBytes / 1024).toFixed(0)} KB
+      process.stderr.write(result.ok ? `✔ Built ${result.areas.map((area) => `${area.area} at ${area.mount} (${area.durationMs} ms)`).join(", ")}: ${result.fileCount} files, ${(result.totalBytes / 1024).toFixed(0)} KB in ${outDir}
 ` : `Build failed
 `);
     }
@@ -5622,21 +6205,22 @@ async function main() {
   }
   if (command === "dev") {
     const target = values.target ? await readBuildTarget(values.target) : undefined;
-    const mounts = normalizeSiteMounts(target?.mounts ?? { blog: "/blog", changelog: "/changelog" });
+    const { area } = values;
+    if (area !== undefined && area !== "blog" && area !== "changelog") {
+      throw new UsageError("--area must be blog or changelog");
+    }
+    const mounts = normalizeSiteMounts(localMounts(siteRoot, target, area, parseMountFlags(values.mount)));
     const defaultConfig = localDefaultConfig(siteRoot, target);
     const requestedPort = Number(values.port ?? "4321");
     if (!Number.isInteger(requestedPort) || requestedPort < 1 || requestedPort > 65533) {
-      throw new Error("--port must be an integer between 1 and 65533");
+      throw new UsageError("--port must be an integer between 1 and 65533");
     }
     const port = await findUnusedPort(requestedPort);
     if (port !== requestedPort) {
       process.stderr.write(`Port ${requestedPort} is in use, using ${port} instead.
 `);
     }
-    if (values.area && values.area !== "blog" && values.area !== "changelog") {
-      throw new Error("--area must be blog or changelog");
-    }
-    const workDir = await realpath(await mkdtemp2(join10(tmpdir(), "notra-sites-dev-")));
+    const workDir = await realpath(await mkdtemp2(join11(tmpdir(), "notra-sites-dev-")));
     const mounted = listMountedAreas(mounts);
     const areas = [];
     let nextPort = port + 1;
@@ -5647,7 +6231,7 @@ async function main() {
         areas.push({
           ...entry,
           port: areaPort,
-          paramsPath: join10(workDir, `params.dev.${entry.area}.json`)
+          paramsPath: join11(workDir, `params.dev.${entry.area}.json`)
         });
       }
     } catch (error) {
@@ -5663,6 +6247,7 @@ async function main() {
     let documentGeneration = 0;
     let running = [];
     let siteErrors = [];
+    let redirects = [];
     const stopAreas = async () => {
       const stopping = running;
       running = [];
@@ -5673,6 +6258,7 @@ async function main() {
         area: selected.area,
         mount: selected.mount,
         publicOrigin: `http://localhost:${port}`,
+        hostingDomain: target?.hostingDomain,
         siteId: "local",
         deploymentId: "local",
         noindex: true,
@@ -5703,6 +6289,7 @@ async function main() {
           }
           renameSync(temporaryPath, area.paramsPath);
         }
+        redirects = siteRedirectRules(params.config.redirects);
         return true;
       },
       runAstro: async (astroCommand) => {
@@ -5754,7 +6341,7 @@ async function main() {
       });
       proxy = await startDevProxy(port, mounts, ordered, async () => {
         await watchedRefresh;
-      }, () => siteErrors);
+      }, () => siteErrors, () => redirects);
       if (interrupted) {
         proxy.close();
         await stop();
@@ -5783,7 +6370,14 @@ async function main() {
   process.exit(command ? 1 : 0);
 }
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}
+  let message = String(error);
+  const code = error?.code;
+  if (error instanceof UsageError || error instanceof TypeError && code?.startsWith("ERR_PARSE_ARGS")) {
+    message = error.message;
+  } else if (error instanceof Error) {
+    message = error.stack ?? error.message;
+  }
+  process.stderr.write(`${message}
 `);
   process.exit(1);
 });

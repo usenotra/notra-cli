@@ -23,12 +23,12 @@
   --primary-button: var(--primary);
   --primary-foreground: oklch(0.997 0 0);
 
-  --background: var(--notra-background, hsl(0 0% 100%));
+  --background: var(--notra-background, hsl(0 0% 98%));
   --foreground: hsl(0 0% 9%);
   --card: var(--notra-card, hsl(0 0% 100%));
-  --muted: var(--notra-muted, hsl(0 0% 96.1%));
-  --muted-foreground: hsl(240 4% 40%);
-  --border: hsl(0 0% 89.8%);
+  --muted: var(--notra-muted, hsl(0 0% 94.5%));
+  --muted-foreground: hsl(0 0% 40%);
+  --border: hsl(0 0% 92%);
   --success: oklch(0.55 0.109 155);
   --warning: oklch(0.57 0.113 55);
   --info: oklch(0.55 0.13 250);
@@ -39,7 +39,7 @@
     "Inter Variable", "Inter", "Inter Fallback", ui-sans-serif, system-ui,
     -apple-system, "Segoe UI", sans-serif;
   --font-heading: var(--font-body);
-  --font-heading-weight: 600;
+  --font-heading-weight: 500;
   --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --layout-index: 64rem;
   --layout-post: 64rem;
@@ -49,12 +49,12 @@
 
 .dark {
   --accent: var(--primary-dark-mode);
-  --background: var(--notra-background, hsl(233 7% 8%));
-  --foreground: hsl(0 0% 98%);
-  --card: var(--notra-card, hsl(240 6% 10%));
-  --muted: var(--notra-muted, hsl(0 0% 14.9%));
-  --muted-foreground: hsl(0 0% 63.9%);
-  --border: hsl(0 1% 17%);
+  --background: var(--notra-background, hsl(0 0% 4%));
+  --foreground: hsl(0 0% 93%);
+  --card: var(--notra-card, hsl(0 0% 7%));
+  --muted: var(--notra-muted, hsl(0 0% 12%));
+  --muted-foreground: hsl(0 0% 63%);
+  --border: hsl(0 0% 15%);
   --success: oklch(0.7 0.125 155);
   --warning: oklch(0.7 0.125 55);
   --info: oklch(0.7 0.12 250);
@@ -292,6 +292,43 @@ body {
     z-index: 10;
   }
 
+  .page-actions-copy-swap {
+    display: grid;
+  }
+  .page-actions-copy-swap > * {
+    grid-area: 1 / 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    transition-property: opacity, translate, filter, visibility;
+    transition-duration: 280ms;
+    transition-delay: 70ms;
+    transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .page-actions-copy-swap > :last-child,
+  [data-copied] .page-actions-copy-swap > :first-child {
+    visibility: hidden;
+    opacity: 0;
+    filter: blur(4px);
+    translate: 0 0.45em;
+    transition-duration: 360ms;
+    transition-delay: 0s;
+    transition-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  [data-copied] .page-actions-copy-swap > :first-child {
+    translate: 0 -0.45em;
+  }
+  [data-copied] .page-actions-copy-swap > :last-child {
+    visibility: visible;
+    opacity: 1;
+    filter: none;
+    translate: none;
+    transition-duration: 280ms;
+    transition-delay: 70ms;
+    transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
   .post-meta {
     color: var(--muted-foreground);
     font-family: var(--font-code);
@@ -436,7 +473,7 @@ body {
     height: 2rem;
     align-items: center;
     gap: 0.375rem;
-    border-radius: 0.75rem;
+    border-radius: 0.375rem;
     border: 1px solid transparent;
     padding: 0 0.75rem;
     font-size: 0.875rem;
@@ -445,24 +482,17 @@ body {
     transition:
       filter 150ms ease-out,
       transform 150ms ease-out,
-      background-color 150ms ease-out;
+      background-color 150ms ease-out,
+      border-color 150ms ease-out;
   }
 
   .btn:active {
-    transform: scale(0.97);
+    transform: scale(0.96);
   }
 
   .btn-primary {
-    border-color: color-mix(in oklab, var(--primary-button) 60%, transparent);
-    background: linear-gradient(
-      to bottom,
-      color-mix(in oklab, var(--primary-button) 85%, white),
-      var(--primary-button)
-    );
+    background: var(--primary-button);
     color: var(--primary-foreground);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.28),
-      0 1px 2px rgb(0 0 0 / 0.18);
   }
 
   .btn-primary:hover {
@@ -471,26 +501,13 @@ body {
 
   .btn-secondary {
     border-color: var(--border);
-    background: linear-gradient(to bottom, var(--background), var(--muted));
+    background: var(--card);
     color: var(--foreground);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.7),
-      0 1px 2px rgb(0 0 0 / 0.06);
-  }
-
-  .dark .btn-secondary {
-    background: linear-gradient(to bottom, hsl(240 4% 20%), var(--muted));
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.06),
-      0 1px 2px rgb(0 0 0 / 0.4);
   }
 
   .btn-secondary:hover {
-    filter: brightness(0.97);
-  }
-
-  .dark .btn-secondary:hover {
-    filter: brightness(1.25);
+    border-color: color-mix(in oklab, var(--foreground) 18%, transparent);
+    background: var(--muted);
   }
 
   .btn-ghost {
@@ -510,20 +527,8 @@ body {
 
   .btn-sm {
     height: 1.875rem;
-    padding: 0 0.75rem;
-    border-radius: 0.625rem;
+    padding: 0 0.625rem;
     font-size: 0.8125rem;
-  }
-
-  @supports (corner-shape: squircle) {
-    .btn {
-      corner-shape: squircle;
-      border-radius: 0.75rem;
-    }
-
-    .btn-sm {
-      border-radius: 0.625rem;
-    }
   }
 }
 
@@ -635,7 +640,7 @@ body {
 }
 
 .prose-notra {
-  --tw-prose-body: color-mix(in oklab, var(--foreground) 82%, transparent);
+  --tw-prose-body: color-mix(in oklab, var(--foreground) 90%, transparent);
   --tw-prose-headings: var(--foreground);
   --tw-prose-lead: var(--muted-foreground);
   --tw-prose-links: var(--foreground);
@@ -649,28 +654,221 @@ body {
   --tw-prose-code: var(--foreground);
   --tw-prose-th-borders: var(--border);
   --tw-prose-td-borders: var(--border);
-  font-size: 1.0625rem;
-  line-height: 1.75;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+/* Accordions stack into one list: a rule above the first and below every item. */
+.accordion {
+  border-bottom: 1px solid var(--border);
+}
+
+.accordion:not(.accordion + .accordion) {
+  border-top: 1px solid var(--border);
+}
+
+:where(.prose-notra) > .accordion:not(.accordion + .accordion) {
+  margin-top: 2em;
+}
+
+:where(.prose-notra) > .accordion:not(:has(+ .accordion)) {
+  margin-bottom: 2em;
+}
+
+.accordion > summary:hover > svg {
+  color: var(--foreground);
+}
+
+/* Opening fades the answer in instead of animating its height, so it has its full size from the first frame. */
+.accordion[open] > summary + * {
+  animation: accordion-in 200ms ease-out;
+}
+
+@keyframes accordion-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accordion[open] > summary + * {
+    animation: none;
+  }
+}
+
+/* Timeline entries read as a feed: one step smaller than an article. */
+.prose-notra.changelog-body {
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+/* Changelog minimap: a rail of short lines, fixed to the far left of the window and vertically centered
+   (port of the UI registry's chat minimap). The line of the entry being read is lit and
+   a little longer. Only shown when the gutter exists and the device can hover; phones get the plain list. */
+.changelog-minimap {
+  --minimap-rest: 0.75rem;
+  --minimap-item: 2rem;
+  position: fixed;
+  top: 50%;
+  left: 1.5rem;
+  z-index: 30;
+  display: none;
+  translate: 0 -50%;
+}
+
+@media (width >= 64rem) and (hover: hover) {
+  .changelog-minimap {
+    display: block;
+  }
+}
+
+.changelog-minimap-rail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-height: calc(100vh - 8rem);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.changelog-minimap-nav {
+  display: flex;
+  align-items: center;
+  width: var(--minimap-item);
+  height: 1.25rem;
+  color: var(--muted-foreground);
+  opacity: 0;
+  transition:
+    opacity 150ms ease-out,
+    color 150ms ease-out;
+}
+
+.changelog-minimap-nav svg {
+  width: 0.625rem;
+}
+
+.changelog-minimap:hover .changelog-minimap-nav:not(:disabled),
+.changelog-minimap-nav:focus-visible {
+  opacity: 1;
+}
+
+.changelog-minimap-nav:hover {
+  color: var(--foreground);
+}
+
+.changelog-minimap-nav:disabled {
+  cursor: default;
+}
+
+.changelog-minimap-item {
+  --minimap-line: var(--minimap-rest);
+  display: flex;
+  flex: none;
+  align-items: center;
+  width: var(--minimap-item);
+  height: 0.5rem;
+  color: color-mix(in oklab, var(--foreground) 28%, transparent);
+  transition: color 150ms ease-out;
+}
+
+.changelog-minimap-item::before {
+  content: "";
+  width: var(--minimap-line);
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  transition: width 200ms ease-out;
+}
+
+.changelog-minimap-item:focus-visible {
+  outline: none;
+}
+
+.changelog-minimap-item:has(
+  + * + .changelog-minimap-item:is(:hover, :focus-visible)
+),
+.changelog-minimap-item:is(:hover, :focus-visible)
+  + *
+  + .changelog-minimap-item {
+  --minimap-line: calc(var(--minimap-item) * 0.5);
+  color: color-mix(in oklab, var(--foreground) 35%, transparent);
+}
+
+.changelog-minimap-item:has(
+  + .changelog-minimap-item:is(:hover, :focus-visible)
+),
+.changelog-minimap-item:is(:hover, :focus-visible) + .changelog-minimap-item {
+  --minimap-line: calc(var(--minimap-item) * 0.625);
+  color: color-mix(in oklab, var(--foreground) 55%, transparent);
+}
+
+.changelog-minimap-item[data-active],
+.changelog-minimap-item:is(:hover, :focus-visible) {
+  color: var(--foreground);
+}
+
+.changelog-minimap-item[data-active] {
+  --minimap-line: 1rem;
+}
+
+.changelog-minimap-item:is(:hover, :focus-visible) {
+  --minimap-line: calc(var(--minimap-item) * 0.75);
+}
+
+.changelog-minimap-card {
+  position: absolute;
+  top: var(--minimap-card-top, 0);
+  left: calc(100% + 0.75rem);
+  width: 16rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.625rem;
+  background: var(--card);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--foreground) 8%, transparent),
+    0 8px 24px rgb(0 0 0 / 0.12);
+  opacity: 0;
+  pointer-events: none;
+  translate: -4px -50%;
+  transition:
+    opacity 150ms ease-out,
+    translate 150ms ease-out;
+}
+
+.changelog-minimap-card[data-open] {
+  opacity: 1;
+  translate: 0 -50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .changelog-minimap-nav,
+  .changelog-minimap-item,
+  .changelog-minimap-item::before,
+  .changelog-minimap-card {
+    transition: none;
+  }
 }
 
 .prose-notra :where(h1, h2, h3, h4) {
   font-family: var(--font-heading);
   font-weight: var(--font-heading-weight);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   text-wrap: balance;
 }
 
 .prose-notra :where(h2) {
-  font-size: 1.5rem;
-  line-height: 1.3;
-  margin-top: 2.25em;
-  margin-bottom: 0.75em;
+  font-size: 1.875rem;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+  margin-top: 2em;
+  margin-bottom: 0.6em;
 }
 
 .prose-notra :where(h3) {
-  font-size: 1.1875rem;
-  line-height: 1.4;
-  margin-top: 1.875em;
+  font-size: 1.375rem;
+  line-height: 1.3;
+  margin-top: 1.75em;
   margin-bottom: 0.5em;
 }
 
@@ -689,9 +887,9 @@ body {
     var(--foreground) 25%,
     transparent
   );
-  text-decoration-thickness: 1.5px;
+  text-decoration-thickness: 1px;
   text-underline-offset: 3px;
-  font-weight: 500;
+  font-weight: inherit;
   transition: text-decoration-color 150ms ease-out;
 }
 
@@ -700,10 +898,11 @@ body {
 }
 
 @utility inline-code {
-  border-radius: 0.25rem;
-  background: var(--muted);
-  padding: 0.125em 0.3em;
-  font-size: 0.875em;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--card);
+  padding: 0.125em 0.35em;
+  font-size: 0.8125em;
   font-weight: 400;
 }
 
@@ -759,10 +958,13 @@ body {
 
 .prose-notra :where(blockquote):not(:where(.not-prose *)) {
   font-style: normal;
-  font-weight: 400;
-  border-left-width: 2px;
-  border-left-color: var(--accent);
-  padding-left: 1.25em;
+  border-left-width: 0;
+  padding-left: 0;
+  font-family: var(--font-heading);
+  font-size: 1.5em;
+  font-weight: var(--font-heading-weight);
+  line-height: 1.3;
+  letter-spacing: -0.025em;
   color: var(--foreground);
 }
 

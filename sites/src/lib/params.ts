@@ -44,13 +44,6 @@ export function areaDescription(area: BuildParams["area"]): string | undefined {
   return config[area]?.description ?? config.description;
 }
 
-export function areaHref(area: BuildParams["area"]): string | null {
-  if (area === params.area) {
-    return href();
-  }
-  return params.mounts[area] ?? null;
-}
-
 export function markdownHref(pagePath?: string): string {
   return pagePath ? `${pagePath}.md` : href("index.md");
 }

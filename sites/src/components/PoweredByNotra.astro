@@ -1,44 +1,81 @@
 ---
 import { NOTRA_BADGE_URL } from "../constants/branding";
+
+// The badge lives in a shadow root so site CSS can't restyle or hide its
+// contents, and the host's inline !important styles win over selectors.
+const hostStyle = [
+  "display:inline-flex",
+  "visibility:visible",
+  "opacity:1",
+  "position:static",
+  "transform:none",
+  "clip-path:none",
+  "mask:none",
+  "filter:none",
+  "zoom:1",
+  "width:auto",
+  "height:auto",
+  "max-width:none",
+  "max-height:none",
+  "overflow:visible",
+  "content-visibility:visible",
+  "pointer-events:auto",
+]
+  .map((declaration) => declaration + "!important")
+  .join(";");
 ---
 
-<a href={NOTRA_BADGE_URL} rel="noopener" class="notra-badge inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs whitespace-nowrap transition-colors duration-150 ease-out">
-  <svg viewBox="0 0 800 800" width="14" height="14" fill="none" aria-hidden="true" class="shrink-0">
-    <path
-      d="M572.881 462.223c-12.712 43.22-290.678 105.932-394.068 83.898l-48.305-10.169 48.305-78.814 68.644-104.237 73.729-106.78 251.695-127.119 78.814-22.881 17.796 17.796h10.17c17.796 35.593 3.945 147.458-12.712 195.763-25.424 73.729-124.576 96.61-177.966 114.407-4.064 1.355 96.61-5.085 83.898 38.136Z"
-      fill="#c8b2ee"
-      stroke="currentColor"
-      stroke-width="40"
-      stroke-linecap="round"></path>
-    <path d="M700 96.111c-162.712-4.237-510.508 111.356-600 607.627" stroke="currentColor" stroke-width="80" stroke-linecap="round"></path>
-  </svg>
-  <span>Powered by <span class="notra-badge-name">Notra</span></span>
-</a>
-
-<style>
-  /* Keep the white badge legible when site CSS overrides global link colors. */
-  .notra-badge {
-    border-color: #e5e5e5;
-    background: #fff;
-    color: hsl(240 4% 40%);
-    text-decoration: none;
-  }
-
-  .notra-badge:hover {
-    border-color: rgb(23 23 23 / 20%);
-    color: #171717;
-  }
-
-  .notra-badge svg {
-    color: #171717;
-  }
-
-  .notra-badge > span {
-    color: inherit;
-  }
-
-  .notra-badge .notra-badge-name {
-    color: #171717;
-    font-weight: 500;
-  }
-</style>
+<notra-badge data-notra-badge style={hostStyle}>
+  <template shadowrootmode="open">
+    <style is:inline>
+      :host {
+        flex-shrink: 0;
+      }
+      a {
+        all: initial;
+        box-sizing: border-box;
+        display: inline-flex;
+        height: 28px;
+        align-items: center;
+        gap: 6px;
+        padding: 0 10px;
+        border: 1px solid #e5e5e5;
+        border-radius: 9999px;
+        background: #fff;
+        color: hsl(240 4% 40%);
+        cursor: pointer;
+        font: 12px/16px ui-sans-serif, system-ui, sans-serif;
+        white-space: nowrap;
+        transition: color 150ms ease-out, border-color 150ms ease-out;
+      }
+      a:hover {
+        border-color: rgb(23 23 23 / 20%);
+        color: #171717;
+      }
+      a:focus-visible {
+        outline: 2px solid #171717;
+        outline-offset: 2px;
+      }
+      svg {
+        flex-shrink: 0;
+        color: #171717;
+      }
+      b {
+        color: #171717;
+        font-weight: 500;
+      }
+    </style>
+    <a href={NOTRA_BADGE_URL} rel="noopener">
+      <svg viewBox="0 0 800 800" width="14" height="14" fill="none" aria-hidden="true">
+        <path
+          d="M572.881 462.223c-12.712 43.22-290.678 105.932-394.068 83.898l-48.305-10.169 48.305-78.814 68.644-104.237 73.729-106.78 251.695-127.119 78.814-22.881 17.796 17.796h10.17c17.796 35.593 3.945 147.458-12.712 195.763-25.424 73.729-124.576 96.61-177.966 114.407-4.064 1.355 96.61-5.085 83.898 38.136Z"
+          fill="#c8b2ee"
+          stroke="currentColor"
+          stroke-width="40"
+          stroke-linecap="round"></path>
+        <path d="M700 96.111c-162.712-4.237-510.508 111.356-600 607.627" stroke="currentColor" stroke-width="80" stroke-linecap="round"></path>
+      </svg>
+      <span>Powered by <b>Notra</b></span>
+    </a>
+  </template>
+</notra-badge>

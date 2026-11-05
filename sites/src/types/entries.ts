@@ -26,6 +26,17 @@ export interface ChangelogEntryProps {
   layout?: "timeline" | "cards" | "compact";
 }
 
+export interface ChangelogMinimapItem {
+  anchor: string;
+  title: string;
+  date: string;
+  description?: string;
+}
+
+export interface ChangelogMinimapProps {
+  items: ChangelogMinimapItem[];
+}
+
 export interface CardImages {
   show: boolean;
   placeholder: boolean;
@@ -38,6 +49,7 @@ export interface PostCardProps {
   featured?: boolean;
   images?: CardImages;
   showAuthor?: boolean;
+  tile?: boolean;
   priority?: boolean;
 }
 

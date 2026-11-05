@@ -1,36 +1,43 @@
 ---
 import { CHANGELOG_SLOT_SPACING } from "../constants/changelog";
 import { getChangelogEntries } from "../lib/entries";
+import { formatDate } from "../lib/dates";
 import { changelogOptions } from "../lib/options";
 import { areaDescription, areaTitle } from "../lib/params";
 import { slotArea, slotChangelogEntry, slotSite } from "../lib/slot-data";
 import AreaHero from "./AreaHero.astro";
 import ChangelogEntry from "./ChangelogEntry.astro";
+import ChangelogMinimap from "./ChangelogMinimap.astro";
 import SiteSlot from "./SiteSlot.astro";
 
 const entries = await getChangelogEntries();
-const { layout } = changelogOptions;
+const { layout, minimap: showMinimap = true } = changelogOptions;
 const slotSpacing = CHANGELOG_SLOT_SPACING[layout];
+const timeline = layout === "timeline";
+const minimap = timeline && showMinimap
+  ? entries.map((entry) => ({ anchor: entry.id.replaceAll("/", "-"), title: entry.data.title, date: formatDate(entry.data.date), description: entry.data.description }))
+  : [];
 ---
 
 <SiteSlot name="changelog-hero" data={{ site: slotSite(), area: slotArea() }}>
-  <AreaHero title={areaTitle("changelog")} description={areaDescription("changelog")} />
+  <AreaHero title={areaTitle("changelog")} description={areaDescription("changelog")} width={timeline ? "reading" : "index"} />
 </SiteSlot>
 
-<div class="mx-auto mt-10 max-w-(--layout-reading) md:mt-14">
+<div class:list={["mx-auto mt-10 w-full md:mt-14", timeline ? "max-w-(--layout-reading)" : "max-w-(--layout-index)"]}>
+  <ChangelogMinimap items={minimap} />
   {
     entries.length === 0 ? (
       <p class="mt-12 text-sm text-muted-foreground">Nothing shipped yet. Add an .mdx file to changelog/ and push.</p>
     ) : (
       <div
         class:list={[
-          layout === "timeline" && "flex flex-col gap-20 border-t border-border pt-10",
-          layout === "cards" && "flex flex-col gap-6",
-          layout === "compact" && "divide-y divide-border border-y border-border",
+          timeline && "divide-y divide-border",
+          layout === "cards" && "flex max-w-(--layout-reading) flex-col gap-6",
+          layout === "compact" && "max-w-(--layout-reading) divide-y divide-border border-y border-border",
         ]}
       >
         {entries.map((entry) => (
-          <section>
+          <section class:list={[timeline && "py-12 first:pt-0 last:pb-0 sm:py-16"]}>
             <ChangelogEntry entry={entry} layout={layout} />
             <SiteSlot name="after-changelog-entry" data={{ entry: slotChangelogEntry(entry) }} class={slotSpacing} />
           </section>

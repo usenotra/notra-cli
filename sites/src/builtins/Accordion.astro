@@ -4,12 +4,12 @@ import type { AccordionProps as Props } from "../types/builtins";
 const { title, defaultOpen = false } = Astro.props;
 ---
 
-<details data-notra-markdown class="accordion not-prose group border-b border-border" open={defaultOpen}>
-  <summary class="flex cursor-pointer list-none items-center justify-between gap-4 py-3 text-[0.9375rem] font-medium [&::-webkit-details-marker]:hidden">
-    {title}
-    <svg aria-hidden="true" viewBox="0 0 24 24" class="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+<details data-notra-markdown class="accordion not-prose group" open={defaultOpen}>
+  <summary class="flex cursor-pointer list-none items-center justify-between gap-6 rounded-sm py-4 text-base font-medium text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+    <span class="text-pretty">{title}</span>
+    <svg aria-hidden="true" viewBox="0 0 16 16" class="size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-out group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3v10M3 8h10" /></svg>
   </summary>
-  <div class="pb-4 text-[0.9375rem] leading-relaxed text-muted-foreground [&>p]:my-0 [&>p+p]:mt-2">
+  <div class="max-w-[60ch] pr-10 pb-5 text-[0.9375rem] leading-7 text-pretty text-muted-foreground [&>p]:my-0 [&>p+p]:mt-3">
     <slot />
   </div>
 </details>

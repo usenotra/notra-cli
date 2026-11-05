@@ -5,7 +5,8 @@ export type BrandIconName = keyof typeof BRAND_ICONS;
 
 export type LinkIcon =
   | { kind: "lucide"; name: IconName }
-  | { kind: "brand"; name: BrandIconName };
+  | { kind: "brand"; name: BrandIconName }
+  | { kind: "favicon"; src: string };
 
 export interface BrandIconProps {
   name: BrandIconName;

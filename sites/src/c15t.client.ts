@@ -5,7 +5,24 @@ import { plausibleAnalytics } from "@c15t/integrations/plausible-analytics";
 import { posthog } from "@c15t/integrations/posthog";
 import { umamiAnalytics } from "@c15t/integrations/umami-analytics";
 
+import {
+  dropSharedConsentCookie,
+  migrateLegacyRefusal,
+} from "./utils/consent-migration";
+
 const analytics = __NOTRA_CONSENT_ANALYTICS__;
+const onHostingDomain =
+  __NOTRA_HOSTING_DOMAIN__ !== null &&
+  `.${location.hostname}`.endsWith(`.${__NOTRA_HOSTING_DOMAIN__}`);
+
+if (
+  __NOTRA_HOSTING_DOMAIN__ !== null &&
+  onHostingDomain &&
+  __NOTRA_CONSENT_STORAGE_KEY__ === null
+) {
+  dropSharedConsentCookie(__NOTRA_HOSTING_DOMAIN__);
+}
+migrateLegacyRefusal(__NOTRA_CONSENT_STORAGE_KEY__);
 
 export default {
   scripts: [
@@ -16,6 +33,7 @@ export default {
               clientId: analytics.databuddy.clientId,
               scriptUrl: analytics.databuddy.scriptUrl,
               apiUrl: analytics.databuddy.apiUrl,
+              replay: analytics.databuddy.replay,
               configWhenGranted: {
                 ...analytics.databuddy.options,
                 disabled: false,
@@ -35,6 +53,7 @@ export default {
             id: analytics.gtag.id,
             category: "measurement",
             loadMode: "after-consent",
+            config: onHostingDomain ? { cookie_domain: "none" } : undefined,
           }),
         ]
       : []),
@@ -48,6 +67,7 @@ export default {
               cookieless_mode: "never",
               disable_session_recording:
                 analytics.posthog.disableSessionRecording,
+              ...(onHostingDomain && { cross_subdomain_cookie: false }),
             },
           }),
         ]

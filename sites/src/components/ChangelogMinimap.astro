@@ -1,0 +1,121 @@
+---
+import type { ChangelogMinimapProps as Props } from "../types/entries";
+
+// Port of the chat minimap from the Notra UI registry: one line per entry, the entry being read is lit,
+// hovering grows the line (and its neighbours a little) and opens one shared preview card.
+// The up and down buttons step through the entries and only show while the minimap is hovered.
+const { items } = Astro.props;
+const chevron = "M.75 5.25 5 1l4.25 4.25";
+---
+
+{
+  items.length > 1 && (
+    <div class="changelog-minimap" data-minimap>
+      <button type="button" class="changelog-minimap-nav" data-minimap-nav="-1" aria-label="Previous entry">
+        <svg aria-hidden="true" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d={chevron} /></svg>
+      </button>
+      <nav aria-label="Changelog entries" class="changelog-minimap-rail" data-minimap-rail>
+        {items.map((item) => (
+          <a href={`#${item.anchor}`} class="changelog-minimap-item" data-minimap-item data-title={item.title} data-date={item.date} data-description={item.description}>
+            <span class="sr-only">{item.title}</span>
+          </a>
+        ))}
+      </nav>
+      <button type="button" class="changelog-minimap-nav" data-minimap-nav="1" aria-label="Next entry">
+        <svg aria-hidden="true" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="rotate-180"><path d={chevron} /></svg>
+      </button>
+      <div class="changelog-minimap-card" data-minimap-card aria-hidden="true">
+        <p class="text-xs text-muted-foreground tabular-nums" data-minimap-card-date />
+        <p class="mt-0.5 truncate text-sm font-medium text-foreground" data-minimap-card-title />
+        <p class="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground empty:hidden" data-minimap-card-description />
+      </div>
+    </div>
+  )
+}
+
+<script>
+  const OPEN_DELAY_MS = 80;
+  const CLOSE_DELAY_MS = 100;
+
+  const root = document.querySelector<HTMLElement>("[data-minimap]");
+  const rail = root?.querySelector<HTMLElement>("[data-minimap-rail]");
+  const card = root?.querySelector<HTMLElement>("[data-minimap-card]");
+
+  if (root && rail && card) {
+    const items = [...rail.querySelectorAll<HTMLAnchorElement>("[data-minimap-item]")];
+    const field = (name: string) => card.querySelector<HTMLElement>(`[data-minimap-card-${name}]`);
+    const fields = { date: field("date"), title: field("title"), description: field("description") };
+    let timer = 0;
+
+    const open = (item: HTMLAnchorElement) => {
+      clearTimeout(timer);
+      timer = window.setTimeout(
+        () => {
+          for (const key of ["date", "title", "description"] as const) {
+            const node = fields[key];
+            if (node) {
+              node.textContent = item.dataset[key] ?? "";
+            }
+          }
+          const top = item.offsetTop - rail.scrollTop + rail.offsetTop + item.offsetHeight / 2;
+          card.style.setProperty("--minimap-card-top", `${top}px`);
+          card.toggleAttribute("data-open", true);
+        },
+        card.hasAttribute("data-open") ? 0 : OPEN_DELAY_MS,
+      );
+    };
+    const close = () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(() => card.removeAttribute("data-open"), CLOSE_DELAY_MS);
+    };
+
+    for (const item of items) {
+      item.addEventListener("pointerenter", () => open(item));
+      item.addEventListener("focus", () => open(item));
+      item.addEventListener("pointerleave", close);
+      item.addEventListener("blur", close);
+    }
+    rail.addEventListener("scroll", () => card.removeAttribute("data-open"), { passive: true });
+
+    const buttons = [...root.querySelectorAll<HTMLButtonElement>("[data-minimap-nav]")];
+    for (const button of buttons) {
+      button.addEventListener("click", () => items[current + Number(button.dataset.minimapNav)]?.click());
+    }
+
+    // One lit line: the last entry whose top has passed the upper third of the viewport.
+    const targets = items.map((item) => document.getElementById(decodeURIComponent(item.hash.slice(1))));
+    let frame = 0;
+    let current = 0;
+    const update = () => {
+      frame = 0;
+      const line = innerHeight / 3;
+      current = 0;
+      targets.forEach((target, index) => {
+        if (target && target.getBoundingClientRect().top <= line) {
+          current = index;
+        }
+      });
+      // At the bottom the last entry can't reach the line; a page that doesn't scroll is at the top and bottom at once.
+      const height = document.documentElement.scrollHeight;
+      if (height > innerHeight && innerHeight + scrollY >= height - 2) {
+        current = items.length - 1;
+      }
+      items.forEach((item, index) => item.toggleAttribute("data-active", index === current));
+      for (const button of buttons) {
+        const next = current + Number(button.dataset.minimapNav);
+        button.disabled = next < 0 || next >= items.length;
+      }
+      // Keep the lit line inside the rail when the list is taller than the viewport.
+      const active = items[current];
+      if (active && (active.offsetTop < rail.scrollTop || active.offsetTop + active.offsetHeight > rail.scrollTop + rail.clientHeight)) {
+        rail.scrollTo({ top: active.offsetTop - rail.clientHeight / 3 });
+      }
+    };
+    const schedule = () => {
+      frame ||= requestAnimationFrame(update);
+    };
+    update();
+    addEventListener("scroll", schedule, { passive: true });
+    addEventListener("resize", schedule, { passive: true });
+  }
+</script>
