@@ -33,7 +33,7 @@ export default class SitesBuild extends Command {
     const { code } = await runSitesRuntime([
       'build', '--source', source, '--out', resolve(flags.out),
       ...mountArgs(flags.mount),
-      ...(flags.origin ? ['--origin', flags.origin] : []),
+      ...(flags.origin === undefined ? [] : ['--origin', flags.origin]),
       ...(flags.json ? ['--json'] : []),
     ]);
     process.exitCode = code ?? 1;

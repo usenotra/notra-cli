@@ -6756,10 +6756,15 @@ function realPath(path) {
   }
 }
 function assertOutsideSource(siteRoot, outDir) {
-  const path = relative5(realPath(outDir), realPath(siteRoot));
+  const out = realPath(outDir);
+  const source = realPath(siteRoot);
+  const path = relative5(out, source);
   const outside = path === ".." || path.startsWith(`..${sep3}`) || isAbsolute(path);
-  if (!outside) {
-    throw new UsageError(`--out ${outDir} holds the site source, and the build empties it first. Use a separate folder, like ${join13(siteRoot, ".notra", "out")}`);
+  const [firstSegment] = relative5(source, out).split(sep3);
+  const inSourceFolder = outside && firstSegment !== ".." && SITE_SOURCE_ROOTS.has(firstSegment ?? "");
+  if (!outside || inSourceFolder) {
+    const problem = outside ? `is inside the site's ${firstSegment} folder` : "holds the site source";
+    throw new UsageError(`--out ${outDir} ${problem}, and the build empties it first. Use a separate folder, like ${join13(siteRoot, ".notra", "out")}`);
   }
 }
 
