@@ -155,7 +155,7 @@ with `notra geo scans start <projectId> --prompt <promptId>`. Run
 | Command group | Available workflows |
 |---|---|
 | `posts` | List, get, create, update, delete, generate, generation status; schedule, inspect or cancel publishing |
-| `schedules` | List, create, update, delete; run once now, list recent runs |
+| `schedules` | List, create from GitHub and/or Linear integrations, update only the fields you send, delete; run once now, list recent runs |
 | `brands colors` | List, create, update, delete brand guideline colors |
 | `integrations activity` | List merged pull requests, commits or releases of a connected GitHub repository |
 | `event-triggers` | List, get, create, replace configuration, delete |

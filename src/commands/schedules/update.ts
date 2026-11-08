@@ -4,10 +4,12 @@ import { validateUpdateScheduleBody } from '../../schemas/schedules';
 import { readJsonFromFileOrStdin } from '../../utils/files';
 
 export default class SchedulesUpdate extends NotraCommand {
-  static override description = 'Replace a schedule with a new full body (PATCH semantics).';
+  static override description =
+    'Update a schedule. Send only the fields to change; omitted fields keep their value.';
   static override examples = [
     '<%= config.bin %> schedules update sched_abc --config-file ./schedule.json',
-    'cat schedule.json | <%= config.bin %> schedules update sched_abc --config-file -',
+    `echo '{"enabled":false}' | <%= config.bin %> schedules update sched_abc --config-file -`,
+    `echo '{"targets":{"linearIntegrationIds":["lin_abc"]}}' | <%= config.bin %> schedules update sched_abc --config-file -`,
   ];
 
   static override args = {
@@ -16,7 +18,7 @@ export default class SchedulesUpdate extends NotraCommand {
 
   static override flags = {
     'config-file': Flags.string({
-      description: 'Read the request body from a JSON file (or "-" for stdin).',
+      description: 'Read the fields to change from a JSON file (or "-" for stdin).',
       required: true,
     }),
   };

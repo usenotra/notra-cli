@@ -55,6 +55,7 @@ import type {
   ListSchedulesResponse,
   ScheduleBody,
   ScheduleResponse,
+  ScheduleUpdateBody,
 } from '../types/schedules';
 import type { ClientOverrides } from '../types/client';
 import { getApiKey, getBaseUrl, getConfigValue, getStoredAuth } from './config';
@@ -270,7 +271,7 @@ class SchedulesClient {
 
   updateSchedule(request: {
     scheduleId: string;
-    body: ScheduleBody;
+    body: ScheduleUpdateBody;
   }): Promise<ScheduleResponse> {
     return this.http.request('PATCH', `/v1/schedules/${segment(request.scheduleId)}`, {
       body: request.body,
