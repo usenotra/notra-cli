@@ -222,6 +222,21 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": true
   },
   {
+    "id": "createPostPullRequest",
+    "method": "POST",
+    "path": "/v1/posts/{postId}/pull-request",
+    "summary": "Open a draft pull request for a post",
+    "tag": "Content",
+    "parameters": [
+      {
+        "name": "postId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
     "id": "createProject",
     "method": "POST",
     "path": "/v1/projects",
@@ -237,6 +252,21 @@ export const OPENAPI_OPERATIONS = [
     "summary": "Create a schedule",
     "tag": "Schedules",
     "parameters": [],
+    "hasBody": true
+  },
+  {
+    "id": "createSitePostPreview",
+    "method": "POST",
+    "path": "/v1/sites/{siteId}/post-previews",
+    "summary": "Preview a post on a Site",
+    "tag": "Sites",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      }
+    ],
     "hasBody": true
   },
   {
@@ -432,7 +462,7 @@ export const OPENAPI_OPERATIONS = [
     "method": "DELETE",
     "path": "/v1/sites/{siteId}/authors/{authorId}",
     "summary": "Delete a site author",
-    "tag": "Content",
+    "tag": "Sites",
     "parameters": [
       {
         "name": "siteId",
@@ -976,7 +1006,7 @@ export const OPENAPI_OPERATIONS = [
     "id": "getGeoTrafficJourneyStats",
     "method": "GET",
     "path": "/v1/projects/{projectId}/geo/traffic/journey-stats",
-    "summary": "Get AI journey statistics",
+    "summary": "Get AI journey statistics (private beta)",
     "tag": "GEO",
     "parameters": [
       {
@@ -1271,7 +1301,7 @@ export const OPENAPI_OPERATIONS = [
     "id": "getGeoWebAnalytics",
     "method": "GET",
     "path": "/v1/projects/{projectId}/geo/traffic/web",
-    "summary": "Get website analytics totals and trend",
+    "summary": "Get website analytics totals and trend (private beta)",
     "tag": "GEO",
     "parameters": [
       {
@@ -1316,7 +1346,7 @@ export const OPENAPI_OPERATIONS = [
     "id": "getGeoWebAnalyticsBreakdowns",
     "method": "GET",
     "path": "/v1/projects/{projectId}/geo/traffic/web/breakdowns",
-    "summary": "Get website analytics breakdowns",
+    "summary": "Get website analytics breakdowns (private beta)",
     "tag": "GEO",
     "parameters": [
       {
@@ -1353,6 +1383,56 @@ export const OPENAPI_OPERATIONS = [
         "name": "sites",
         "in": "query",
         "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "getGeoWebAnalyticsUtm",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/traffic/web/utm",
+    "summary": "Get website sessions by UTM parameter (private beta)",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "host",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "path",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sites",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "dimension",
+        "in": "query",
+        "required": true
       }
     ],
     "hasBody": false
@@ -1492,6 +1572,61 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "getSite",
+    "method": "GET",
+    "path": "/v1/sites/{siteId}",
+    "summary": "Get a Site",
+    "tag": "Sites",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "getSiteDeployment",
+    "method": "GET",
+    "path": "/v1/sites/{siteId}/deployments/{deploymentId}",
+    "summary": "Get a deployment and its build log",
+    "tag": "Sites",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "deploymentId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "getSitePostPreview",
+    "method": "GET",
+    "path": "/v1/sites/{siteId}/post-previews/{postId}",
+    "summary": "Get a post preview",
+    "tag": "Sites",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "postId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "getSkill",
     "method": "GET",
     "path": "/v1/skills/{name}",
@@ -1571,7 +1706,7 @@ export const OPENAPI_OPERATIONS = [
     "method": "POST",
     "path": "/v1/sites/{siteId}/authors/import",
     "summary": "Import Notra authors into a site",
-    "tag": "Content",
+    "tag": "Sites",
     "parameters": [
       {
         "name": "siteId",
@@ -1698,7 +1833,7 @@ export const OPENAPI_OPERATIONS = [
     "id": "listGeoAnalyticsImports",
     "method": "GET",
     "path": "/v1/projects/{projectId}/geo/traffic/imports",
-    "summary": "List history imports",
+    "summary": "List history imports (private beta)",
     "tag": "GEO",
     "parameters": [
       {
@@ -2171,7 +2306,7 @@ export const OPENAPI_OPERATIONS = [
     "method": "GET",
     "path": "/v1/sites/{siteId}/authors",
     "summary": "List a site's authors",
-    "tag": "Content",
+    "tag": "Sites",
     "parameters": [
       {
         "name": "siteId",
@@ -2182,11 +2317,31 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "listSiteDeployments",
+    "method": "GET",
+    "path": "/v1/sites/{siteId}/deployments",
+    "summary": "List a Site's deployments",
+    "tag": "Sites",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "listSites",
     "method": "GET",
     "path": "/v1/sites",
     "summary": "List Notra Sites",
-    "tag": "Content",
+    "tag": "Sites",
     "parameters": [],
     "hasBody": false
   },
@@ -2274,11 +2429,11 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": true
   },
   {
-    "id": "publishSite",
+    "id": "publishPostToSite",
     "method": "POST",
-    "path": "/v1/sites/{siteId}/publish",
-    "summary": "Publish a site's Design changes",
-    "tag": "Content",
+    "path": "/v1/sites/{siteId}/publications",
+    "summary": "Publish a post to a Site",
+    "tag": "Sites",
     "parameters": [
       {
         "name": "siteId",
@@ -2287,6 +2442,41 @@ export const OPENAPI_OPERATIONS = [
       }
     ],
     "hasBody": true
+  },
+  {
+    "id": "publishSite",
+    "method": "POST",
+    "path": "/v1/sites/{siteId}/publish",
+    "summary": "Publish a site's Design changes",
+    "tag": "Sites",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
+    "id": "redeploySiteDeployment",
+    "method": "POST",
+    "path": "/v1/sites/{siteId}/deployments/{deploymentId}/redeploy",
+    "summary": "Rebuild a deployment",
+    "tag": "Sites",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "deploymentId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
   },
   {
     "id": "restoreGeoPersona",
@@ -2432,6 +2622,21 @@ export const OPENAPI_OPERATIONS = [
     "parameters": [
       {
         "name": "projectId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "startSiteDeployment",
+    "method": "POST",
+    "path": "/v1/sites/{siteId}/deployments",
+    "summary": "Deploy the production branch",
+    "tag": "Sites",
+    "parameters": [
+      {
+        "name": "siteId",
         "in": "path",
         "required": true
       }
@@ -2727,7 +2932,7 @@ export const OPENAPI_OPERATIONS = [
     "method": "PATCH",
     "path": "/v1/sites/{siteId}/author-page",
     "summary": "Set the author page layout",
-    "tag": "Content",
+    "tag": "Sites",
     "parameters": [
       {
         "name": "siteId",
@@ -2757,7 +2962,7 @@ export const OPENAPI_OPERATIONS = [
     "method": "PUT",
     "path": "/v1/sites/{siteId}/authors/{authorId}",
     "summary": "Create or update a site author",
-    "tag": "Content",
+    "tag": "Sites",
     "parameters": [
       {
         "name": "siteId",
@@ -3570,7 +3775,7 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
             "includeReleases": true,
             "includeLinearData": false
           },
-          "description": "Which kinds of activity to collect from the selected sources. At least one must be true."
+          "description": "Which kinds of activity to collect from the selected sources. At least one must be true, unless pullRequest is set, which ignores them."
         },
         "selectedItems": {
           "type": "object",
@@ -3650,11 +3855,78 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
           "minLength": 1,
           "maxLength": 100,
           "description": "IANA timezone used for relative lookback windows such as current_day and yesterday."
+        },
+        "pullRequest": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repo": {
+              "type": "string",
+              "minLength": 1
+            },
+            "number": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "owner",
+            "repo",
+            "number"
+          ],
+          "description": "Write about exactly this pull request in a connected repository, open or merged, whatever its age. Uses only its pull request data, so dataPoints and lookbackWindow do not apply. Cannot be combined with other source selectors or selectedItems."
+        },
+        "brief": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "description": "What the post should be about and what it should cover, in your own words. Steers the topic, angle and structure; facts still come from the selected sources."
         }
       },
       "required": [
         "contentType"
       ]
+    }
+  },
+  "createPostPullRequest": {
+    "parameters": {
+      "postId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "integrationId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "GitHub integration ID from GET /v1/integrations to open the pull request in."
+        },
+        "github": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repo": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "owner",
+            "repo"
+          ],
+          "description": "Connected repository by owner and name, instead of integrationId."
+        }
+      },
+      "description": "Where to open the pull request. Omit both fields when the organization has exactly one connected GitHub repository."
     }
   },
   "createProject": {
@@ -3864,6 +4136,45 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "targets",
         "outputType",
         "enabled"
+      ]
+    }
+  },
+  "createSitePostPreview": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "postId": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]{1,100}$"
+        },
+        "lifetime": {
+          "type": "string",
+          "enum": [
+            "1h",
+            "1d",
+            "3d",
+            "7d"
+          ],
+          "default": "1d",
+          "description": "How long the preview stays open."
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128,
+          "description": "Lets people outside the workspace open the preview with this password."
+        }
+      },
+      "required": [
+        "postId"
       ]
     }
   },
@@ -4781,6 +5092,57 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "getGeoWebAnalyticsUtm": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when from/to are set."
+      },
+      "from": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "to": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "host": {
+        "type": "string",
+        "maxLength": 128,
+        "description": "Hostname to filter on, such as www.example.com. Subdomains are included. Omit for every host."
+      },
+      "path": {
+        "type": "string",
+        "maxLength": 2048,
+        "description": "Only count this exact page path, such as /pricing."
+      },
+      "sites": {
+        "type": "string",
+        "enum": [
+          "exclude"
+        ],
+        "description": "`exclude` leaves out traffic to sites hosted on Notra Sites."
+      },
+      "dimension": {
+        "type": "string",
+        "enum": [
+          "source",
+          "medium",
+          "campaign",
+          "term",
+          "content"
+        ],
+        "description": "UTM parameter to group sessions by."
+      }
+    }
+  },
   "getGitHubActivity": {
     "parameters": {
       "integrationId": {
@@ -4878,6 +5240,43 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
   },
   "getPublicApiStatus": {
     "parameters": {}
+  },
+  "getSite": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "getSiteDeployment": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "deploymentId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "getSitePostPreview": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "postId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
   },
   "getSkill": {
     "parameters": {
@@ -5505,6 +5904,22 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "listSiteDeployments": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 20,
+        "description": "Newest deployments to return. Live deployments are always included."
+      }
+    }
+  },
   "listSites": {
     "parameters": {}
   },
@@ -5853,6 +6268,28 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "publishPostToSite": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "postId": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]{1,100}$"
+        }
+      },
+      "required": [
+        "postId"
+      ]
+    }
+  },
   "publishSite": {
     "parameters": {
       "siteId": {
@@ -5870,6 +6307,20 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
           "maxLength": 200,
           "description": "Commit message. Written from the changes when omitted."
         }
+      }
+    }
+  },
+  "redeploySiteDeployment": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "deploymentId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
       }
     }
   },
@@ -6072,6 +6523,15 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
   "startGeoAgentReadinessScan": {
     "parameters": {
       "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "startSiteDeployment": {
+    "parameters": {
+      "siteId": {
         "type": "string",
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$"
