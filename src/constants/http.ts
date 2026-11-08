@@ -10,3 +10,5 @@ export const ORGANIZATION_ID_HEADER = 'X-Notra-Organization-Id';
 // added detail after them keeps the CLI hint working.
 export const ORGANIZATION_SELECTION_REQUIRED_PREFIX = 'organization selection required';
 export const WORKSPACE_ACCESS_REVOKED_PREFIX = 'workspace access revoked';
+// Web analytics, journey stats and imports answer this until the workspace has the beta flag.
+export const WEB_ANALYTICS_UNAVAILABLE_PREFIX = 'web analytics is not available';

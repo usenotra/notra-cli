@@ -13,6 +13,7 @@ describe('curated API commands end to end', () => {
   let server: ReturnType<typeof Bun.serve>;
   let requests = 0;
   let errorStatus = 0;
+  let errorMessage = 'Mock API error';
   let lastBody: unknown;
   let lastAuthorization: string | null;
   let serveSnapshot = false;
@@ -30,7 +31,7 @@ describe('curated API commands end to end', () => {
       hostname: '127.0.0.1', port: 0,
       async fetch(request) {
         requests++;
-        if (errorStatus) return Response.json({ error: 'Mock API error' }, { status: errorStatus });
+        if (errorStatus) return Response.json({ error: errorMessage }, { status: errorStatus });
         const url = new URL(request.url);
         const body = request.method === 'GET' || request.method === 'DELETE' ? null : await request.json().catch(() => null);
         lastBody = body;
@@ -404,6 +405,10 @@ describe('curated API commands end to end', () => {
       ['brands', 'colors', 'update', 'brand_1', 'color_1'],
       ['integrations', 'activity', 'integration_1', '--type', 'issues'],
       ['integrations', 'activity', 'integration_1', '--since', 'yesterday'],
+      ['geo', 'traffic', 'web', 'project_1', '--sites', 'include'],
+      ['geo', 'traffic', 'web-breakdowns', 'project_1', '--days', '366'],
+      ['geo', 'traffic', 'journey-stats', 'project_1', '--from', 'last-week'],
+      ['geo', 'traffic', 'imports'],
     ]) {
       const before = requests;
       const result = await run(args, false, 'null');
@@ -423,5 +428,25 @@ describe('curated API commands end to end', () => {
         expect(result.stderr).toBe('');
       }
     } finally { errorStatus = 0; }
+  });
+
+  test('source and packaged web analytics commands explain the private beta 403', async () => {
+    errorStatus = 403;
+    errorMessage = 'Web analytics is not available for this workspace yet.';
+    try {
+      for (const command of ['web', 'web-breakdowns', 'journey-stats', 'imports']) {
+        for (const built of [false, true]) {
+          const result = await run(['geo', 'traffic', command, 'project_1'], built);
+          expect(result.code, result.stdout).toBe(3);
+          expect(result.stderr).toBe('');
+          const output = JSON.parse(result.stdout);
+          expect(output.error).toBe('Web analytics is a private beta that this workspace does not have access to yet.');
+          expect(output.detail).toContain('`web-analytics` access');
+        }
+      }
+    } finally {
+      errorStatus = 0;
+      errorMessage = 'Mock API error';
+    }
   });
 });
