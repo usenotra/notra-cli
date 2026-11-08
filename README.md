@@ -146,9 +146,9 @@ accepts `--json` for machine-readable output.
 GEO commands cover projects, settings, answer engines, prompts and Search
 Console prompt suggestions, sequences, competitors, scans, visibility,
 sentiment, scan changes, prompt history, citation shelf sources, content gaps,
-briefs, agent readiness, and AI traffic. Rescan a single prompt with
-`notra geo scans start <projectId> --prompt <promptId>`. Run `notra geo --help`
-to browse the complete command tree.
+briefs, agent readiness, AI traffic, and web analytics. Rescan a single prompt
+with `notra geo scans start <projectId> --prompt <promptId>`. Run
+`notra geo --help` to browse the complete command tree.
 
 ### Content and workspace workflows
 
@@ -250,6 +250,25 @@ combines eight read-only signals into a bounded diagnosis with recommended next
 actions. Optional sections have a five-second timeout and become warnings when
 unavailable; a failed visibility overview still fails the command. Stored
 sentiment analysis does not start a billed analysis run.
+
+### Web analytics (private beta)
+
+```bash
+notra geo traffic web <projectId> --days 30 --host www.example.com
+notra geo traffic web-breakdowns <projectId> --from 2026-10-01 --to 2026-10-31 --path /pricing
+notra geo traffic journey-stats <projectId> --days 7
+notra geo traffic imports <projectId>
+```
+
+`web` returns page views, visitors, sessions, and AI-referred visitors against
+the previous window, with a daily trend and the hosts seen. `web-breakdowns`
+returns top pages, sources, countries, devices, languages, AI visitor outcomes,
+outbound link clicks, Core Web Vitals, and JavaScript errors. Both accept
+`--host`, `--path`, and `--sites exclude` (leave out Notra Sites traffic).
+`journey-stats` returns AI journey counts per source and page, and `imports`
+lists history imports from Plausible, Cloudflare, or Vercel; start imports in
+the dashboard. Workspaces without `web-analytics` access get HTTP 403, which
+the CLI reports as a private beta error with exit code 3.
 
 ### Complete API access
 
