@@ -1,0 +1,28 @@
+---
+import type { AuthorSocialsProps as Props } from "../types/authors";
+import { authorSocialLabel } from "../utils/author-social-label";
+import BrandIcon from "./BrandIcon.astro";
+import Icon from "./Icon.astro";
+
+const { socials, class: className } = Astro.props;
+---
+
+{
+  socials.length > 0 && (
+    <ul class:list={["flex flex-wrap gap-2", className]}>
+      {socials.map((social) => (
+        <li>
+          <a
+            href={social.url}
+            rel="me noopener"
+            target="_blank"
+            aria-label={authorSocialLabel(social)}
+            class="author-social flex size-8 items-center justify-center rounded-md border border-border transition-colors duration-150 hover:bg-muted"
+          >
+            {social.kind === "website" ? <Icon name="globe" size={16} /> : <BrandIcon name={social.kind} size={16} />}
+          </a>
+        </li>
+      ))}
+    </ul>
+  )
+}

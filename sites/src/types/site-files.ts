@@ -1,5 +1,7 @@
 import type { SITE_SLOT_NAMES } from "@notra/sites-core/constants/site-layout";
 
+import type { AuthorSocialKind } from "./authors";
+
 export type SlotName = (typeof SITE_SLOT_NAMES)[number];
 
 export interface SiteMdxModule {
@@ -28,6 +30,23 @@ export interface SlotPost {
   authors: { name: string; title?: string; url?: string }[];
   url: string;
   path: string;
+}
+
+export interface SlotAuthor {
+  id: string;
+  name: string;
+  title?: string;
+  bio?: string;
+  /** The avatar as the theme's own `<img>` loads it. */
+  avatar?: string;
+  /** The author's own website. */
+  url?: string;
+  /** The author page's full address. */
+  href: string;
+  /** The author page without the domain, like `area.path`. */
+  path: string;
+  socials: { kind: AuthorSocialKind; url: string; label: string }[];
+  postCount: number;
 }
 
 export interface SlotChangelogEntry {

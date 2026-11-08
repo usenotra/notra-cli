@@ -40,6 +40,13 @@ const hasSidebarSlot = Boolean(slotComponent("sidebar"));
 const wide = options.width === "wide" && (options.toc || hasSidebarSlot);
 const hasToc = options.toc && headings.filter((heading) => heading.depth === 2 || heading.depth === 3).length > 1;
 const compact = options.header === "compact";
+// The compact layout shows a post's update date under its author instead of in the meta row.
+const lastEdited = compact && config.metadata.timestamp ? entry.data.updated : undefined;
+// Sections as Toc.astro groups them: each h2, or an h3 before the first h2.
+const tocSections = headings.reduce(
+  (count, heading) => (heading.depth === 2 || (heading.depth === 3 && count === 0) ? count + 1 : count),
+  0
+);
 const minutes = options.readingTime ? readingMinutes(entry.body) : undefined;
 const metaItems = [
   { label: formatDate(entry.data.date), tone: "text-foreground", datetime: isoDate(entry.data.date) },
@@ -66,7 +73,7 @@ const metaItems = [
         <div class="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
           <div class="post-meta flex flex-wrap items-center gap-x-3 gap-y-1">
             <time datetime={isoDate(entry.data.date)}>Published {formatDate(entry.data.date)}</time>
-            {updated && <span>· Updated <time datetime={isoDate(updated)}>{formatDate(updated)}</time></span>}
+            {updated && !lastEdited && <span>· Updated <time datetime={isoDate(updated)}>{formatDate(updated)}</time></span>}
             {minutes !== undefined && <span class="whitespace-nowrap">· {minutes} min read</span>}
             {entry.data.draft && <span class="text-warning">· Draft</span>}
             {tags.length > 0 && <span class="flex items-center gap-x-3"><span aria-hidden="true">·</span><TagLinks tags={tags} /></span>}
@@ -96,6 +103,11 @@ const metaItems = [
       compact ? "lg:row-span-3 lg:row-start-1" : "lg:row-start-2 lg:pt-12",
     ]}>
       {compact && <AuthorCard authors={authors} />}
+      {lastEdited && (
+        <p class:list={["post-last-edited text-xs text-muted-foreground", authors.length > 0 && "mt-4 lg:mt-6"]}>
+          Last edited <time datetime={isoDate(lastEdited)} class="text-foreground">{formatDate(lastEdited)}</time>
+        </p>
+      )}
       {(options.toc || hasSidebarSlot) && (
         <div class:list={[
           "flex-col gap-8",
@@ -121,13 +133,17 @@ const metaItems = [
     compact ? "post-body border-t border-border pt-6" : "pt-10 lg:pt-12",
   ]}>
         {
-          !compact && hasToc && (
-            <details class="group/toc mb-8 rounded-xl border border-border lg:hidden">
-              <summary class="post-meta flex cursor-pointer list-none items-center justify-between px-4 py-3 [&::-webkit-details-marker]:hidden">
-                On this page
-                <Icon name="chevron-down" size={15} class="transition-transform duration-200 ease-out group-open/toc:rotate-180" />
+          hasToc && (
+            <details class="group/toc mb-8 rounded-xl border border-border p-2 lg:hidden" data-mobile-toc>
+              <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted/60 [&::-webkit-details-marker]:hidden">
+                <span class="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-foreground"><Icon name="list" size={18} /></span>
+                <span class="flex flex-1 flex-col">
+                  <span class="text-sm font-medium text-foreground">On this page</span>
+                  <span class="text-xs text-muted-foreground">{tocSections} {tocSections === 1 ? "section" : "sections"}</span>
+                </span>
+                <Icon name="chevron-down" size={16} class="text-muted-foreground transition-transform duration-200 ease-out group-open/toc:rotate-180" />
               </summary>
-              <div class="border-t border-border px-4 py-3">
+              <div class="mt-2 border-t border-border px-2 pt-3 pb-1">
                 <Toc headings={headings} inline />
               </div>
             </details>

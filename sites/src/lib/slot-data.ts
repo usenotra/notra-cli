@@ -1,11 +1,14 @@
+import type { ListedAuthor } from "../types/authors";
 import type { BlogEntry, ChangelogEntry } from "../types/entries";
 import type {
   SlotArea,
+  SlotAuthor,
   SlotChangelogEntry,
   SlotCommonData,
   SlotPost,
   SlotSite,
 } from "../types/site-files";
+import { authorSocialLabel } from "../utils/author-social-label";
 import { excerpt } from "../utils/excerpt";
 import { authorsOf } from "./authors";
 import { formatDate } from "./dates";
@@ -54,6 +57,28 @@ export function slotPost(
     })),
     url: absoluteUrl(path),
     path,
+  };
+}
+
+export function slotAuthor(
+  author: ListedAuthor,
+  postCount: number
+): SlotAuthor {
+  const path = author.href ?? href(`author/${author.id}`);
+  return {
+    id: author.id,
+    name: author.name,
+    title: author.title,
+    bio: author.bio,
+    avatar: author.avatar,
+    url: author.socials.find((social) => social.kind === "website")?.url,
+    href: absoluteUrl(path),
+    path,
+    socials: author.socials.map((social) => ({
+      ...social,
+      label: authorSocialLabel(social),
+    })),
+    postCount,
   };
 }
 

@@ -201,6 +201,8 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
+        // Keeps /*! notices, such as the one Paper Shaders' Apache-2.0 license requires.
+        output: { comments: { legal: true } },
         onwarn(warning, warn) {
           if (warning.code === "MODULE_LEVEL_DIRECTIVE") {
             return;

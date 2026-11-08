@@ -2,6 +2,7 @@
 import type { AreaHeroProps as Props } from "../types/areas";
 import { heroOptions } from "../lib/options";
 import { assetUrl, params } from "../lib/params";
+import Dither from "./Dither.astro";
 
 const { title, description, width: column = "index" } = Astro.props;
 const hero = heroOptions(params.area);
@@ -22,8 +23,9 @@ const width = column === "reading" ? "max-w-(--layout-reading)" : "max-w-(--layo
       </div>
     </section>
   ) : (
-    <section class:list={["mx-auto w-full", width, style === "wash" && "hero-wash mt-4 rounded-2xl sm:mt-6"]}>
-      <div class:list={["flex flex-col gap-3", style === "wash" ? "px-6 py-10 sm:px-10 sm:py-14" : "pt-4 sm:pt-8 lg:pt-10"]}>
+    <section class:list={["mx-auto w-full", width, (style === "wash" || style === "dither") && "hero-wash mt-4 rounded-2xl sm:mt-6", style === "dither" && "relative isolate overflow-clip"]}>
+      {style === "dither" && <Dither class="absolute inset-0 -z-10" />}
+      <div class:list={["flex flex-col gap-3", style === "wash" || style === "dither" ? "px-6 py-10 sm:px-10 sm:py-14" : "pt-4 sm:pt-8 lg:pt-10"]}>
         {hero.eyebrow && <p class="eyebrow text-sm font-medium text-primary">{hero.eyebrow}</p>}
         <h1 id="page-title" class="max-w-2xl font-heading text-4xl leading-[1.05] font-(--font-heading-weight) tracking-[-0.035em] text-balance sm:text-5xl">{title}</h1>
         {description && <p class="max-w-xl text-base leading-7 text-pretty text-muted-foreground sm:text-lg">{description}</p>}

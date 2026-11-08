@@ -1,28 +1,24 @@
 import type { z } from "astro/zod";
 
+import type { AUTHOR_PROFILE_FIELDS } from "../constants/authors";
 import type { entryAuthorSchema } from "../schemas/entries";
 
 export type EntryAuthor = z.infer<typeof entryAuthorSchema>;
 export type EntryAuthorRef = string | EntryAuthor;
 
-export interface AuthorFields {
+export type AuthorProfileKind = (typeof AUTHOR_PROFILE_FIELDS)[number];
+
+export interface AuthorFields extends Partial<
+  Record<AuthorProfileKind, string>
+> {
   name: string;
   title?: string;
   bio?: string;
   avatar?: string;
   url?: string;
-  x?: string;
-  linkedin?: string;
-  github?: string;
-  youtube?: string;
 }
 
-export type AuthorSocialKind =
-  | "x"
-  | "linkedin"
-  | "github"
-  | "youtube"
-  | "website";
+export type AuthorSocialKind = AuthorProfileKind | "website";
 
 export interface AuthorSocial {
   kind: AuthorSocialKind;
@@ -48,10 +44,17 @@ export interface AuthorAvatarProps {
   loading?: "eager" | "lazy";
 }
 
+export interface AuthorSocialsProps {
+  socials: AuthorSocial[];
+  class?: string;
+}
+
 export interface AuthorListProps {
   authors: ResolvedAuthor[];
 }
 
+export type ListedAuthor = ResolvedAuthor & { id: string };
+
 export interface AuthorPageProps {
-  author: ResolvedAuthor;
+  author: ListedAuthor;
 }
