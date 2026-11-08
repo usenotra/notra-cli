@@ -11,8 +11,6 @@ import { parseArgs } from "node:util";
 
 // ../../packages/sites-compiler/src/constants/validate.ts
 var TEXT_SOURCE_FILE = /\.(?:mdx?|jsx?|json|txt|css|svg)$/i;
-var ENTRY_FILE = /^(blog|changelog)\/(.+)\.(mdx?)$/;
-var ENTRY_SLUG = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
 var MDX_FILE = /\.mdx$/i;
 var SCRIPT_FILE = /\.jsx?$/i;
 var COLLAPSED_WARNING_CODES = new Set([
@@ -20,6 +18,13 @@ var COLLAPSED_WARNING_CODES = new Set([
   "frontmatter_unknown_key"
 ]);
 var COLLAPSED_WARNING_EXAMPLES = 3;
+var ANY_SCHEME_AUTHOR_LINK_FIELDS = [
+  "url",
+  "x",
+  "linkedin",
+  "github",
+  "youtube"
+];
 
 // ../../packages/sites-compiler/src/utils/diagnostics.ts
 function hasErrors(diagnostics) {
@@ -64,6 +69,11 @@ function collapseRepeatedWarnings(diagnostics) {
   });
 }
 
+// ../../packages/sites-core/src/constants/entries.ts
+var SITE_ENTRY_FILE = /^(blog|changelog)\/(.+)\.(mdx?)$/;
+var SITE_ENTRY_SLUG = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
+var SITE_ENTRY_INDEX_SUFFIX = "/index";
+
 // ../../packages/sites-core/src/constants/site-layout.ts
 var SITE_NAVBAR_LINK_TYPES = [
   "github",
@@ -104,6 +114,7 @@ var SITE_SLOTS_DIR = "slots";
 var SITE_SLOT_NAMES = [
   "blog-hero",
   "changelog-hero",
+  "author-hero",
   "before-post",
   "after-post",
   "sidebar",
@@ -160,6 +171,7 @@ var SITE_ICON_NAMES = [
   "lightbulb",
   "link",
   "linkedin",
+  "list",
   "lock",
   "mail",
   "map",
@@ -201,6 +213,7 @@ var SITE_ICON_NAMES = [
   "youtube",
   "zap"
 ];
+var SITE_AUTHOR_PAGE_LAYOUTS = ["inline", "stacked"];
 
 // ../../packages/sites-core/src/constants/sites.ts
 var SITE_AREAS = ["blog", "changelog"];
@@ -347,6 +360,8 @@ var SITE_SOURCE_EXTENSIONS = [
   ".txt",
   ".woff",
   ".woff2",
+  ".ttf",
+  ".otf",
   ".css",
   ".riv",
   ".wasm"
@@ -388,6 +403,9 @@ var SITE_SOURCE_SAFE_SEGMENT = /^[A-Za-z0-9._@()+ -]+$/;
 // ../../packages/sites-core/src/constants/site-config.ts
 var SITE_HEX_COLOR = /^#(?:[0-9a-fA-F]{3}){1,2}$/;
 var SITE_LINK_HREF = /^(?:\/(?!\/)|https?:\/\/|mailto:)/;
+var SITE_REDIRECT_PLACEHOLDER = /^:[A-Za-z_]\w*$/;
+var SITE_REDIRECT_PLACEHOLDER_IN_TEXT = /:([A-Za-z_]\w*)/;
+var SITE_REDIRECT_DESTINATION_ORIGIN = /^[a-z][a-z\d+.-]*:(?:\/\/[^/?#]*)?/i;
 var SITE_ICON_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 var SITE_META_TAG_NAME = /^[a-z][a-z0-9:_.-]*$/i;
 var SITE_AUTHOR_ID = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
@@ -420,6 +438,20 @@ var DATABUDDY_MAX_RETRIES = 10;
 var DATABUDDY_MAX_DELAY_MS = 60000;
 var CAMEL_CASE_BOUNDARY = /[A-Z]/g;
 var TRAILING_SLASHES = /\/+$/;
+var CAPLESS_SCRIPT_URL = "https://c.capless.sh/c.js";
+var CAPLESS_KEY = /^cs_[A-Za-z0-9_-]{8,128}$/;
+var RYBBIT_SCRIPT_URL = "https://app.rybbit.io/api/script.js";
+var RYBBIT_SITE_ID = /^[A-Za-z0-9]{1,32}$/;
+var RYBBIT_SITE_ID_MESSAGE = "Copy the Site ID from your Rybbit tracking code";
+var RYBBIT_PATH_PATTERN = /^(?:\/[^\s"'<>]{0,199}|re:\S{1,200})$/;
+var RYBBIT_NAMESPACE = /^[A-Za-z_$][\w$]{0,63}$/;
+var RYBBIT_CSS_CLASS = /^-?[_A-Za-z][\w-]{0,99}$/;
+var RYBBIT_MAX_PATTERNS = 50;
+var RYBBIT_MAX_TAG_LENGTH = 256;
+var RYBBIT_MAX_SELECTOR_LENGTH = 500;
+var RYBBIT_MAX_DELAY_MS = 60000;
+var RYBBIT_MIN_REPLAY_BATCH_INTERVAL_MS = 1000;
+var RYBBIT_MAX_REPLAY_BATCH_SIZE = 1000;
 var PLAUSIBLE_SCRIPT_URL = "https://plausible.io/js/script.js";
 var POSTHOG_DEFAULT_API_HOST = "https://us.i.posthog.com";
 var POSTHOG_CSP_ORIGIN = "https://*.posthog.com";
@@ -430,6 +462,7 @@ var HOSTNAME = new RegExp(`^${HOST}$`);
 var HOSTNAME_WITH_PORT = new RegExp(`^${HOST}${PORT}$`);
 var HTTPS_BASE_URL = new RegExp(String.raw`^https:\/\/${HOST}${PORT}(?:\/[A-Za-z0-9._~-]+)*\/*$`);
 var HTTPS_SCRIPT_URL = new RegExp(String.raw`^https:\/\/${HOST}${PORT}(?:\/(?!\.{1,2}(?:\/|$))[A-Za-z0-9._~-]+)+$`);
+var RYBBIT_SCRIPT_URL_PATTERN = new RegExp(String.raw`^https:\/\/${HOST}${PORT}(?:\/(?!\.{1,2}(?:\/|$))[A-Za-z0-9._~-]+)*\/script\.js$`);
 var CSP_ORIGIN = new RegExp(String.raw`^(?:https|wss):\/\/(?:\*\.)?${HOST}${PORT}$`);
 var POSTHOG_API_KEY = /^phc_[A-Za-z0-9]{20,64}$/;
 var C15T_ANALYTICS_CATEGORY = "measurement";
@@ -527,6 +560,91 @@ import { z } from "zod";
 var httpsScriptUrlSchema = z.string().trim().regex(HTTPS_SCRIPT_URL, "Use the full https:// script URL including its path, without query or hash").optional();
 var httpsBaseUrlSchema = z.string().trim().regex(HTTPS_BASE_URL, "Use an https:// URL without query or hash").overwrite((value) => value.replace(TRAILING_SLASHES, "")).optional();
 var optionalBooleanSchema = z.boolean().optional();
+var caplessSchema = z.strictObject({
+  key: z.string({
+    error: "Copy the public key (cs_…) from your Capless tracking code"
+  }).trim().regex(CAPLESS_KEY, "Copy the public key (cs_…) from your Capless tracking code").describe("Public Capless ingest key (cs_…) from your tracking code (data-key). It can only write events, so it is safe in HTML.")
+});
+var rybbitPathPatternsSchema = z.array(z.string().trim().regex(RYBBIT_PATH_PATTERN, "Use a path glob starting with /, e.g. /drafts/**, or a regex starting with re:")).max(RYBBIT_MAX_PATTERNS).optional();
+var rybbitCssClassSchema = z.string().trim().regex(RYBBIT_CSS_CLASS, "Use a single CSS class name without the dot").optional();
+var rybbitSelectorSchema = z.string().trim().min(1).max(RYBBIT_MAX_SELECTOR_LENGTH).optional();
+var rybbitMaskInputOptionsSchema = z.strictObject({
+  color: optionalBooleanSchema,
+  date: optionalBooleanSchema,
+  "datetime-local": optionalBooleanSchema,
+  email: optionalBooleanSchema,
+  month: optionalBooleanSchema,
+  number: optionalBooleanSchema,
+  password: optionalBooleanSchema,
+  range: optionalBooleanSchema,
+  search: optionalBooleanSchema,
+  select: optionalBooleanSchema,
+  tel: optionalBooleanSchema,
+  text: optionalBooleanSchema,
+  textarea: optionalBooleanSchema,
+  time: optionalBooleanSchema,
+  url: optionalBooleanSchema,
+  week: optionalBooleanSchema
+}).optional().describe(`Input types to mask when maskAllInputs is false, e.g. {"password": true, "email": true, "tel": true}. Replaces Rybbit's default of {"password": true, "email": true}.`);
+var rybbitMouseInteractionsSchema = z.strictObject({
+  MouseUp: optionalBooleanSchema,
+  MouseDown: optionalBooleanSchema,
+  Click: optionalBooleanSchema,
+  ContextMenu: optionalBooleanSchema,
+  DblClick: optionalBooleanSchema,
+  Focus: optionalBooleanSchema,
+  Blur: optionalBooleanSchema,
+  TouchStart: optionalBooleanSchema,
+  TouchMove_Departed: optionalBooleanSchema,
+  TouchEnd: optionalBooleanSchema,
+  TouchCancel: optionalBooleanSchema
+});
+var rybbitReplaySamplingSchema = z.strictObject({
+  mousemove: z.union([z.boolean(), z.number().int().min(0).max(RYBBIT_MAX_DELAY_MS)]).optional().describe("Record mouse movement: false, true or the milliseconds between samples (default: false)."),
+  mouseInteraction: z.union([z.boolean(), rybbitMouseInteractionsSchema]).optional().describe("Record mouse and touch interactions: true, false or one switch per interaction (default: Click, DblClick, Focus and Blur only)."),
+  scroll: z.number().int().min(0).max(RYBBIT_MAX_DELAY_MS).optional().describe("Milliseconds between scroll samples (default: 500)."),
+  media: z.number().int().min(0).max(RYBBIT_MAX_DELAY_MS).optional().describe("Milliseconds between media playback samples (default: 800)."),
+  input: z.enum(["all", "last"]).optional().describe('Record every input change ("all") or only the final value ("last", default).')
+}).optional().describe("How often the recorder samples visitor activity. Replaces Rybbit's defaults as a whole, so set every key you care about.");
+var rybbitSlimDomOptionsSchema = z.strictObject({
+  script: optionalBooleanSchema,
+  comment: optionalBooleanSchema,
+  headFavicon: optionalBooleanSchema,
+  headWhitespace: optionalBooleanSchema,
+  headMetaDescKeywords: optionalBooleanSchema,
+  headMetaSocial: optionalBooleanSchema,
+  headMetaRobots: optionalBooleanSchema,
+  headMetaHttpEquiv: optionalBooleanSchema,
+  headMetaAuthorship: optionalBooleanSchema,
+  headMetaVerification: optionalBooleanSchema,
+  headTitleMutations: optionalBooleanSchema
+}).optional().describe("Parts of the page left out of recordings to keep them small. Replaces Rybbit's defaults (everything but script and headTitleMutations) as a whole.");
+var rybbitReplaySchema = z.strictObject({
+  sampleRate: z.number().int().min(0).max(100).optional().describe("Percentage of sessions to record, from 0 to 100 (default: 100)."),
+  batchSize: z.number().int().min(1).max(RYBBIT_MAX_REPLAY_BATCH_SIZE).optional().describe("Recording events per upload (default: 250)."),
+  batchInterval: z.number().int().min(RYBBIT_MIN_REPLAY_BATCH_INTERVAL_MS).max(RYBBIT_MAX_DELAY_MS).optional().describe("Milliseconds between uploads, at least 1000 (default: 5000)."),
+  maskAllInputs: optionalBooleanSchema.describe("Mask every form input in recordings (default: true)."),
+  maskInputOptions: rybbitMaskInputOptionsSchema,
+  maskTextSelectors: z.array(z.string().trim().min(1).max(RYBBIT_MAX_SELECTOR_LENGTH)).max(RYBBIT_MAX_PATTERNS).optional().describe('CSS selectors whose text is masked in recordings, e.g. [".author-email"].'),
+  maskTextClass: rybbitCssClassSchema.describe(`Class that masks an element's text in recordings (default: "rr-mask").`),
+  blockClass: rybbitCssClassSchema.describe('Class that replaces an element with a placeholder in recordings (default: "rr-block").'),
+  blockSelector: rybbitSelectorSchema.describe("CSS selector for elements replaced with a placeholder in recordings."),
+  ignoreClass: rybbitCssClassSchema.describe('Class whose inputs are not recorded (default: "rr-ignore").'),
+  ignoreSelector: rybbitSelectorSchema.describe("CSS selector for inputs that are not recorded."),
+  collectFonts: optionalBooleanSchema.describe("Record web fonts so replays look like the live page (default: true)."),
+  sampling: rybbitReplaySamplingSchema,
+  slimDomOptions: rybbitSlimDomOptionsSchema
+}).optional().describe("Session replay recorder options. Turn session replay on in your Rybbit site settings; these options only tune it.");
+var rybbitSchema = z.strictObject({
+  siteId: z.string({ error: RYBBIT_SITE_ID_MESSAGE }).trim().regex(RYBBIT_SITE_ID, RYBBIT_SITE_ID_MESSAGE).describe("Public Rybbit Site ID from your tracking code (the siteId in the script URL). No API key is needed."),
+  scriptUrl: z.string().trim().regex(RYBBIT_SCRIPT_URL_PATTERN, "Use the URL of your Rybbit instance's script.js, e.g. https://stats.acme.com/api/script.js").optional().describe("Tracker script URL ending in /script.js. Defaults to https://app.rybbit.io/api/script.js; set it for a self-hosted or proxied Rybbit. Events and replays go to the same host."),
+  skipPatterns: rybbitPathPatternsSchema.describe('Up to 50 path globs (* and **) or re: regexes that are never tracked, e.g. ["/drafts/**"]. Session replay ignores them.'),
+  maskPatterns: rybbitPathPatternsSchema.describe('Up to 50 path globs or re: regexes whose matching paths are replaced by the pattern before sending, e.g. ["/authors/*"].'),
+  debounce: z.number().int().min(0).max(RYBBIT_MAX_DELAY_MS).optional().describe("Milliseconds to wait after a client-side navigation before counting the page view; 0 turns debouncing off (default: 500)."),
+  tag: z.string().trim().min(1).max(RYBBIT_MAX_TAG_LENGTH).optional().describe("Label added to every event, up to 256 characters, e.g. a site section or release."),
+  namespace: z.string().trim().regex(RYBBIT_NAMESPACE, "Use a JavaScript identifier, e.g. analytics").optional().describe('Global name of the tracker API (window.<namespace>) and of its opt-out key disable-<namespace> (default: "rybbit").'),
+  replay: rybbitReplaySchema
+});
 var ga4Schema = z.strictObject({
   measurementId: z.string({ error: "Use the measurement ID (G-…)" }).trim().regex(GA4_MEASUREMENT_ID, "Use the measurement ID (G-…)").describe("Google Analytics 4 web stream Measurement ID (G-…). Find it in Admin > Data streams > your web stream.")
 });
@@ -636,6 +754,10 @@ var databuddySchema = z.strictObject({
 });
 var siteIntegrationUpdateSchema = z.discriminatedUnion("provider", [
   z.object({
+    provider: z.literal("capless"),
+    settings: caplessSchema.nullable()
+  }),
+  z.object({
     provider: z.literal("databuddy"),
     settings: databuddySchema.nullable()
   }),
@@ -651,15 +773,22 @@ var siteIntegrationUpdateSchema = z.discriminatedUnion("provider", [
   z.object({
     provider: z.literal("posthog"),
     settings: posthogSchema.nullable()
+  }),
+  z.object({
+    provider: z.literal("rybbit"),
+    settings: rybbitSchema.nullable()
   })
 ]);
 var siteIntegrationsSchema = z.strictObject({
+  capless: caplessSchema.optional(),
   databuddy: databuddySchema.optional(),
   ga4: ga4Schema.optional(),
   plausible: plausibleSchema.optional(),
   posthog: posthogSchema.optional(),
+  rybbit: rybbitSchema.optional(),
   umami: umamiSchema.optional(),
-  c15t: c15tSchema.optional()
+  c15t: c15tSchema.optional(),
+  indexnow: z.boolean().optional().describe("Submit new and changed pages to IndexNow search engines such as Bing after each production deployment. It is on by default, and false turns it off.")
 }).default({}).describe("Analytics providers and the c15t consent banner for the live site. Notra installs their scripts automatically. Preview deployments and local development do not send provider events.");
 var siteSecuritySchema = z.strictObject({
   contentSecurityPolicy: z.boolean().default(true),
@@ -816,7 +945,7 @@ var siteLayoutSchema = z2.object({
   width: z2.union([z2.number().min(40).max(120), z2.literal("full")]).default(72)
 }).default({ width: 72 });
 var blogHeroSchema = z2.object({
-  style: z2.enum(["wash", "plain", "image", "none"]).default("plain"),
+  style: z2.enum(["wash", "plain", "image", "dither", "none"]).default("plain"),
   eyebrow: z2.string().trim().max(60).optional(),
   image: sitePathSchema.optional()
 }).default({ style: "plain" });
@@ -849,7 +978,7 @@ var siteBlogSchema = z2.object({
     readingTime: false,
     style: "auto"
   }),
-  authorPage: z2.enum(["inline", "stacked"]).default("inline"),
+  authorPage: z2.enum(SITE_AUTHOR_PAGE_LAYOUTS).default("inline"),
   post: z2.object({
     toc: z2.boolean().default(true),
     authorCard: z2.boolean().default(true),
@@ -881,12 +1010,70 @@ var siteMetadataSchema = z2.object({
   dateFormat: z2.enum(["short", "long"]).default("short")
 }).default({ timestamp: true, dateFormat: "short" });
 
+// ../../packages/sites-core/src/utils/redirect-patterns.ts
+function redirectDestinationParts(destination) {
+  const origin = SITE_REDIRECT_DESTINATION_ORIGIN.exec(destination)?.[0] ?? "";
+  const parts = destination.slice(origin.length).split(SITE_REDIRECT_PLACEHOLDER_IN_TEXT);
+  parts[0] = `${origin}${parts[0]}`;
+  return parts;
+}
+function redirectPatternIssues(source, destination) {
+  const issues = [];
+  const defined = new Set;
+  for (const segment of source.split("/")) {
+    if (!segment.startsWith(":")) {
+      continue;
+    }
+    if (!SITE_REDIRECT_PLACEHOLDER.test(segment)) {
+      issues.push({
+        path: "source",
+        severity: "warning",
+        message: `"${segment}" is matched literally because it isn't a valid placeholder. Placeholders start with a letter or underscore and use letters, digits and underscores, like :slug`
+      });
+      continue;
+    }
+    const name = segment.slice(1);
+    if (defined.has(name)) {
+      issues.push({
+        path: "source",
+        severity: "error",
+        message: `:${name} is used more than once. Give each placeholder its own name`
+      });
+    }
+    defined.add(name);
+  }
+  const undefinedNames = new Set(redirectDestinationParts(destination).filter((part, index) => index % 2 === 1 && !defined.has(part)));
+  for (const name of undefinedNames) {
+    issues.push({
+      path: "destination",
+      severity: "warning",
+      message: `:${name} is kept as written because source doesn't define it. To insert a segment, add :${name} to source as a whole segment, like /blog/:${name}`
+    });
+  }
+  return issues;
+}
+
 // ../../packages/sites-core/src/schemas/site-config.ts
 import { z as z3 } from "zod";
 var redirectSchema = z3.object({
-  source: z3.string().trim().startsWith("/"),
-  destination: z3.string().trim().regex(SITE_LINK_HREF, "Use an absolute https:// URL or a path"),
+  source: z3.string().trim().startsWith("/").describe("Full path on your domain. A segment like :slug matches any one segment, and a trailing /* matches everything below the path."),
+  destination: z3.string().trim().regex(SITE_LINK_HREF, "Use an absolute https:// URL or a path").describe("A path or https:// URL. :slug inserts the segment that the same placeholder matched in source, and a trailing /* keeps the rest of the path."),
   permanent: z3.boolean().default(true)
+}).superRefine((rule, ctx) => {
+  for (const issue of redirectPatternIssues(rule.source, rule.destination)) {
+    if (issue.severity !== "error") {
+      continue;
+    }
+    ctx.addIssue({
+      code: "custom",
+      path: [issue.path],
+      message: issue.message
+    });
+  }
+});
+var webLinkSchema = z3.url({
+  protocol: /^https?$/,
+  error: "Use a full http(s):// URL"
 });
 var siteAuthorSchema = z3.strictObject({
   name: z3.string().trim().min(1).max(80),
@@ -897,7 +1084,11 @@ var siteAuthorSchema = z3.strictObject({
   x: z3.url().optional(),
   linkedin: z3.url().optional(),
   github: z3.url().optional(),
-  youtube: z3.url().optional()
+  youtube: z3.url().optional(),
+  bluesky: webLinkSchema.optional(),
+  mastodon: webLinkSchema.optional(),
+  threads: webLinkSchema.optional(),
+  instagram: webLinkSchema.optional()
 });
 var imageByModeSchema = z3.object({
   light: sitePathSchema,
@@ -990,21 +1181,21 @@ var siteConfigSchema = z3.object({
   integrations: siteIntegrationsSchema,
   security: siteSecuritySchema
 });
-var frontmatterLinkSchema = z3.url({
-  protocol: /^https?$/,
-  error: "Use a full http(s):// URL"
-});
 var frontmatterAuthorSchema = z3.object({
   id: z3.string().trim().regex(SITE_AUTHOR_ID, "Use lowercase letters, digits and dashes for author ids").optional(),
   name: z3.string().trim().min(1),
   title: z3.string().trim().optional(),
   bio: z3.string().trim().optional(),
   avatar: z3.string().trim().regex(SITE_AUTHOR_AVATAR, "Use a path like /images/jan.jpg or an https:// URL").optional(),
-  url: frontmatterLinkSchema.optional(),
-  x: frontmatterLinkSchema.optional(),
-  linkedin: frontmatterLinkSchema.optional(),
-  github: frontmatterLinkSchema.optional(),
-  youtube: frontmatterLinkSchema.optional()
+  url: webLinkSchema.optional(),
+  x: webLinkSchema.optional(),
+  linkedin: webLinkSchema.optional(),
+  github: webLinkSchema.optional(),
+  youtube: webLinkSchema.optional(),
+  bluesky: webLinkSchema.optional(),
+  mastodon: webLinkSchema.optional(),
+  threads: webLinkSchema.optional(),
+  instagram: webLinkSchema.optional()
 });
 var frontmatterDate = z3.coerce.date({
   error: "Use a date in YYYY-MM-DD format, like 2026-11-01"
@@ -1062,6 +1253,112 @@ function sortCustomScriptPaths(paths) {
   });
 }
 
+// ../../packages/sites-core/src/constants/mounts.ts
+var MOUNT_SEGMENT = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+
+// ../../packages/sites-core/src/utils/mounts.ts
+class SiteMountError extends Error {
+  name = "SiteMountError";
+}
+function normalizeMountPath(input) {
+  const trimmed = input.trim().toLowerCase();
+  const segments = trimmed.split("/").filter(Boolean);
+  if (segments.length === 0) {
+    return "/";
+  }
+  if (segments.length > SITE_MOUNT_MAX_SEGMENTS) {
+    throw new SiteMountError(`Mount "${input}" is nested too deep (max ${SITE_MOUNT_MAX_SEGMENTS} segments)`);
+  }
+  for (const segment of segments) {
+    if (!MOUNT_SEGMENT.test(segment) || segment === "_notra") {
+      throw new SiteMountError(`Mount "${input}" may only contain lowercase letters, digits and dashes`);
+    }
+  }
+  return `/${segments.join("/")}`;
+}
+function isWithin(path, mount) {
+  if (mount === "/") {
+    return true;
+  }
+  return path === mount || path.startsWith(`${mount}/`);
+}
+function normalizeSiteMounts(mounts) {
+  const normalized = {};
+  for (const area of SITE_AREAS) {
+    const value = mounts[area];
+    if (value !== undefined) {
+      normalized[area] = normalizeMountPath(value);
+    }
+  }
+  if (normalized.blog && normalized.changelog) {
+    if (normalized.blog === normalized.changelog) {
+      throw new SiteMountError("Blog and changelog need different paths");
+    }
+    const nestedNonRoot = normalized.blog !== "/" && isWithin(normalized.changelog, normalized.blog) || normalized.changelog !== "/" && isWithin(normalized.blog, normalized.changelog);
+    if (nestedNonRoot) {
+      throw new SiteMountError("Blog and changelog paths may not be nested inside each other");
+    }
+  }
+  if (!(normalized.blog ?? normalized.changelog)) {
+    throw new SiteMountError("At least one area needs a path");
+  }
+  return normalized;
+}
+function listMountedAreas(mounts) {
+  const areas = [];
+  for (const area of SITE_AREAS) {
+    const mount = mounts[area];
+    if (mount) {
+      areas.push({ area, mount });
+    }
+  }
+  return areas;
+}
+function resolveAreaForPath(mounts, pathname) {
+  let best = null;
+  for (const entry of listMountedAreas(mounts)) {
+    if (!isWithin(pathname, entry.mount)) {
+      continue;
+    }
+    if (!best || entry.mount.length > best.mount.length) {
+      best = entry;
+    }
+  }
+  return best;
+}
+function joinMountPath(mount, path) {
+  const tail = path.replace(/^\/+/, "");
+  if (mount === "/") {
+    return `/${tail}`;
+  }
+  return tail ? `${mount}/${tail}` : mount;
+}
+function pathCollidesWithOtherMount(mounts, area, urlPath) {
+  const owner = resolveAreaForPath(mounts, urlPath);
+  return owner !== null && owner.area !== area;
+}
+
+// ../../packages/sites-core/src/utils/entries.ts
+function parseSiteEntryFile(path) {
+  const match = SITE_ENTRY_FILE.exec(path);
+  if (!match) {
+    return null;
+  }
+  const [, area, rest, format] = match;
+  if (!(area && rest && format)) {
+    return null;
+  }
+  if (rest.split("/").some((segment) => segment.startsWith("_"))) {
+    return null;
+  }
+  const slug = rest.endsWith(SITE_ENTRY_INDEX_SUFFIX) ? rest.slice(0, -SITE_ENTRY_INDEX_SUFFIX.length) : rest;
+  return {
+    area,
+    slug,
+    format
+  };
+}
+
 // ../../packages/sites-core/src/utils/site-ignore.ts
 import ignore from "ignore";
 function createSiteIgnore(content = "") {
@@ -1080,6 +1377,43 @@ function tagSlug(tag) {
 
 // ../../packages/sites-compiler/src/validate.ts
 import { Parser as Parser2 } from "acorn";
+import { fromMarkdown as fromMarkdown3 } from "mdast-util-from-markdown";
+
+// ../../packages/sites-compiler/src/constants/links.ts
+var LINK_ATTRIBUTE = "href";
+var ASSET_ATTRIBUTES = {
+  img: ["src"],
+  video: ["src", "poster"],
+  source: ["src"],
+  Card: ["img"],
+  Video: ["src", "poster"]
+};
+var SRCSET_ELEMENTS = new Set(["img", "source"]);
+var URL_SCHEME = /^[a-z][a-z\d+.-]*:/i;
+var HTML_TAG = /<([a-z][a-z\d-]*)\b([^>]*)>/gi;
+var HTML_ATTRIBUTE = /\s([a-z][a-z\d-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi;
+var FRAGMENT_DIRECTIVE = ":~:";
+var SUGGESTION_MAX_LENGTH_DIFFERENCE = 2;
+var AUTHOR_PAGES_PATH = "author";
+var BUILT_ROUTE_SEGMENTS = new Set([
+  "tags",
+  AUTHOR_PAGES_PATH,
+  "_notra",
+  ".well-known",
+  "404"
+]);
+var MEDIA_FILE = /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp|m4v|mov|mp4|ogv|webm)$/i;
+var CHROME_AREAS = ["blog", "changelog"];
+var SLOT_PAGES = {
+  "blog-hero": { area: "blog", on: "index" },
+  "changelog-hero": { area: "changelog", on: "index" },
+  "author-hero": { area: "blog", on: "authors" },
+  "before-post": { area: "blog", on: "entries" },
+  "after-post": { area: "blog", on: "entries" },
+  sidebar: { area: "blog", on: "entries" },
+  "after-changelog-entry": { area: "changelog", on: "entries" },
+  "before-footer": "every"
+};
 
 // ../../packages/sites-compiler/src/frontmatter.ts
 import { parse as parseYaml } from "yaml";
@@ -1145,6 +1479,9 @@ function frontmatterError(path, code, message) {
 function keyLine(yaml, key) {
   const index = yaml.split(/\r?\n/).findIndex((line) => YAML_KEY.exec(line)?.[2] === key);
   return index === -1 ? 1 : index + 2;
+}
+function frontmatterKeyLine(source, key) {
+  return keyLine(FRONTMATTER_BLOCK.exec(source)?.[1] ?? "", key);
 }
 function parseEntryFrontmatter(path, area, source) {
   const yaml = FRONTMATTER_BLOCK.exec(source)?.[1];
@@ -1667,7 +2004,7 @@ function analyzeJsxSnippet(path, source) {
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { mdxFromMarkdown } from "mdast-util-mdx";
 import { mdxjs } from "micromark-extension-mdxjs";
-import { visit } from "unist-util-visit";
+import { visit as visit2 } from "unist-util-visit";
 
 // ../../packages/sites-compiler/src/constants/elements.ts
 var BLOCKED_HTML_ELEMENTS = new Set(["script"]);
@@ -1691,6 +2028,9 @@ function analyzeStaticDirectives(elements, components) {
   }
   return result;
 }
+
+// ../../packages/sites-compiler/src/utils/content-links.ts
+import { visit } from "unist-util-visit";
 
 // ../../packages/sites-compiler/src/utils/mdast.ts
 function isMdxJsxElement(node) {
@@ -1719,6 +2059,131 @@ function expressionPrograms(node) {
     const { value } = attribute;
     return typeof value === "object" && value?.data?.estree ? [value.data.estree] : [];
   });
+}
+
+// ../../packages/sites-compiler/src/utils/srcset.ts
+var isSpace = (char) => char === " " || char === "\t" || char === `
+` || char === "\f" || char === "\r";
+function srcsetCandidates(srcset) {
+  const candidates = [];
+  let position = 0;
+  while (position < srcset.length) {
+    while (isSpace(srcset[position]) || srcset[position] === ",") {
+      position += 1;
+    }
+    const start = position;
+    while (position < srcset.length && !isSpace(srcset[position])) {
+      position += 1;
+    }
+    let end = position;
+    if (srcset[end - 1] === ",") {
+      while (end > start && srcset[end - 1] === ",") {
+        end -= 1;
+      }
+    } else {
+      let inParentheses = false;
+      while (position < srcset.length) {
+        const char = srcset[position];
+        position += 1;
+        if (char === "(" || char === ")") {
+          inParentheses = char === "(";
+        } else if (char === "," && !inParentheses) {
+          break;
+        }
+      }
+    }
+    if (end > start) {
+      candidates.push({ url: srcset.slice(start, end), start, end });
+    }
+  }
+  return candidates;
+}
+
+// ../../packages/sites-compiler/src/utils/content-links.ts
+function attributeKind(element, attribute) {
+  if (attribute === LINK_ATTRIBUTE) {
+    return "link";
+  }
+  return ASSET_ATTRIBUTES[element]?.includes(attribute) ? "image" : null;
+}
+function isSrcset(element, attribute) {
+  return SRCSET_ELEMENTS.has(element) && attribute.toLowerCase() === "srcset";
+}
+function attributeLinks(element, attribute, url, offset) {
+  if (isSrcset(element, attribute)) {
+    return srcsetCandidates(url).map((candidate) => ({
+      url: candidate.url,
+      kind: "image",
+      offset
+    }));
+  }
+  const kind = attributeKind(element, attribute);
+  return kind ? [{ url, kind, offset }] : [];
+}
+function htmlLinks(html, start) {
+  const links = [];
+  for (const tag of html.matchAll(HTML_TAG)) {
+    const element = tag[1]?.toLowerCase() ?? "";
+    const attributesStart = start + tag.index + 1 + element.length;
+    for (const attribute of (tag[2] ?? "").matchAll(HTML_ATTRIBUTE)) {
+      links.push(...attributeLinks(element, attribute[1]?.toLowerCase() ?? "", attribute[2] ?? attribute[3] ?? attribute[4] ?? "", attributesStart + attribute.index + 1));
+    }
+  }
+  return links;
+}
+function staticAttributeValue(value) {
+  if (typeof value === "string") {
+    return value;
+  }
+  const [statement] = value?.data?.estree?.body ?? [];
+  if (statement?.type !== "ExpressionStatement") {
+    return null;
+  }
+  const { expression } = statement;
+  if (expression.type === "Literal") {
+    return typeof expression.value === "string" ? expression.value : null;
+  }
+  if (expression.type === "TemplateLiteral" && expression.expressions.length === 0) {
+    return expression.quasis[0]?.value.cooked ?? null;
+  }
+  return null;
+}
+function contentLinks(tree) {
+  const definitions = new Map;
+  visit(tree, "definition", (node) => {
+    if (!definitions.has(node.identifier)) {
+      definitions.set(node.identifier, node.url);
+    }
+  });
+  const links = [];
+  visit(tree, (node) => {
+    const offset = node.position?.start.offset ?? 0;
+    if (node.type === "link" || node.type === "image") {
+      links.push({ url: node.url, kind: node.type, offset });
+    } else if (node.type === "linkReference" || node.type === "imageReference") {
+      const url = definitions.get(node.identifier);
+      if (url !== undefined) {
+        links.push({
+          url,
+          kind: node.type === "linkReference" ? "link" : "image",
+          offset
+        });
+      }
+    } else if (node.type === "html") {
+      links.push(...htmlLinks(node.value, offset));
+    } else if (isMdxJsxElement(node) && node.name) {
+      for (const attribute of node.attributes) {
+        if (attribute.type !== "mdxJsxAttribute") {
+          continue;
+        }
+        const url = staticAttributeValue(attribute.value);
+        if (url !== null) {
+          links.push(...attributeLinks(node.name, attribute.name, url, attribute.position?.start.offset ?? offset));
+        }
+      }
+    }
+  });
+  return links;
 }
 
 // ../../packages/sites-compiler/src/utils/text-edits.ts
@@ -1893,7 +2358,7 @@ function walkContent(pass, tree, scan) {
   const localNames = new Set([...scan.importedNames, ...scan.exportedNames]);
   const usedBuiltins = new Set;
   const propEdits = new Map;
-  visit(tree, (node) => {
+  visit2(tree, (node) => {
     const programs = expressionPrograms(node);
     const elements = programs.flatMap(jsxClientDirectives);
     const directives = isMdxJsxElement(node) ? clientDirectives(node) : [];
@@ -2006,13 +2471,15 @@ function analyzeMdxFile(path, source, context) {
     diagnostics: [],
     edits: []
   };
+  const tree = parseMdx(pass);
+  const links = tree ? contentLinks(tree) : [];
   const failed = (imports) => ({
     diagnostics: pass.diagnostics,
     output: null,
     inlineModule: null,
-    imports
+    imports,
+    links
   });
-  const tree = parseMdx(pass);
   if (!tree) {
     return failed([]);
   }
@@ -2041,8 +2508,15 @@ function analyzeMdxFile(path, source, context) {
     diagnostics: pass.diagnostics,
     output: source.slice(0, frontmatterLength) + edited.slice(frontmatterLength),
     inlineModule,
-    imports: scan.imports
+    imports: scan.imports,
+    links
   };
+}
+
+// ../../packages/sites-core/src/utils/web-links.ts
+function isWebLink(value) {
+  const protocol = URL.parse(value)?.protocol;
+  return protocol === "http:" || protocol === "https:";
 }
 
 // ../../packages/sites-compiler/src/utils/config-checks.ts
@@ -2133,6 +2607,27 @@ function categoryWarnings(config, blogTags) {
     message: `blog.categories: no post is tagged "${name}". It is skipped.`
   }));
 }
+function redirectPatternWarnings(config) {
+  return config.redirects.flatMap((rule, index) => redirectPatternIssues(rule.source, rule.destination).filter((issue) => issue.severity === "warning").map((issue) => ({
+    severity: "warning",
+    file: SITE_CONFIG_FILENAME,
+    code: "redirect_placeholder",
+    message: `redirects.${index}.${issue.path}: ${issue.message}`
+  })));
+}
+function authorLinkSchemeWarnings(config) {
+  return Object.entries(config.authors).flatMap(([id, author]) => ANY_SCHEME_AUTHOR_LINK_FIELDS.flatMap((field) => {
+    const value = author[field];
+    return value === undefined || isWebLink(value) ? [] : [
+      {
+        severity: "warning",
+        file: SITE_CONFIG_FILENAME,
+        code: "author_link_scheme",
+        message: `authors.${id}.${field}: only http(s) links are shown, so this link is left off the site. Use an https:// URL.`
+      }
+    ];
+  }));
+}
 
 // ../../packages/sites-compiler/src/utils/import-cycles.ts
 function importCycleDiagnostics(paths, importsOf) {
@@ -2186,13 +2681,64 @@ function importCycleDiagnostics(paths, importsOf) {
   return diagnostics;
 }
 
+// ../../packages/sites-compiler/src/utils/link-pages.ts
+var CONTENT_IMPORT = /\.mdx?$/i;
+function chromePages(path, entryPages) {
+  if (SITE_CHROME_FILES.includes(path)) {
+    return CHROME_AREAS.map((area) => ({ area }));
+  }
+  const name = path.startsWith(`${SITE_SLOTS_DIR}/`) ? path.slice(SITE_SLOTS_DIR.length + 1).replace(/\.mdx$/, "") : "";
+  const slot = Object.hasOwn(SLOT_PAGES, name) ? SLOT_PAGES[name] : undefined;
+  if (slot === undefined) {
+    return null;
+  }
+  if (slot === "every") {
+    return CHROME_AREAS.map((area) => ({ area }));
+  }
+  if (slot.on === "authors") {
+    return [{ area: slot.area, under: AUTHOR_PAGES_PATH }];
+  }
+  return slot.on === "index" ? [{ area: slot.area }] : [...entryPages.get(slot.area) ?? []];
+}
+function sharedFilePages(paths, entries, imports) {
+  const entryPages = new Map;
+  for (const page of entries.values()) {
+    entryPages.set(page.area, [...entryPages.get(page.area) ?? [], page]);
+  }
+  const shared = new Map;
+  const roots = [...entries].map(([path, page]) => [
+    path,
+    [page]
+  ]);
+  for (const path of paths) {
+    const pages = chromePages(path, entryPages);
+    if (pages) {
+      shared.set(path, [...pages]);
+      roots.push([path, pages]);
+    }
+  }
+  for (const [root, pages] of roots) {
+    const seen = new Set([root]);
+    const pending = [...imports(root)];
+    for (let path = pending.pop();path !== undefined; path = pending.pop()) {
+      if (seen.has(path) || !CONTENT_IMPORT.test(path)) {
+        continue;
+      }
+      seen.add(path);
+      const known = shared.get(path) ?? [];
+      known.push(...pages);
+      shared.set(path, known);
+      pending.push(...imports(path));
+    }
+  }
+  return shared;
+}
+
 // ../../packages/sites-compiler/src/utils/markdown-html.ts
-import { fromMarkdown as fromMarkdown2 } from "mdast-util-from-markdown";
-import { visit as visit2 } from "unist-util-visit";
-function blockedMarkdownHtml(path, source) {
+import { visit as visit3 } from "unist-util-visit";
+function blockedMarkdownHtml(path, source, tree) {
   const diagnostics = [];
-  const tree = fromMarkdown2(source);
-  visit2(tree, "html", (node) => {
+  visit3(tree, "html", (node) => {
     for (const match of node.value.matchAll(HTML_OPENING_TAG)) {
       const tag = match[1]?.toLowerCase() ?? "";
       if (BLOCKED_HTML_ELEMENTS.has(tag)) {
@@ -2217,19 +2763,19 @@ var VARIABLE_REFERENCE = /\{\{\s*([A-Za-z][A-Za-z0-9_-]*)\s*\}\}/g;
 var YAML_SAFE_VALUE = /^[^"'\n#:{}[\]&*!|>%@`\\]*$/;
 
 // ../../packages/sites-compiler/src/utils/mdx-variable-ranges.ts
-import { fromMarkdown as fromMarkdown3 } from "mdast-util-from-markdown";
+import { fromMarkdown as fromMarkdown2 } from "mdast-util-from-markdown";
 import { mdxFromMarkdown as mdxFromMarkdown2 } from "mdast-util-mdx";
 import { mdxjs as mdxjs2 } from "micromark-extension-mdxjs";
-import { visit as visit3 } from "unist-util-visit";
+import { visit as visit4 } from "unist-util-visit";
 function mdxVariableCodeRanges(source) {
   const masked = source.replace(VARIABLE_OR_CODE_SPAN, (match, codeSpan, name) => codeSpan !== undefined || name === undefined ? match : match.replace(/[^\r\n]/g, "x"));
   try {
-    const tree = fromMarkdown3(masked, {
+    const tree = fromMarkdown2(masked, {
       extensions: [mdxjs2()],
       mdastExtensions: [mdxFromMarkdown2()]
     });
     const ranges = [];
-    visit3(tree, (node) => {
+    visit4(tree, (node) => {
       if (node.type === "mdxjsEsm") {
         const start = node.position?.start.offset;
         const end = node.position?.end.offset;
@@ -2371,27 +2917,8 @@ function substituteSettingText(text, variables) {
 }
 
 // ../../packages/sites-compiler/src/validate.ts
-function entryCandidate(path) {
-  const match = ENTRY_FILE.exec(path);
-  if (!match) {
-    return null;
-  }
-  const [, area, rest, format] = match;
-  if (!(area && rest && format)) {
-    return null;
-  }
-  if (rest.split("/").some((segment) => segment.startsWith("_"))) {
-    return null;
-  }
-  const slug = rest.endsWith("/index") ? rest.slice(0, -"/index".length) : rest;
-  return {
-    area,
-    slug,
-    format
-  };
-}
 function takesVariables(path) {
-  return entryCandidate(path) !== null || SITE_CHROME_FILES.includes(path) || path.startsWith("snippets/") && MDX_FILE.test(path) || path.startsWith(`${SITE_SLOTS_DIR}/`) && MDX_FILE.test(path);
+  return parseSiteEntryFile(path) !== null || SITE_CHROME_FILES.includes(path) || path.startsWith("snippets/") && MDX_FILE.test(path) || path.startsWith(`${SITE_SLOTS_DIR}/`) && MDX_FILE.test(path);
 }
 function validateSlotFile(path) {
   if (!path.startsWith(`${SITE_SLOTS_DIR}/`)) {
@@ -2498,6 +3025,8 @@ function parseSiteConfig(raw) {
     return { config: null, diagnostics };
   }
   diagnostics.push(...unknownIconWarnings(parsed.data, raw));
+  diagnostics.push(...redirectPatternWarnings(parsed.data));
+  diagnostics.push(...authorLinkSchemeWarnings(parsed.data));
   const settings = substituteSettingVariables(parsed.data);
   diagnostics.push(...settings.diagnostics);
   return {
@@ -2554,6 +3083,7 @@ function validateSite(input) {
       ok: false,
       config: null,
       entries: [],
+      links: [],
       outputs: new Map,
       diagnostics: [
         {
@@ -2604,11 +3134,11 @@ function validateSite(input) {
     }));
   };
   for (const path of mdxPaths) {
-    analyze(path, entryCandidate(path) !== null);
+    analyze(path, parseSiteEntryFile(path) !== null);
   }
   const importedPaths = new Set([...analyses.values()].flatMap((analysis) => analysis.imports));
   for (const path of mdxPaths) {
-    if (importedPaths.has(path) && entryCandidate(path) !== null) {
+    if (importedPaths.has(path) && parseSiteEntryFile(path) !== null) {
       analyze(path, false);
     }
   }
@@ -2623,11 +3153,13 @@ function validateSite(input) {
     }
   }
   const entries = [];
+  const links = [];
+  const entryPages = new Map;
   const seenSlugs = new Map;
   let unreadEntries = 0;
   const blogTags = new Set;
   for (const [path, content] of files) {
-    const candidate = entryCandidate(path);
+    const candidate = parseSiteEntryFile(path);
     if (!candidate || importedPaths.has(path)) {
       continue;
     }
@@ -2635,7 +3167,7 @@ function validateSite(input) {
       unreadEntries += 1;
       continue;
     }
-    if (!ENTRY_SLUG.test(candidate.slug)) {
+    if (!SITE_ENTRY_SLUG.test(candidate.slug)) {
       diagnostics.push({
         severity: "error",
         file: path,
@@ -2667,11 +3199,38 @@ function validateSite(input) {
         }
       }
     }
+    let bodyLinks = analyses.get(path)?.links ?? [];
     if (candidate.format === "md") {
-      diagnostics.push(...blockedMarkdownHtml(path, substituted));
+      const tree = fromMarkdown3(substituted);
+      diagnostics.push(...blockedMarkdownHtml(path, substituted, tree));
+      bodyLinks = contentLinks(tree);
       if (substituted !== content) {
         outputs.set(path, substituted);
       }
+    }
+    const page = {
+      area: candidate.area,
+      slug: candidate.slug,
+      draft: frontmatter.data?.draft ?? true
+    };
+    entryPages.set(path, page);
+    const linkOf = { file: path, pages: [page], shared: false };
+    for (const link of bodyLinks) {
+      links.push({
+        ...linkOf,
+        url: link.url,
+        kind: link.kind,
+        ...offsetToLineColumn(substituted, link.offset)
+      });
+    }
+    const image = frontmatter.data?.image;
+    if (image) {
+      links.push({
+        ...linkOf,
+        url: URL_SCHEME.test(image) || image.startsWith("/") ? image : `/${image}`,
+        kind: "image",
+        line: frontmatterKeyLine(substituted, "image")
+      });
     }
     entries.push({
       area: candidate.area,
@@ -2679,6 +3238,20 @@ function validateSite(input) {
       path,
       format: candidate.format
     });
+  }
+  for (const [path, pages] of sharedFilePages(files.keys(), entryPages, (path) => analyses.get(path)?.imports ?? [])) {
+    const source = sources.get(path) ?? "";
+    const fileLinks = analyses.get(path)?.links ?? (path.endsWith(".md") ? contentLinks(fromMarkdown3(source)) : []);
+    for (const link of fileLinks) {
+      links.push({
+        file: path,
+        pages,
+        shared: true,
+        url: link.url,
+        kind: link.kind,
+        ...offsetToLineColumn(source, link.offset)
+      });
+    }
   }
   if (config) {
     if (entries.length === 0 && unreadEntries === 0) {
@@ -2697,97 +3270,14 @@ function validateSite(input) {
     diagnostics: collapseRepeatedWarnings(diagnostics),
     config,
     entries,
+    links,
     outputs,
     ok: !hasErrors(diagnostics)
   };
 }
 
-// ../../packages/sites-core/src/constants/mounts.ts
-var MOUNT_SEGMENT = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
-
-// ../../packages/sites-core/src/utils/mounts.ts
-class SiteMountError extends Error {
-  name = "SiteMountError";
-}
-function normalizeMountPath(input) {
-  const trimmed = input.trim().toLowerCase();
-  const segments = trimmed.split("/").filter(Boolean);
-  if (segments.length === 0) {
-    return "/";
-  }
-  if (segments.length > SITE_MOUNT_MAX_SEGMENTS) {
-    throw new SiteMountError(`Mount "${input}" is nested too deep (max ${SITE_MOUNT_MAX_SEGMENTS} segments)`);
-  }
-  for (const segment of segments) {
-    if (!MOUNT_SEGMENT.test(segment) || segment === "_notra") {
-      throw new SiteMountError(`Mount "${input}" may only contain lowercase letters, digits and dashes`);
-    }
-  }
-  return `/${segments.join("/")}`;
-}
-function isWithin(path, mount) {
-  if (mount === "/") {
-    return true;
-  }
-  return path === mount || path.startsWith(`${mount}/`);
-}
-function normalizeSiteMounts(mounts) {
-  const normalized = {};
-  for (const area of SITE_AREAS) {
-    const value = mounts[area];
-    if (value !== undefined) {
-      normalized[area] = normalizeMountPath(value);
-    }
-  }
-  if (normalized.blog && normalized.changelog) {
-    if (normalized.blog === normalized.changelog) {
-      throw new SiteMountError("Blog and changelog need different paths");
-    }
-    const nestedNonRoot = normalized.blog !== "/" && isWithin(normalized.changelog, normalized.blog) || normalized.changelog !== "/" && isWithin(normalized.blog, normalized.changelog);
-    if (nestedNonRoot) {
-      throw new SiteMountError("Blog and changelog paths may not be nested inside each other");
-    }
-  }
-  if (!(normalized.blog ?? normalized.changelog)) {
-    throw new SiteMountError("At least one area needs a path");
-  }
-  return normalized;
-}
-function listMountedAreas(mounts) {
-  const areas = [];
-  for (const area of SITE_AREAS) {
-    const mount = mounts[area];
-    if (mount) {
-      areas.push({ area, mount });
-    }
-  }
-  return areas;
-}
-function resolveAreaForPath(mounts, pathname) {
-  let best = null;
-  for (const entry of listMountedAreas(mounts)) {
-    if (!isWithin(pathname, entry.mount)) {
-      continue;
-    }
-    if (!best || entry.mount.length > best.mount.length) {
-      best = entry;
-    }
-  }
-  return best;
-}
-function joinMountPath(mount, path) {
-  const tail = path.replace(/^\/+/, "");
-  if (mount === "/") {
-    return `/${tail}`;
-  }
-  return tail ? `${mount}/${tail}` : mount;
-}
-function pathCollidesWithOtherMount(mounts, area, urlPath) {
-  const owner = resolveAreaForPath(mounts, urlPath);
-  return owner !== null && owner.area !== area;
-}
-
 // ../../packages/sites-core/src/utils/redirects.ts
+var compiled = new WeakMap;
 function siteRedirectRules(redirects) {
   return redirects.map((rule) => ({
     source: rule.source,
@@ -2801,31 +3291,321 @@ function withoutTrailingSlash(path) {
 function headerSafeLocation(location) {
   return location.replace(/[^\u0021-\u007E]/gu, encodeURIComponent);
 }
-function matchRedirect(redirects, path) {
-  const match = findRedirect(redirects, withoutTrailingSlash(path));
-  return match && { ...match, location: headerSafeLocation(match.location) };
+function sameHostLocation(location) {
+  return location.replace(/^[/\\]{2,}/u, "/");
 }
-function findRedirect(redirects, bare) {
-  for (const rule of redirects) {
-    if (rule.source.endsWith("/*")) {
-      const prefix = rule.source.slice(0, -2);
-      if (bare === prefix || bare.startsWith(`${prefix}/`)) {
-        const rest = bare.slice(prefix.length).split("/").map(encodeURIComponent).join("/");
-        const destination = rule.destination.endsWith("/*") ? `${rule.destination.slice(0, -2)}${rest}` : rule.destination;
-        return { location: destination, status: rule.status };
-      }
-    } else if (withoutTrailingSlash(rule.source) === bare) {
-      return { location: rule.destination, status: rule.status };
+function matchRedirect(redirects, path) {
+  const match = findRedirect(compiledRedirects(redirects), withoutTrailingSlash(path));
+  return match && {
+    ...match,
+    location: headerSafeLocation(sameHostLocation(match.location))
+  };
+}
+function compiledRedirects(redirects) {
+  let rules = compiled.get(redirects);
+  if (!rules) {
+    rules = redirects.map(compileRedirect);
+    compiled.set(redirects, rules);
+  }
+  return rules;
+}
+function compileRedirect(rule) {
+  const prefix = rule.source.endsWith("/*");
+  const source = prefix ? rule.source.slice(0, -2) : withoutTrailingSlash(rule.source);
+  const carriesRest = prefix && rule.destination.endsWith("/*");
+  const placeholders = new Map;
+  const segments = source.split("/").map((segment, index) => {
+    if (!SITE_REDIRECT_PLACEHOLDER.test(segment)) {
+      return segment;
+    }
+    const name = segment.slice(1);
+    if (!placeholders.has(name)) {
+      placeholders.set(name, index);
+    }
+    return null;
+  });
+  const destination = redirectDestinationParts(carriesRest ? rule.destination.slice(0, -2) : rule.destination).map((part, index) => index % 2 === 1 ? placeholders.get(part) ?? `:${part}` : part);
+  return { segments, prefix, destination, carriesRest, status: rule.status };
+}
+function findRedirect(rules, bare) {
+  const path = bare.split("/");
+  for (const rule of rules) {
+    if (matchesSource(rule, path)) {
+      return { location: destinationFor(rule, path), status: rule.status };
     }
   }
   return null;
 }
+function matchesSource(rule, path) {
+  const { segments } = rule;
+  if (rule.prefix ? path.length < segments.length : path.length !== segments.length) {
+    return false;
+  }
+  return segments.every((segment, index) => segment === null ? path[index] !== "" : segment === path[index]);
+}
+function destinationFor(rule, path) {
+  const location = rule.destination.map((part) => typeof part === "number" ? encodeURIComponent(path[part] ?? "") : part).join("");
+  const rest = rule.carriesRest ? path.slice(rule.segments.length) : [];
+  return rest.length > 0 ? `${location}/${rest.map(encodeURIComponent).join("/")}` : location;
+}
 
 // compiler/build.ts
 import { spawn } from "node:child_process";
-import { cp as cp3, mkdir as mkdir7, readFile as readFile6, rm as rm4, stat as stat4, writeFile as writeFile5 } from "node:fs/promises";
+import { cp as cp3, mkdir as mkdir7, readFile as readFile7, rm as rm4, stat as stat3, writeFile as writeFile5 } from "node:fs/promises";
 import { createRequire as createRequire2 } from "node:module";
 import { dirname as dirname6, join as join10, relative as relative2, resolve as resolve2 } from "node:path";
+
+// ../../packages/sites-core/src/constants/request-paths.ts
+var LLMS_LINKS = [
+  { file: "llms.txt", rel: "llms-txt" },
+  { file: "llms-full.txt", rel: "llms-full-txt" }
+];
+
+// ../../packages/sites-core/src/utils/request-paths.ts
+function normalizeRequestPath(pathname) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
+  if (decoded.includes("\x00") || decoded.includes("\\")) {
+    return null;
+  }
+  const segments = [];
+  for (const segment of decoded.split("/")) {
+    if (segment === "" || segment === ".") {
+      continue;
+    }
+    if (segment === "..") {
+      return null;
+    }
+    segments.push(segment);
+  }
+  const normalized = `/${segments.join("/")}`;
+  return decoded.endsWith("/") && normalized !== "/" ? `${normalized}/` : normalized;
+}
+function resolveFile(files, path) {
+  const trimmed = path.endsWith("/") ? path.slice(0, -1) : path;
+  const candidates = path.endsWith("/") ? [`${trimmed}/index.html`] : [path, `${path}/index.html`, `${path}.html`];
+  if (path === "/") {
+    candidates.unshift("/index.html");
+  }
+  for (const candidate of candidates) {
+    const file = files.get(candidate);
+    if (file) {
+      return file;
+    }
+  }
+  return null;
+}
+function resolveMarkdownFile(files, path) {
+  if (!path.endsWith(".md")) {
+    return null;
+  }
+  return files.get(path) ?? files.get(`${path.slice(0, -3)}/index.md`) ?? null;
+}
+function wellKnownLlmsTxtTarget(files, path) {
+  const resource = LLMS_LINKS.find(({ file }) => path.endsWith(`/.well-known/${file}`));
+  if (!resource) {
+    return null;
+  }
+  const target = `${path.slice(0, -`/.well-known/${resource.file}`.length)}/${resource.file}`;
+  return files.has(target) ? target : null;
+}
+
+// ../../packages/sites-compiler/src/links.ts
+function isServed(files, mounts, path) {
+  const area = resolveAreaForPath(mounts, path);
+  if (path === "/robots.txt" || area && area.mount !== "/" && path === joinMountPath(area.mount, "robots.txt") || wellKnownLlmsTxtTarget(files, path)) {
+    return true;
+  }
+  return path !== joinMountPath(area?.mount ?? "/", "404.md") && (resolveMarkdownFile(files, path) ?? resolveFile(files, path)) !== null;
+}
+function pagePath(mounts, page) {
+  const mount = mounts[page.area];
+  return mount === undefined ? null : joinMountPath(mount, page.slug ?? "");
+}
+function decodeFragment(fragment) {
+  try {
+    return decodeURIComponent(fragment);
+  } catch {
+    return fragment;
+  }
+}
+function linkTarget(url, page, origin) {
+  const written = url.trim();
+  if (!written || written.includes("{{")) {
+    return null;
+  }
+  const absolute = written.startsWith("//") || URL_SCHEME.test(written);
+  const rootPath = !absolute && written.startsWith("/");
+  if (page === null && !absolute && !rootPath) {
+    return null;
+  }
+  let resolved;
+  try {
+    resolved = new URL(written, new URL(page ?? "/", origin));
+  } catch {
+    return null;
+  }
+  if (absolute && !(resolved.host === origin.host && (resolved.protocol === "https:" || resolved.protocol === "http:"))) {
+    return null;
+  }
+  const rawFragment = resolved.hash ? resolved.hash.slice(1).split(FRAGMENT_DIRECTIVE)[0] ?? "" : null;
+  return {
+    path: normalizeRequestPath(resolved.pathname),
+    pathname: resolved.pathname,
+    rootPath,
+    rawFragment,
+    fragment: rawFragment === null ? null : decodeFragment(rawFragment)
+  };
+}
+function hint(name, candidates, prefix = "") {
+  const suggestion = closestName(name, [...candidates].filter((candidate) => Math.abs(candidate.length - name.length) <= SUGGESTION_MAX_LENGTH_DIFFERENCE));
+  return suggestion ? ` Did you mean ${prefix}${suggestion}?` : "";
+}
+function checksFragment(target) {
+  return target.fragment !== null && Boolean(target.rawFragment) && target.fragment.toLowerCase() !== "top";
+}
+function diagnose(links, context, site) {
+  const origin = new URL(context.publicOrigin);
+  const redirects = siteRedirectRules(context.redirects);
+  const diagnostics = [];
+  for (const link of links) {
+    const [page] = link.pages;
+    if (!(page && link.pages.some(site.isPublished))) {
+      continue;
+    }
+    const target = linkTarget(link.url, link.shared ? null : pagePath(context.mounts, page), origin);
+    if (!target) {
+      continue;
+    }
+    const written = link.url.trim();
+    const location = {
+      severity: "warning",
+      file: link.file,
+      line: link.line,
+      ...link.column === undefined ? {} : { column: link.column }
+    };
+    const code = link.kind === "link" ? "link_broken" : "image_missing";
+    if (target.path === null) {
+      if (resolveAreaForPath(context.mounts, target.pathname)) {
+        diagnostics.push({
+          ...location,
+          code,
+          message: `${link.kind === "link" ? "Broken link to" : "Missing image"} ${written}: Notra can't read this path and answers it with 400 Bad Request. Write % as %25 and leave out .. segments.`
+        });
+      }
+      continue;
+    }
+    if (target.rootPath && context.publicFiles.has(target.path) || matchRedirect(redirects, target.path)) {
+      continue;
+    }
+    const served = site.serves(target.path);
+    if (served === null) {
+      continue;
+    }
+    if (served) {
+      if (link.kind !== "link" || !checksFragment(target)) {
+        continue;
+      }
+      const ids = site.ids(target.path);
+      if (ids && !ids.has(target.rawFragment) && !ids.has(target.fragment)) {
+        const resolved = `${target.path}#${target.rawFragment}`;
+        const shown = written === resolved || written.startsWith("#") ? written : `${written} (${resolved})`;
+        diagnostics.push({
+          ...location,
+          code,
+          message: `Broken link to ${shown}: ${target.path} has no heading or other element with id "${target.fragment}".${hint(target.fragment, ids, "#")}`
+        });
+      }
+      continue;
+    }
+    const owner = resolveAreaForPath(context.mounts, target.path);
+    if (!owner && !(link.kind === "image" && target.rootPath)) {
+      continue;
+    }
+    const writtenPath = written.split("#")[0];
+    const shown = writtenPath === target.path ? target.path : `${writtenPath} (${target.path})`;
+    if (link.kind === "link") {
+      diagnostics.push({
+        ...location,
+        code,
+        message: `Broken link to ${shown}: no page, file or redirect has this path.${hint(target.path, site.pages)}`
+      });
+      continue;
+    }
+    const prefix = owner && owner.mount !== "/" && target.path.startsWith(`${owner.mount}/`) ? owner.mount : "";
+    const publicPath = target.path.slice(prefix.length);
+    diagnostics.push({
+      ...location,
+      code,
+      message: `Missing image ${shown}: there is no public${publicPath} in the repository.${hint(publicPath, context.publicFiles, prefix)}`
+    });
+  }
+  return diagnostics;
+}
+function brokenLinkDiagnostics(links, context) {
+  const files = new Map([...context.files].map((file) => [file, file]));
+  const ids = new Map;
+  const pages = [...context.files].filter((file) => file.endsWith("/index.html")).map((file) => file.slice(0, -"/index.html".length) || "/");
+  return diagnose(links, context, {
+    isPublished: (page) => {
+      const path = pagePath(context.mounts, page);
+      if (path === null || page.under === undefined) {
+        return path !== null && isServed(files, context.mounts, path);
+      }
+      const under = joinMountPath(path, page.under);
+      return pages.some((built) => built.startsWith(`${under}/`));
+    },
+    serves: (path) => resolveAreaForPath(context.mounts, path) !== null && isServed(files, context.mounts, path),
+    ids: (path) => {
+      const file = resolveMarkdownFile(files, path) ? null : resolveFile(files, path);
+      if (!file?.endsWith(".html")) {
+        return null;
+      }
+      if (!ids.has(file)) {
+        ids.set(file, context.ids?.(file) ?? null);
+      }
+      return ids.get(file) ?? null;
+    },
+    pages
+  });
+}
+function sourceLinkDiagnostics(links, context) {
+  const slugs = new Map;
+  for (const entry of context.entries) {
+    const area = slugs.get(entry.area) ?? new Set;
+    slugs.set(entry.area, area.add(entry.slug));
+  }
+  const publicFiles = new Map([...context.publicFiles].map((file) => [file, file]));
+  const mounted = listMountedAreas(context.mounts);
+  return diagnose(links, context, {
+    isPublished: (page) => context.mounts[page.area] !== undefined && page.draft !== true && page.under === undefined,
+    serves: (path) => {
+      const area = resolveAreaForPath(context.mounts, path);
+      const rest = !area || area.mount === "/" ? path : path.slice(area.mount.length);
+      const segments = rest.split("/").filter(Boolean);
+      const [first = "", last = ""] = [segments[0], segments.at(-1)];
+      if (BUILT_ROUTE_SEGMENTS.has(first)) {
+        return null;
+      }
+      if (!area || segments.length === 0) {
+        return area !== null;
+      }
+      if (resolveFile(publicFiles, rest) || slugs.get(area.area)?.has(segments.join("/"))) {
+        return true;
+      }
+      return last.includes(".") && !MEDIA_FILE.test(last) ? null : false;
+    },
+    ids: () => null,
+    pages: mounted.flatMap(({ area, mount }) => [
+      mount,
+      ...[...slugs.get(area) ?? []].map((slug) => joinMountPath(mount, slug))
+    ])
+  });
+}
 
 // ../../packages/sites-core/src/schemas/deployment.ts
 import { z as z4 } from "zod";
@@ -2875,6 +3655,7 @@ var siteManifestSchema = z4.object({
   redirects: z4.array(siteRedirectRuleSchema),
   contentSecurityPolicy: siteContentSecurityPolicySchema.optional(),
   analyticsConsent: z4.boolean().optional(),
+  indexNow: z4.literal(false).optional(),
   consentStorageKey: z4.literal(C15T_HOST_STORAGE_KEY).optional(),
   faviconHost: z4.string().regex(SITE_FAVICON_HOST).optional()
 });
@@ -2965,6 +3746,7 @@ var siteBuildResultSchema = z5.object({
   redirects: z5.array(siteBuildRedirectSchema).max(500),
   contentSecurityPolicy: siteContentSecurityPolicySchema.nullable().default(null),
   analyticsConsent: z5.boolean().optional(),
+  indexNow: z5.boolean().optional(),
   consentStorageKey: z5.literal(C15T_HOST_STORAGE_KEY).optional(),
   faviconHost: z5.string().regex(SITE_FAVICON_HOST).optional()
 });
@@ -2983,13 +3765,37 @@ function dataAttributes(options) {
 }
 
 // ../../packages/sites-core/src/utils/integrations.ts
+function rybbitScript({
+  siteId,
+  scriptUrl,
+  replay,
+  ...options
+}) {
+  const src = new URL(scriptUrl ?? RYBBIT_SCRIPT_URL);
+  src.searchParams.set("siteId", siteId);
+  const replayOptions = Object.fromEntries(Object.entries(replay ?? {}).map(([key, value]) => [
+    `replay${key[0]?.toUpperCase()}${key.slice(1)}`,
+    value
+  ]));
+  return {
+    src: src.href,
+    attributes: dataAttributes({ ...options, ...replayOptions })
+  };
+}
 function inlineScriptLiteral(value) {
   return JSON.stringify(value).replaceAll("<", "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 }
 function integrationHeadScripts(integrations, hostingDomain) {
   const scripts = [];
   const onHostingDomain = hostingDomain && `("."+location.hostname).endsWith(${inlineScriptLiteral(`.${hostingDomain}`)})`;
-  const { databuddy, ga4, plausible, posthog, umami } = integrations;
+  const { capless, databuddy, ga4, plausible, posthog, rybbit, umami } = integrations;
+  if (capless) {
+    scripts.push({
+      kind: "external",
+      src: CAPLESS_SCRIPT_URL,
+      attributes: { async: true, "data-key": capless.key }
+    });
+  }
   if (databuddy) {
     const { scriptUrl, replay, ...options } = databuddy;
     scripts.push({
@@ -3046,6 +3852,14 @@ function integrationHeadScripts(integrations, hostingDomain) {
       code: `${POSTHOG_LOADER}posthog.init(${inlineScriptLiteral(posthog.apiKey)},${onHostingDomain ? `Object.assign(${inlineScriptLiteral(options)},${onHostingDomain}?{cross_subdomain_cookie:false}:{})` : inlineScriptLiteral(options)});`
     });
   }
+  if (rybbit) {
+    const { src, attributes } = rybbitScript(rybbit);
+    scripts.push({
+      kind: "external",
+      src,
+      attributes: { ...attributes, defer: true }
+    });
+  }
   if (umami) {
     scripts.push({
       kind: "external",
@@ -3065,9 +3879,14 @@ function analyticsGatedByConsent(integrations) {
 function integrationCspSources(integrations) {
   const scriptSrc = [];
   const connectSrc = [];
-  const { c15t, databuddy, ga4, plausible, posthog, umami } = integrations;
+  const { c15t, capless, databuddy, ga4, plausible, posthog, rybbit, umami } = integrations;
   if (c15t) {
     connectSrc.push(new URL(c15t.backendURL).origin);
+  }
+  if (capless) {
+    const origin = new URL(CAPLESS_SCRIPT_URL).origin;
+    scriptSrc.push(origin);
+    connectSrc.push(origin);
   }
   if (databuddy) {
     scriptSrc.push(new URL(databuddy.scriptUrl ?? DATABUDDY_SCRIPT_URL).origin);
@@ -3094,6 +3913,11 @@ function integrationCspSources(integrations) {
       scriptSrc.push(origin);
       connectSrc.push(origin);
     }
+  }
+  if (rybbit) {
+    const origin = new URL(rybbit.scriptUrl ?? RYBBIT_SCRIPT_URL).origin;
+    scriptSrc.push(origin);
+    connectSrc.push(origin);
   }
   if (umami) {
     const scriptOrigin = new URL(umami.scriptUrl ?? UMAMI_SCRIPT_URL).origin;
@@ -3161,7 +3985,45 @@ function footerFaviconHost(config) {
 
 // src/constants/public-assets.ts
 var URL_ATTRIBUTE = /\b(src|href|poster|content|data-src)=(["'])(\/[^"']*)\2/g;
-var SRCSET_ATTRIBUTE = /\bsrcset=(["'])([^"']*)\1/g;
+var SRCSET_ATTRIBUTE = /\b(srcset)=(?:"([^"]*)"|'([^']*)')/gi;
+
+// src/utils/srcset.ts
+var isSpace2 = (char) => char === " " || char === "\t" || char === `
+` || char === "\f" || char === "\r";
+function srcsetCandidates2(srcset) {
+  const candidates = [];
+  let position = 0;
+  while (position < srcset.length) {
+    while (isSpace2(srcset[position]) || srcset[position] === ",") {
+      position += 1;
+    }
+    const start = position;
+    while (position < srcset.length && !isSpace2(srcset[position])) {
+      position += 1;
+    }
+    let end = position;
+    if (srcset[end - 1] === ",") {
+      while (end > start && srcset[end - 1] === ",") {
+        end -= 1;
+      }
+    } else {
+      let inParentheses = false;
+      while (position < srcset.length) {
+        const char = srcset[position];
+        position += 1;
+        if (char === "(" || char === ")") {
+          inParentheses = char === "(";
+        } else if (char === "," && !inParentheses) {
+          break;
+        }
+      }
+    }
+    if (end > start) {
+      candidates.push({ url: srcset.slice(start, end), start, end });
+    }
+  }
+  return candidates;
+}
 
 // src/utils/public-assets.ts
 function mountPublicUrl(url, mount, publicFiles) {
@@ -3183,12 +4045,15 @@ function rewritePublicAssetUrls(html, mount, publicFiles) {
     return html;
   }
   const rewrite = (url) => mountPublicUrl(url, mount, publicFiles);
-  return html.replace(URL_ATTRIBUTE, (_whole, name, quote, url) => `${name}=${quote}${rewrite(url)}${quote}`).replace(SRCSET_ATTRIBUTE, (_whole, quote, value) => {
-    const rewritten = value.split(",").map((candidate) => {
-      const [url = "", ...descriptor] = candidate.trim().split(/\s+/);
-      return [url.startsWith("/") ? rewrite(url) : url, ...descriptor].join(" ");
-    }).join(", ");
-    return `srcset=${quote}${rewritten}${quote}`;
+  return html.replace(URL_ATTRIBUTE, (_whole, name, quote, url) => `${name}=${quote}${rewrite(url)}${quote}`).replace(SRCSET_ATTRIBUTE, (_whole, name, double, single) => {
+    const quote = double === undefined ? "'" : '"';
+    let value = double ?? single ?? "";
+    for (const { url, start, end } of srcsetCandidates2(value).reverse()) {
+      if (url.startsWith("/")) {
+        value = value.slice(0, start) + rewrite(url) + value.slice(end);
+      }
+    }
+    return `${name}=${quote}${value}${quote}`;
   });
 }
 
@@ -3246,7 +4111,7 @@ import { fromHtml } from "hast-util-from-html";
 import { toMdast } from "hast-util-to-mdast";
 import { gfmToMarkdown } from "mdast-util-gfm";
 import { toMarkdown } from "mdast-util-to-markdown";
-import { SKIP, visit as visit4 } from "unist-util-visit";
+import { SKIP, visit as visit5 } from "unist-util-visit";
 
 // compiler/constants/markdown.ts
 var DROPPED_TAGS = new Set([
@@ -3277,7 +4142,7 @@ function paragraph(children) {
 }
 function findMarkdownRoot(tree) {
   let root = null;
-  visit4(tree, "element", (node) => {
+  visit5(tree, "element", (node) => {
     if (node.properties.dataMdRoot !== undefined) {
       root = node;
       return false;
@@ -3287,14 +4152,14 @@ function findMarkdownRoot(tree) {
   return root;
 }
 function simplify(root) {
-  visit4(root, "comment", (_node, index, parent) => {
+  visit5(root, "comment", (_node, index, parent) => {
     if (parent && index !== undefined) {
       parent.children.splice(index, 1);
       return [SKIP, index];
     }
     return;
   });
-  visit4(root, "element", (node, index, parent) => {
+  visit5(root, "element", (node, index, parent) => {
     if (!parent || index === undefined) {
       return;
     }
@@ -3312,7 +4177,7 @@ function simplify(root) {
     if (node.tagName === "aside" && typeof props.ariaLabel === "string") {
       node.tagName = "blockquote";
       let titled = false;
-      visit4(node, "element", (inner) => {
+      visit5(node, "element", (inner) => {
         if (inner.properties.dataCalloutTitle !== undefined) {
           inner.children = [strong(textOf(inner))];
           titled = true;
@@ -3377,7 +4242,7 @@ function textBlocks(node) {
   return blocks.filter(Boolean);
 }
 function absolutize(tree, pageUrl) {
-  visit4(tree, (node) => {
+  visit5(tree, (node) => {
     if ((node.type === "link" || node.type === "image") && node.url) {
       try {
         node.url = new URL(node.url, pageUrl).toString();
@@ -3977,16 +4842,10 @@ async function writeLocalFavicons(params) {
 import { readFile as readFile3 } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { extname as extname2, join as join5 } from "node:path";
-import { Resvg } from "@resvg/resvg-js";
-import satori from "satori";
 
-// src/constants/og.ts
-var OG_MANIFEST_FILE = "og-manifest.json";
-
-// compiler/constants/og-images.ts
+// ../../packages/sites-og/src/constants/og-images.ts
 var OG_IMAGE_WIDTH = 1200;
 var OG_IMAGE_HEIGHT = 630;
-var OG_IMAGES_DIR = "_notra/og";
 var OG_FONT_SUBSETS = [
   "latin",
   "latin-ext",
@@ -3994,13 +4853,20 @@ var OG_FONT_SUBSETS = [
   "greek"
 ];
 var OG_FONT_WEIGHTS = [400, 500, 600, 700];
+var OG_FONT_FILES = OG_FONT_SUBSETS.flatMap((subset) => OG_FONT_WEIGHTS.map((weight) => ({
+  name: `Inter ${subset}`,
+  weight,
+  file: `inter-${subset}-${weight}-normal.woff`
+})));
 var OG_FONT_FAMILY = OG_FONT_SUBSETS.map((subset) => `"Inter ${subset}"`).join(", ");
+var OG_CUSTOM_FONT_NAME = "Thumbnail";
 var OG_BACKGROUND_MIME_TYPES = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".svg": "image/svg+xml"
 };
+var OG_FONT_EXTENSIONS = [".ttf", ".otf", ".woff"];
 var OG_THEME = {
   light: { background: "#ffffff", text: "#0a0a0a", muted: "#6b7280" },
   dark: { background: "#0a0a0a", text: "#fafafa", muted: "#a1a1aa" }
@@ -4014,14 +4880,31 @@ var OG_ARTICLE_AVATAR_SIZE = 50;
 var OG_ARTICLE_MAX_AVATARS = 4;
 var OG_AUTHOR_AVATAR_SIZE = 64;
 var OG_AUTHOR_LOGO_SIZE = 56;
+var OG_SHORT_DATE = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC"
+});
+var OG_SHORT_DATE_WITH_YEAR = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC"
+});
+var OG_LONG_DATE = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  timeZone: "UTC"
+});
 
-// compiler/utils/og-card.ts
+// ../../packages/sites-og/src/utils/og-title.ts
 function titleSize(title) {
   const step = OG_TITLE_SIZES.find((candidate) => title.length <= candidate.maxLength) ?? OG_TITLE_SIZES[2];
   return step.size;
 }
 
-// compiler/components/og-article-card.tsx
+// ../../packages/sites-og/src/components/og-article-card.tsx
 import { jsxDEV } from "react/jsx-dev-runtime";
 function OgArticleCard(content) {
   const colors = OG_THEME[content.appearance];
@@ -4051,7 +4934,7 @@ function OgArticleCard(content) {
       padding: "72px 80px",
       backgroundColor: colors.background,
       color: colors.text,
-      fontFamily: OG_FONT_FAMILY,
+      fontFamily: content.fontFamily ?? OG_FONT_FAMILY,
       fontSize: 28,
       fontWeight: 500
     },
@@ -4136,7 +5019,7 @@ function OgArticleCard(content) {
   }, undefined, true, undefined, this);
 }
 
-// compiler/components/og-author-card.tsx
+// ../../packages/sites-og/src/components/og-author-card.tsx
 import { jsxDEV as jsxDEV2 } from "react/jsx-dev-runtime";
 function OgAuthorCard(content) {
   const colors = OG_THEME[content.appearance];
@@ -4151,7 +5034,7 @@ function OgAuthorCard(content) {
       padding: 80,
       backgroundColor: colors.background,
       color: colors.text,
-      fontFamily: OG_FONT_FAMILY
+      fontFamily: content.fontFamily ?? OG_FONT_FAMILY
     },
     children: [
       content.background ? /* @__PURE__ */ jsxDEV2("img", {
@@ -4269,7 +5152,7 @@ function OgAuthorCard(content) {
   }, undefined, true, undefined, this);
 }
 
-// compiler/components/og-card.tsx
+// ../../packages/sites-og/src/components/og-card.tsx
 import { jsxDEV as jsxDEV3 } from "react/jsx-dev-runtime";
 function OgCard(content) {
   const colors = OG_THEME[content.appearance];
@@ -4283,7 +5166,7 @@ function OgCard(content) {
       padding: "88px 88px 72px",
       backgroundColor: colors.background,
       color: colors.text,
-      fontFamily: OG_FONT_FAMILY,
+      fontFamily: content.fontFamily ?? OG_FONT_FAMILY,
       position: "relative"
     },
     children: [
@@ -4351,44 +5234,166 @@ function OgCard(content) {
   }, undefined, true, undefined, this);
 }
 
+// ../../packages/sites-og/src/utils/og-card.ts
+function ogFontFamily(custom) {
+  return custom ? `"${OG_CUSTOM_FONT_NAME}", ${OG_FONT_FAMILY}` : OG_FONT_FAMILY;
+}
+function ogLogoPath(config) {
+  const { logo, favicon } = config;
+  const path = typeof logo === "string" ? logo : logo?.light;
+  return path ?? (typeof favicon === "string" ? favicon : favicon?.light);
+}
+function ogAccent(config) {
+  return config.thumbnails.appearance === "dark" ? config.colors.light ?? config.colors.primary : config.colors.primary;
+}
+function ogDomain(publicOrigin) {
+  return new URL(publicOrigin).hostname.replace(/^www\./, "");
+}
+function withSiteName2(siteName, title) {
+  return title.startsWith(siteName) ? title : `${siteName} · ${title}`;
+}
+function formatShortDate(date, now) {
+  const sameYear = date.getUTCFullYear() === now.getUTCFullYear();
+  return (sameYear ? OG_SHORT_DATE : OG_SHORT_DATE_WITH_YEAR).format(date);
+}
+function authorWithFallback(author, logo) {
+  return author && !author.avatar && logo ? { ...author, avatar: logo } : author;
+}
+function ogEntryCard({
+  config,
+  areaTitle,
+  entry,
+  style,
+  now
+}) {
+  const { layout, label } = config.thumbnails;
+  if (layout === "article") {
+    return OgArticleCard({
+      ...style,
+      date: formatShortDate(entry.date, now),
+      category: entry.tags[0] ?? label ?? areaTitle,
+      title: entry.title,
+      description: entry.description,
+      authors: entry.authors
+    });
+  }
+  if (layout === "author") {
+    return OgAuthorCard({
+      ...style,
+      label: label ?? areaTitle,
+      title: entry.title,
+      author: authorWithFallback(entry.authors[0], style.logo)
+    });
+  }
+  return OgCard({
+    ...style,
+    eyebrow: withSiteName2(config.name, areaTitle),
+    title: entry.title,
+    footer: [entry.version, OG_LONG_DATE.format(entry.date)].filter(Boolean).join(" · ")
+  });
+}
+function ogAreaCard({
+  config,
+  title,
+  section,
+  description,
+  style
+}) {
+  const { layout, label } = config.thumbnails;
+  const category = label ?? section;
+  if (layout === "article") {
+    return OgArticleCard({
+      ...style,
+      date: config.name,
+      category: category === title ? "" : category,
+      title,
+      description,
+      authors: []
+    });
+  }
+  if (layout === "author") {
+    return OgAuthorCard({ ...style, label: category, title });
+  }
+  return OgCard({
+    ...style,
+    eyebrow: config.name,
+    title,
+    footer: style.domain
+  });
+}
+function ogStyle(config, assets) {
+  return {
+    appearance: config.thumbnails.appearance,
+    accent: ogAccent(config),
+    logo: assets.logo,
+    domain: assets.domain,
+    background: assets.background,
+    fontFamily: ogFontFamily(assets.customFont)
+  };
+}
+
+// ../../packages/sites-og/src/utils/og-render.ts
+import { Resvg } from "@resvg/resvg-js";
+import { createElement } from "react";
+import satori from "satori";
+async function renderOgPng(card, fonts) {
+  const svg = await satori(card, {
+    width: OG_IMAGE_WIDTH,
+    height: OG_IMAGE_HEIGHT,
+    fonts
+  });
+  return new Resvg(svg, {
+    fitTo: { mode: "width", value: OG_IMAGE_WIDTH }
+  }).render().asPng();
+}
+function isOgFontPath(path) {
+  const lower = path.toLowerCase().replace(/[?#].*$/, "");
+  return OG_FONT_EXTENSIONS.some((extension) => lower.endsWith(extension));
+}
+async function loadOgCustomFont(data) {
+  const font = {
+    name: OG_CUSTOM_FONT_NAME,
+    weight: 400,
+    style: "normal",
+    data: Buffer.from(data)
+  };
+  try {
+    await satori(createElement("div", { style: { display: "flex", fontFamily: OG_CUSTOM_FONT_NAME } }, "Aa"), { width: 40, height: 40, fonts: [font] });
+    return font;
+  } catch {
+    return null;
+  }
+}
+
+// src/constants/og.ts
+var OG_MANIFEST_FILE = "og-manifest.json";
+
+// compiler/constants/og-images.ts
+var OG_IMAGES_DIR = "_notra/og";
+
 // compiler/og-images.ts
 var fontsPromise = null;
 function loadFonts() {
   fontsPromise ??= (async () => {
     const require2 = createRequire(import.meta.url);
-    const specs = OG_FONT_SUBSETS.flatMap((subset) => OG_FONT_WEIGHTS.map((weight) => ({ subset, weight })));
-    return Promise.all(specs.map(async ({ subset, weight }) => ({
-      name: `Inter ${subset}`,
+    return Promise.all(OG_FONT_FILES.map(async ({ name, weight, file }) => ({
+      name,
       weight,
       style: "normal",
-      data: await readFile3(require2.resolve(`@fontsource/inter/files/inter-${subset}-${weight}-normal.woff`))
+      data: await readFile3(require2.resolve(`@fontsource/inter/files/${file}`))
     })));
   })();
   return fontsPromise;
 }
-function formatShortDate(date, now) {
-  const sameYear = date.getUTCFullYear() === now.getUTCFullYear();
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "long",
-    ...sameYear ? {} : { year: "numeric" },
-    timeZone: "UTC"
-  }).format(date);
-}
-function formatDate(date) {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC"
-  }).format(date);
+function publicPath(path) {
+  return path.startsWith("/") ? path : `/${path}`;
 }
 async function loadBackground(params) {
   const path = params.config.thumbnails.background;
   if (!path) {
     return {};
   }
-  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const normalized = publicPath(path);
   const mimeType = OG_BACKGROUND_MIME_TYPES[extname2(normalized).toLowerCase()];
   if (!(mimeType && params.publicFiles.includes(normalized))) {
     return {
@@ -4407,7 +5412,7 @@ async function publicImage(params, path) {
   if (!path || /^https?:\/\//.test(path)) {
     return;
   }
-  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const normalized = publicPath(path);
   const mimeType = OG_BACKGROUND_MIME_TYPES[extname2(normalized).toLowerCase()];
   if (!(mimeType && params.publicFiles.includes(normalized))) {
     return;
@@ -4434,50 +5439,28 @@ async function resolveAuthors(params, value) {
   const authors = await Promise.all(refs.map((ref) => resolveAuthor(params, ref)));
   return authors.filter((author) => author !== undefined);
 }
-function authorWithFallback(author, logo) {
-  return author && !author.avatar && logo ? { ...author, avatar: logo } : author;
-}
-function siteLogo(config) {
-  const { logo, favicon } = config;
-  const path = typeof logo === "string" ? logo : logo?.light;
-  return path ?? (typeof favicon === "string" ? favicon : favicon?.light);
-}
-async function renderPng(card, fonts) {
-  const svg = await satori(card, {
-    width: OG_IMAGE_WIDTH,
-    height: OG_IMAGE_HEIGHT,
-    fonts
-  });
-  return new Resvg(svg, {
-    fitTo: { mode: "width", value: OG_IMAGE_WIDTH }
-  }).render().asPng();
-}
-function areaCard(params, area, style) {
-  const { config } = params;
-  const title = configuredAreaTitle(config, area);
-  const section = config.thumbnails.label ?? AREA_DEFAULT_TITLES[area];
-  if (config.thumbnails.layout === "article") {
-    return OgArticleCard({
-      ...style,
-      date: config.name,
-      category: section === title ? "" : section,
-      title,
-      description: config[area]?.description ?? config.description,
-      authors: []
-    });
+async function loadCustomFont(params) {
+  const path = params.config.thumbnails.font;
+  if (!path) {
+    return {};
   }
-  if (config.thumbnails.layout === "author") {
-    return OgAuthorCard({ ...style, label: section, title });
-  }
-  return OgCard({
-    ...style,
-    eyebrow: config.name,
-    title,
-    footer: style.domain
+  const normalized = publicPath(path);
+  const warning = (reason) => ({
+    diagnostic: {
+      severity: "warning",
+      file: SITE_CONFIG_FILENAME,
+      code: "thumbnail_font",
+      message: `thumbnails.font: ${path} ${reason}. Share images use Inter instead.`
+    }
   });
+  if (!(isOgFontPath(normalized) && params.publicFiles.includes(normalized))) {
+    return warning("is not a TTF, OTF or WOFF file in public/");
+  }
+  const font = await loadOgCustomFont(await readFile3(join5(params.workDir, "site", "public", normalized)));
+  return font ? { font } : warning("couldn't be read as a font");
 }
 async function writeCard(params, card, fonts, urlPath) {
-  await writeFileEnsured(join5(params.workDir, "site", "public", urlPath), await renderPng(card, fonts));
+  await writeFileEnsured(join5(params.workDir, "site", "public", urlPath), await renderOgPng(card, fonts));
 }
 async function writeOgImages(params) {
   const started = Date.now();
@@ -4485,27 +5468,36 @@ async function writeOgImages(params) {
   const diagnostics = [];
   const { config } = params;
   if (config.thumbnails.enabled) {
-    const [fonts, background] = await Promise.all([
+    const [inter, background, custom, logo] = await Promise.all([
       loadFonts(),
-      loadBackground(params)
+      loadBackground(params),
+      loadCustomFont(params),
+      publicImage(params, ogLogoPath(config))
     ]);
-    if (background.diagnostic) {
-      diagnostics.push(background.diagnostic);
+    for (const diagnostic of [background.diagnostic, custom.diagnostic]) {
+      if (diagnostic) {
+        diagnostics.push(diagnostic);
+      }
     }
-    const appearance = config.thumbnails.appearance;
-    const style = {
-      appearance,
-      accent: appearance === "dark" ? config.colors.light ?? config.colors.primary : config.colors.primary,
-      logo: await publicImage(params, siteLogo(config)),
-      domain: new URL(params.publicOrigin).hostname.replace(/^www\./, ""),
-      background: background.dataUri
-    };
-    const { accent, logo, domain } = style;
+    const fonts = custom.font ? [custom.font, ...inter] : inter;
+    const style = ogStyle(config, {
+      logo,
+      background: background.dataUri,
+      domain: ogDomain(params.publicOrigin),
+      customFont: Boolean(custom.font)
+    });
     const now = new Date;
     const areas = config.seo.image ? [] : params.areas;
     await Promise.all(areas.map(async (area) => {
       const urlPath = `/${OG_IMAGES_DIR}/${area}.png`;
-      await writeCard(params, areaCard(params, area, style), fonts, urlPath);
+      const card = ogAreaCard({
+        config,
+        title: configuredAreaTitle(config, area),
+        section: AREA_DEFAULT_TITLES[area],
+        description: config[area]?.description ?? config.description,
+        style
+      });
+      await writeCard(params, card, fonts, urlPath);
       manifest[area] = urlPath;
     }));
     await Promise.all(params.entries.map(async (entry) => {
@@ -4514,43 +5506,20 @@ async function writeOgImages(params) {
       if (!data || data.image || data.draft && !params.includeDrafts) {
         return;
       }
-      const version = "version" in data ? data.version : undefined;
-      const authors = config.thumbnails.layout !== "default" && "author" in data ? await resolveAuthors(params, data.author) : [];
-      const areaTitle = configuredAreaTitle(config, entry.area);
-      let card;
-      if (config.thumbnails.layout === "article") {
-        card = OgArticleCard({
-          date: formatShortDate(data.date, now),
-          category: data.tags[0] ?? config.thumbnails.label ?? areaTitle,
+      const card = ogEntryCard({
+        config,
+        areaTitle: configuredAreaTitle(config, entry.area),
+        entry: {
           title: data.title,
           description: data.description,
-          domain,
-          appearance,
-          accent,
-          logo,
-          authors,
-          background: background.dataUri
-        });
-      } else if (config.thumbnails.layout === "author") {
-        card = OgAuthorCard({
-          label: config.thumbnails.label ?? areaTitle,
-          title: data.title,
-          domain,
-          appearance,
-          logo,
-          author: authorWithFallback(authors[0], logo),
-          background: background.dataUri
-        });
-      } else {
-        card = OgCard({
-          eyebrow: withSiteName(config.name, areaTitle, " · "),
-          title: data.title,
-          footer: [version, formatDate(data.date)].filter(Boolean).join(" · "),
-          appearance,
-          accent,
-          background: background.dataUri
-        });
-      }
+          date: data.date,
+          version: "version" in data ? data.version : undefined,
+          tags: data.tags,
+          authors: config.thumbnails.layout !== "default" && "author" in data ? await resolveAuthors(params, data.author) : []
+        },
+        style,
+        now
+      });
       const urlPath = `/${OG_IMAGES_DIR}/${entry.area}/${entry.slug}.png`;
       await writeCard(params, card, fonts, urlPath);
       manifest[`${entry.area}/${entry.slug}`] = urlPath;
@@ -4563,7 +5532,7 @@ async function writeOgImages(params) {
 }
 
 // compiler/prepare.ts
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash3 } from "node:crypto";
 import { cp as cp2, mkdir as mkdir5, readFile as readFile5, rm as rm2, stat as stat2 } from "node:fs/promises";
 import { dirname as dirname4, join as join9, sep } from "node:path";
 
@@ -4788,27 +5757,6 @@ function isSiteFontPath(source) {
 }
 
 // compiler/constants/fonts.ts
-var GOOGLE_FONTS_CSS_URL = "https://fonts.googleapis.com/css2";
-var GOOGLE_FONTS_LICENSE_URL = "https://raw.githubusercontent.com/google/fonts/main";
-var FONT_LICENSE_LOCATIONS = [
-  ["ofl", "OFL.txt"],
-  ["apache", "LICENSE.txt"],
-  ["ufl", "UFL.txt"]
-];
-var FONT_FETCH_TIMEOUT_MS = 30000;
-var FONT_CSS_MAX_BYTES = 1e5;
-var FONT_FILE_MAX_BYTES = 5000000;
-var FONT_DOWNLOAD_CONCURRENCY = 4;
-var FONT_URL_RE = /url\(\s*["']?([^\s"')]+)["']?\s*\)/g;
-var FONT_PATH_RE = /^\/s\/[\w/-]+\.(woff2?|ttf|otf)$/;
-var FONT_USER_AGENT = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
-var FONT_WEIGHT_RANGES = [
-  [300, 800],
-  [400, 700],
-  [400, 400]
-];
-var FONT_COMMON_WEIGHTS = [300, 400, 500, 600, 700];
-var DEFAULT_HEADING_WEIGHT = 600;
 var FONT_FALLBACK_LOCAL = "Arial";
 var FONT_FALLBACK_METRICS = {
   ascent: 1854,
@@ -4907,9 +5855,49 @@ async function siteFontFallbacks(config, params) {
 }
 
 // compiler/utils/site-fonts.ts
-import { createHash as createHash3 } from "node:crypto";
 import { cp, mkdir as mkdir4, mkdtemp, readdir as readdir2, rename, rm } from "node:fs/promises";
 import { join as join8 } from "node:path";
+
+// ../../packages/sites-core/src/constants/fonts.ts
+var GOOGLE_FONTS_CSS_URL = "https://fonts.googleapis.com/css2";
+var GOOGLE_FONTS_LICENSE_URL = "https://raw.githubusercontent.com/google/fonts/main";
+var GOOGLE_FONTS_FILE_ORIGIN = "https://fonts.gstatic.com";
+var GOOGLE_FONTS_ENDPOINTS = {
+  css: GOOGLE_FONTS_CSS_URL,
+  files: GOOGLE_FONTS_FILE_ORIGIN,
+  licenses: GOOGLE_FONTS_LICENSE_URL
+};
+var FONT_LICENSE_LOCATIONS = [
+  ["ofl", "OFL.txt"],
+  ["apache", "LICENSE.txt"],
+  ["ufl", "UFL.txt"]
+];
+var FONT_FETCH_TIMEOUT_MS = 30000;
+var FONT_CSS_MAX_BYTES = 1e5;
+var FONT_FILE_MAX_BYTES = 5000000;
+var FONT_DOWNLOAD_CONCURRENCY = 4;
+var FONT_URL_RE = /url\(\s*["']?([^\s"')]+)["']?\s*\)/g;
+var FONT_PATH_RE = /^\/s\/[\w/-]+\.(woff2?|ttf|otf)$/;
+var FONT_USER_AGENT = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+var FONT_WEIGHT_RANGES = [
+  [300, 800],
+  [400, 700],
+  [400, 400]
+];
+var FONT_COMMON_WEIGHTS = [300, 400, 500, 600, 700];
+var DEFAULT_HEADING_WEIGHT = 600;
+var FONT_CACHE_DIR = "font-cache";
+
+// ../../packages/sites-core/src/utils/hash.ts
+async function sha256Hex(data) {
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+// ../../packages/sites-core/src/utils/site-fonts.ts
+var encoder = new TextEncoder;
+var decoder = new TextDecoder;
+
 class FontRequestError extends Error {
   status;
   constructor(status) {
@@ -4939,6 +5927,12 @@ function weightCandidates(weights) {
     ])
   ];
 }
+function headingSpec(fonts) {
+  if (fonts?.heading?.family) {
+    return fonts.heading;
+  }
+  return fonts?.family ? fonts : fonts?.body;
+}
 function requestedWeights(fonts) {
   const headingWeight = fonts?.heading?.weight;
   const uses = [
@@ -4947,7 +5941,7 @@ function requestedWeights(fonts) {
       weights: [fonts?.body?.weight ?? fonts?.weight]
     },
     {
-      spec: fonts?.heading?.family ? fonts.heading : fonts?.family ? fonts : fonts?.body,
+      spec: headingSpec(fonts),
       weights: headingWeight === undefined ? [undefined, DEFAULT_HEADING_WEIGHT] : [headingWeight]
     }
   ];
@@ -4970,27 +5964,19 @@ function googleFontsUrl(specs) {
   url.searchParams.set("display", "swap");
   return url;
 }
-async function firstSupportedSpec(family, options) {
-  for (const spec of options) {
-    try {
-      await fetchFontAsset(googleFontsUrl(new Map([[family, spec]])).toString(), FONT_CSS_MAX_BYTES);
-      return spec;
-    } catch (error) {
-      if (!(error instanceof FontRequestError && error.status === 400)) {
-        throw error;
-      }
-    }
-  }
-  throw new Error(`Google Fonts has no ${family} in the requested weights`);
+function cssRequestUrl(url, endpoints) {
+  const target = new URL(endpoints.css);
+  target.search = url.search;
+  return target.toString();
 }
-async function supportedFontsUrl(candidates) {
-  const specs = await Promise.all([...candidates].map(async ([family, options]) => [family, await firstSupportedSpec(family, options)]));
-  return googleFontsUrl(new Map(specs));
+async function shortHash(data) {
+  return (await sha256Hex(data)).slice(0, 16);
 }
-async function fetchFontAsset(url, maxBytes) {
+async function fetchFontAsset(url, maxBytes, signal) {
+  const timeout = AbortSignal.timeout(FONT_FETCH_TIMEOUT_MS);
   const response = await fetch(url, {
     redirect: "error",
-    signal: AbortSignal.timeout(FONT_FETCH_TIMEOUT_MS),
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     headers: { "User-Agent": FONT_USER_AGENT }
   });
   if (!response.ok || !response.body) {
@@ -5015,47 +6001,146 @@ async function fetchFontAsset(url, maxBytes) {
   } finally {
     await reader.cancel();
   }
-  return Buffer.concat(chunks);
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
-async function fetchFontLicense(family) {
+async function firstSupportedSpec(family, options, endpoints, signal) {
+  for (const spec of options) {
+    try {
+      await fetchFontAsset(cssRequestUrl(googleFontsUrl(new Map([[family, spec]])), endpoints), FONT_CSS_MAX_BYTES, signal);
+      return spec;
+    } catch (error) {
+      if (!(error instanceof FontRequestError && error.status === 400)) {
+        throw error;
+      }
+    }
+  }
+  throw new Error(`Google Fonts has no ${family} in the requested weights`);
+}
+async function supportedFontsUrl(candidates, endpoints, signal) {
+  const specs = await Promise.all(candidates.map(async ([family, options]) => [
+    family,
+    await firstSupportedSpec(family, options, endpoints, signal)
+  ]));
+  return googleFontsUrl(new Map(specs));
+}
+async function fetchFontLicense(family, endpoints, signal) {
   const directory = family.toLowerCase().replace(/[^a-z0-9]/g, "");
   for (const [category, name] of FONT_LICENSE_LOCATIONS) {
     try {
-      return await fetchFontAsset(`${GOOGLE_FONTS_LICENSE_URL}/${category}/${directory}/${name}`, FONT_CSS_MAX_BYTES);
-    } catch {}
+      return await fetchFontAsset(`${endpoints.licenses}/${category}/${directory}/${name}`, FONT_CSS_MAX_BYTES, signal);
+    } catch {
+      signal?.throwIfAborted();
+    }
   }
   throw new Error(`Could not retrieve the redistribution license for ${family}`);
 }
-async function prepareSiteFonts(config, workDir) {
-  const families = requestedWeights(config.fonts);
-  if (families.size === 0) {
-    return { publicFiles: [], diagnostics: [] };
+async function downloadFontFiles(url, families, requireEveryFamily, endpoints, signal) {
+  const css = decoder.decode(await fetchFontAsset(cssRequestUrl(url, endpoints), FONT_CSS_MAX_BYTES, signal));
+  const urls = [
+    ...new Set([...css.matchAll(FONT_URL_RE)].flatMap((match) => match[1] ? [match[1]] : []))
+  ];
+  if (urls.length === 0) {
+    throw new Error("Font stylesheet contains no font files");
   }
+  const served = css.toLowerCase();
+  if (requireEveryFamily && families.some((family) => !served.includes(`font-family: '${family.toLowerCase()}'`))) {
+    throw new FontRequestError(400);
+  }
+  const sources = urls.map((source) => {
+    const parsed = new URL(source);
+    if (parsed.origin !== new URL(endpoints.files).origin || parsed.username || parsed.password || parsed.search || parsed.hash || !FONT_PATH_RE.test(parsed.pathname)) {
+      throw new Error("Unsupported font file URL");
+    }
+    return { source, extension: parsed.pathname.split(".").at(-1) };
+  });
+  const files = [];
+  const replacements = new Map;
+  const downloads = families.map((family) => async () => {
+    const license = await fetchFontLicense(family, endpoints, signal);
+    files.push({
+      name: `font-license-${await shortHash(license)}.txt`,
+      data: license
+    });
+  });
+  downloads.push(...sources.map(({ source, extension }) => async () => {
+    const bytes = await fetchFontAsset(source, FONT_FILE_MAX_BYTES, signal);
+    const name = `font-${await shortHash(bytes)}.${extension}`;
+    files.push({ name, data: bytes });
+    replacements.set(source, `./${name}`);
+  }));
+  const results = await Promise.allSettled(Array.from({ length: FONT_DOWNLOAD_CONCURRENCY }, async () => {
+    let download = downloads.shift();
+    while (download) {
+      signal?.throwIfAborted();
+      await download();
+      download = downloads.shift();
+    }
+  }));
+  for (const result of results) {
+    if (result.status === "rejected") {
+      throw result.reason;
+    }
+  }
+  const localCss = css.replace(FONT_URL_RE, (_, source) => `url("${replacements.get(source)}")`);
+  if (/https?:\/\//i.test(localCss) || /@import/i.test(localCss)) {
+    throw new Error("Unsupported external font stylesheet reference");
+  }
+  const stylesheet = encoder.encode(localCss);
+  files.push({
+    name: `fonts-${await shortHash(stylesheet)}.css`,
+    data: stylesheet
+  });
+  return files.sort((a, b) => a.name.localeCompare(b.name));
+}
+async function planSiteFonts(fonts) {
+  const families = requestedWeights(fonts);
+  if (families.size === 0) {
+    return null;
+  }
+  const candidates = [...families].map(([family, weights]) => [family, weightCandidates(weights)]);
+  const url = googleFontsUrl(new Map(candidates.map(([family, specs]) => [family, specs[0] ?? ""]))).toString();
+  return {
+    key: await sha256Hex(encoder.encode(url + JSON.stringify(candidates))),
+    url,
+    families: [...families.keys()],
+    candidates
+  };
+}
+async function downloadSiteFonts(plan, { signal, endpoints = GOOGLE_FONTS_ENDPOINTS } = {}) {
+  try {
+    return await downloadFontFiles(new URL(plan.url), plan.families, true, endpoints, signal);
+  } catch (error) {
+    if (!(error instanceof FontRequestError && error.status === 400)) {
+      throw error;
+    }
+    return await downloadFontFiles(await supportedFontsUrl(plan.candidates, endpoints, signal), plan.families, false, endpoints, signal);
+  }
+}
+
+// compiler/utils/site-fonts.ts
+async function prepareSiteFonts(config, workDir) {
   let stagingDir;
   let publicDir;
   try {
-    const candidates = new Map([...families].map(([family, weights]) => [
-      family,
-      weightCandidates(weights)
-    ]));
-    const url = googleFontsUrl(new Map([...candidates].map(([family, specs]) => [family, specs[0] ?? ""])));
-    const key = createHash3("sha256").update(url.toString()).update(JSON.stringify([...candidates])).digest("hex");
-    const cacheRoot = join8(workDir, "font-cache");
-    const cacheDir = join8(cacheRoot, key);
-    const publicPath = `/${SITE_ASSETS_DIR}/fonts/${key}`;
+    const plan = await planSiteFonts(config.fonts);
+    if (!plan) {
+      return { publicFiles: [], diagnostics: [] };
+    }
+    const cacheRoot = join8(workDir, FONT_CACHE_DIR);
+    const cacheDir = join8(cacheRoot, plan.key);
+    const publicPath = `/${SITE_ASSETS_DIR}/fonts/${plan.key}`;
     publicDir = join8(workDir, "site", "public", publicPath);
     if (!await exists(cacheDir)) {
       await mkdir4(cacheRoot, { recursive: true });
       stagingDir = await mkdtemp(join8(cacheRoot, "batch-"));
-      try {
-        await downloadSiteFonts(url, [...families.keys()], stagingDir, true);
-      } catch (error) {
-        if (!(error instanceof FontRequestError && error.status === 400)) {
-          throw error;
-        }
-        await rm(stagingDir, { recursive: true, force: true });
-        stagingDir = await mkdtemp(join8(cacheRoot, "batch-"));
-        await downloadSiteFonts(await supportedFontsUrl(candidates), [...families.keys()], stagingDir, false);
+      for (const file of await downloadSiteFonts(plan)) {
+        await writeFileEnsured(join8(stagingDir, file.name), file.data);
       }
       await rename(stagingDir, cacheDir);
       stagingDir = undefined;
@@ -5086,58 +6171,6 @@ async function prepareSiteFonts(config, workDir) {
     };
   }
 }
-async function downloadSiteFonts(url, families, stagingDir, requireEveryFamily) {
-  const css = (await fetchFontAsset(url.toString(), FONT_CSS_MAX_BYTES)).toString("utf8");
-  const urls = [
-    ...new Set([...css.matchAll(FONT_URL_RE)].flatMap((match) => match[1] ? [match[1]] : []))
-  ];
-  if (urls.length === 0) {
-    throw new Error("Font stylesheet contains no font files");
-  }
-  const served = css.toLowerCase();
-  if (requireEveryFamily && families.some((family) => !served.includes(`font-family: '${family.toLowerCase()}'`))) {
-    throw new FontRequestError(400);
-  }
-  const sources = urls.map((source) => {
-    const parsed = new URL(source);
-    if (parsed.protocol !== "https:" || parsed.host !== "fonts.gstatic.com" || parsed.username || parsed.password || parsed.search || parsed.hash || !FONT_PATH_RE.test(parsed.pathname)) {
-      throw new Error("Unsupported font file URL");
-    }
-    return { source, extension: parsed.pathname.split(".").at(-1) };
-  });
-  const replacements = new Map;
-  const downloads = families.map((family) => async () => {
-    const license = await fetchFontLicense(family);
-    const hash = createHash3("sha256").update(license).digest("hex").slice(0, 16);
-    await writeFileEnsured(join8(stagingDir, `font-license-${hash}.txt`), license);
-  });
-  downloads.push(...sources.map(({ source, extension }) => async () => {
-    const bytes = await fetchFontAsset(source, FONT_FILE_MAX_BYTES);
-    const hash = createHash3("sha256").update(bytes).digest("hex").slice(0, 16);
-    const name = `font-${hash}.${extension}`;
-    await writeFileEnsured(join8(stagingDir, name), bytes);
-    replacements.set(source, `./${name}`);
-  }));
-  const results = await Promise.allSettled(Array.from({ length: FONT_DOWNLOAD_CONCURRENCY }, async () => {
-    let download = downloads.shift();
-    while (download) {
-      await download();
-      download = downloads.shift();
-    }
-  }));
-  for (const result of results) {
-    if (result.status === "rejected") {
-      throw result.reason;
-    }
-  }
-  const localCss = css.replace(FONT_URL_RE, (_, source) => `url("${replacements.get(source)}")`);
-  if (/https?:\/\//i.test(localCss) || /@import/i.test(localCss)) {
-    throw new Error("Unsupported external font stylesheet reference");
-  }
-  const hash = createHash3("sha256").update(localCss).digest("hex").slice(0, 16);
-  const stylesheet = `fonts-${hash}.css`;
-  await writeFileEnsured(join8(stagingDir, stylesheet), localCss);
-}
 
 // compiler/prepare.ts
 async function readSiteFiles(siteRoot) {
@@ -5161,6 +6194,7 @@ async function prepareSite(params) {
         config: null,
         diagnostics: [],
         entries: [],
+        links: [],
         outputs: new Map
       },
       collectDiagnostics: collected.diagnostics,
@@ -5231,7 +6265,7 @@ async function prepareSite(params) {
   const customScripts = await Promise.all(sortCustomScriptPaths(collected.files.map((file) => file.path)).map(async (path) => {
     const source = await readFile5(join9(params.siteRoot, path));
     const name = path.replace(/\.js$/i, "").replace(/[^A-Za-z0-9_-]+/g, "-");
-    const fileName = `custom-${name}.${createHash4("sha256").update(source).digest("hex").slice(0, 10)}.js`;
+    const fileName = `custom-${name}.${createHash3("sha256").update(source).digest("hex").slice(0, 10)}.js`;
     await writeFileEnsured(join9(params.workDir, "site", "public", SITE_ASSETS_DIR, fileName), source);
     return { path, fileName };
   }));
@@ -5313,10 +6347,12 @@ var DATABUDDY_CONNECTION_KEYS = new Set([
 
 // compiler/utils/consent.ts
 function consentAnalytics({
+  capless,
   databuddy,
   ga4,
   plausible,
   posthog,
+  rybbit,
   umami
 }) {
   const databuddyConfig = databuddy && {
@@ -5327,6 +6363,7 @@ function consentAnalytics({
     options: Object.fromEntries(Object.entries(databuddy).filter(([key]) => !DATABUDDY_CONNECTION_KEYS.has(key)))
   };
   return {
+    capless: capless && { key: capless.key, scriptUrl: CAPLESS_SCRIPT_URL },
     databuddy: databuddyConfig,
     gtag: ga4 && { id: ga4.measurementId },
     posthog: posthog && {
@@ -5338,6 +6375,7 @@ function consentAnalytics({
       domain: plausible.domain,
       scriptUrl: plausible.server ? `https://${plausible.server}/js/script.js` : undefined
     },
+    rybbit: rybbit && rybbitScript(rybbit),
     umami: umami && {
       websiteId: umami.websiteId,
       scriptUrl: umami.scriptUrl,
@@ -5419,8 +6457,43 @@ function siteHeadScripts(config, mount, customScripts, analytics, hostingDomain)
   ];
 }
 
+// compiler/utils/html-ids.ts
+import { SAXParser as SAXParser2 } from "parse5-sax-parser";
+
+// compiler/constants/html-ids.ts
+var CLIENT_ONLY_ISLAND = 'client="only"';
+
+// compiler/utils/html-ids.ts
+function htmlIds(html) {
+  if (html.includes(CLIENT_ONLY_ISLAND)) {
+    return null;
+  }
+  const ids = new Set;
+  const parser = new SAXParser2;
+  let templates = 0;
+  parser.on("startTag", (token) => {
+    if (templates === 0) {
+      for (const { name, value } of token.attrs) {
+        if (name === "id" || name === "name" && token.tagName === "a") {
+          ids.add(value);
+        }
+      }
+    }
+    if (token.tagName === "template" && !token.selfClosing) {
+      templates += 1;
+    }
+  });
+  parser.on("endTag", (token) => {
+    if (token.tagName === "template" && templates > 0) {
+      templates -= 1;
+    }
+  });
+  parser.end(html);
+  return ids;
+}
+
 // compiler/utils/inline-scripts.ts
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 
 // compiler/constants/inline-scripts.ts
 var SCRIPT_ELEMENT = /<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi;
@@ -5449,18 +6522,18 @@ function inlineScriptHashes(html) {
 `, `
 `).replaceAll("\r", `
 `);
-    hashes.push(createHash5("sha256").update(text, "utf8").digest("base64"));
+    hashes.push(createHash4("sha256").update(text, "utf8").digest("base64"));
   }
   return hashes;
 }
 
 // compiler/utils/nested-links.ts
-import { SAXParser as SAXParser2 } from "parse5-sax-parser";
+import { SAXParser as SAXParser3 } from "parse5-sax-parser";
 function unnestLinks(html) {
   if (!/<a(?:\s|\/|>)/i.test(html)) {
     return html;
   }
-  const parser = new SAXParser2({ sourceCodeLocationInfo: true });
+  const parser = new SAXParser3({ sourceCodeLocationInfo: true });
   const dropped = [];
   const edits = [];
   parser.on("startTag", (token) => {
@@ -5495,7 +6568,7 @@ function hasReactComponents(outputs) {
 
 // compiler/utils/work-lock.ts
 import { randomUUID } from "node:crypto";
-import { link, mkdir as mkdir6, open as open2, rm as rm3, stat as stat3, writeFile as writeFile4 } from "node:fs/promises";
+import { link, mkdir as mkdir6, readFile as readFile6, rm as rm3, writeFile as writeFile4 } from "node:fs/promises";
 import { dirname as dirname5 } from "node:path";
 
 // compiler/utils/usage-error.ts
@@ -5516,11 +6589,12 @@ function isRunning(pid) {
   }
 }
 async function publish(path) {
+  const token = `${process.pid} ${randomUUID()}`;
   const draft = `${path}.${process.pid}.${randomUUID()}`;
-  await writeFile4(draft, String(process.pid));
+  await writeFile4(draft, token);
   try {
     await link(draft, path);
-    return (await stat3(draft)).ino;
+    return token;
   } catch (error) {
     if (error.code === "EEXIST") {
       return null;
@@ -5531,47 +6605,39 @@ async function publish(path) {
   }
 }
 async function ownerOf(path) {
-  const handle = await open2(path, "r").catch(() => null);
-  if (!handle) {
+  const token = await readFile6(path, "utf8").catch(() => null);
+  if (token === null) {
     return null;
   }
-  try {
-    const [{ ino }, text] = await Promise.all([
-      handle.stat(),
-      handle.readFile("utf8")
-    ]);
-    return { pid: Number(text), ino };
-  } finally {
-    await handle.close();
-  }
+  return { pid: Number(token.split(" ")[0]), token };
 }
-async function removeIfStill(path, ino) {
-  if ((await ownerOf(path))?.ino === ino) {
+async function removeIfStill(path, token) {
+  if ((await ownerOf(path))?.token === token) {
     await rm3(path, { force: true });
   }
 }
 async function clearStale(lockPath, stale) {
   const guard = `${lockPath}.takeover`;
-  const guardIno = await publish(guard);
-  if (guardIno === null) {
+  const guardToken = await publish(guard);
+  if (guardToken === null) {
     const holder = await ownerOf(guard);
     if (holder && !isRunning(holder.pid)) {
-      await removeIfStill(guard, holder.ino);
+      await removeIfStill(guard, holder.token);
     }
     return;
   }
   try {
-    await removeIfStill(lockPath, stale.ino);
+    await removeIfStill(lockPath, stale.token);
   } finally {
-    await removeIfStill(guard, guardIno);
+    await removeIfStill(guard, guardToken);
   }
 }
 async function lockWorkDir(lockPath) {
   await mkdir6(dirname5(lockPath), { recursive: true });
   for (let attempt = 0;attempt < 5; attempt += 1) {
-    const ino = await publish(lockPath);
-    if (ino !== null) {
-      return () => removeIfStill(lockPath, ino);
+    const token = await publish(lockPath);
+    if (token !== null) {
+      return () => removeIfStill(lockPath, token);
     }
     const owner = await ownerOf(lockPath);
     if (owner && isRunning(owner.pid)) {
@@ -5732,7 +6798,7 @@ ${log.trim().split(`
     for (const file of await listFiles(areaOut)) {
       const relativePath = relative2(areaOut, file).split("\\").join("/");
       if (relativePath === AREA_PAGES_FILE) {
-        areaPages.push(JSON.parse(await readFile6(file, "utf8")));
+        areaPages.push(JSON.parse(await readFile7(file, "utf8")));
         continue;
       }
       const urlPath = joinMountPath(mount, relativePath);
@@ -5748,7 +6814,7 @@ ${log.trim().split(`
       const target = join10(options.outDir, urlPath);
       await mkdir7(dirname6(target), { recursive: true });
       if (file.endsWith(".html")) {
-        const html = rewritePublicAssetUrls(unnestLinks(await readFile6(file, "utf8")), mount, publicFiles);
+        const html = rewritePublicAssetUrls(unnestLinks(await readFile7(file, "utf8")), mount, publicFiles);
         pageHtml.set(urlPath, html);
         await writeFile5(target, html);
       } else {
@@ -5811,7 +6877,18 @@ area=${area}
     });
   }
   const outputFiles = await listFiles(options.outDir);
-  const sizes = await Promise.all(outputFiles.map(async (file) => (await stat4(file)).size));
+  diagnostics.push(...brokenLinkDiagnostics(prepared.validation.links, {
+    mounts,
+    publicOrigin,
+    files: new Set(outputFiles.map((file) => `/${relative2(options.outDir, file).split("\\").join("/")}`)),
+    publicFiles,
+    redirects: config.redirects,
+    ids: (file) => {
+      const html = pageHtml.get(file);
+      return html === undefined ? null : htmlIds(html);
+    }
+  }));
+  const sizes = await Promise.all(outputFiles.map(async (file) => (await stat3(file)).size));
   return {
     ok: !hasErrors(diagnostics),
     diagnostics,
@@ -5821,12 +6898,13 @@ area=${area}
     redirects: config.redirects,
     contentSecurityPolicy,
     analyticsConsent: analyticsGatedByConsent(config.integrations),
+    indexNow: config.integrations.indexnow !== false,
     consentStorageKey: consent?.options.storageConfig.storageKey,
     faviconHost
   };
 }
 async function readBuildTarget(path) {
-  return siteBuildRequestSchema.parse(JSON.parse(await readFile6(path, "utf8")));
+  return siteBuildRequestSchema.parse(JSON.parse(await readFile7(path, "utf8")));
 }
 
 // compiler/constants/cli.ts
@@ -5834,13 +6912,14 @@ var LOCAL_SITE_ID = "local";
 var LOCAL_BUILD_ORIGIN = "http://localhost";
 var USAGE = `notra-sites <command>
 
-  validate [--source <dir>] [--target <file>] [--json]  Check settings, MDX and snippets
+  validate [--source <dir>] [--target <file>] [--mount <area>=<path>]... [--origin <url>] [--json]  Check settings, MDX, snippets and links
   build [--source <dir>] --out <dir> [--target <file>] [--mount <area>=<path>]... [--origin <url>] [--json]
   dev [--source <dir>] [--target <file>] [--mount <area>=<path>]... [--area blog|changelog] [--port 4321]
 
   dev and build serve the areas with a folder (both when neither has one) at /blog and /changelog, or those in --target.
   --mount blog=/newsroom serves only the areas listed, at those paths, and replaces the mounts of --target.
   build without --target makes a local build: noindex, no drafts, links on --origin (default ${LOCAL_BUILD_ORIGIN}).
+  validate checks links for the areas and --origin a build with the same flags would use.
   --area picks where "/" redirects in dev and, without --target or --mount, also serves that area.`;
 var DEV_READY_TIMEOUT_MS = 60000;
 var DEV_PORT_SEARCH_RANGE = 100;
@@ -5879,7 +6958,7 @@ import { pipeline } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
 
 // compiler/utils/dev-error-page.ts
-import { createHash as createHash6 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 function escapeHtml(value) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
@@ -5896,7 +6975,7 @@ function devErrorsKey(errors) {
   if (errors.length === 0) {
     return "";
   }
-  return createHash6("sha1").update(JSON.stringify(errors.map((error) => [
+  return createHash5("sha1").update(JSON.stringify(errors.map((error) => [
     error.file,
     error.line,
     error.column,
@@ -5962,7 +7041,7 @@ function isLocalDevHost(host) {
 }
 
 // compiler/utils/dev-markdown.ts
-import { readFile as readFile7 } from "node:fs/promises";
+import { readFile as readFile8 } from "node:fs/promises";
 async function devMarkdown(area, pathname, origin, signal) {
   let path = pathname.replace(/\.md$/, "") || "/";
   const upstreamSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(1e4)]) : AbortSignal.timeout(1e4);
@@ -6004,7 +7083,7 @@ async function devMarkdown(area, pathname, origin, signal) {
   const html = await response.text();
   const url = new URL(path, origin).toString();
   const markdown = entry ? entryMarkdown(entry, url, htmlToMarkdown(html, url)) : indexMarkdown(pages, origin);
-  const params = JSON.parse(await readFile7(area.paramsPath, {
+  const params = JSON.parse(await readFile8(area.paramsPath, {
     encoding: "utf8",
     signal: upstreamSignal
   }));
@@ -6522,6 +7601,20 @@ async function cleanDevGeneratedAssets(workDir, publicFiles, customScripts) {
   }).map((path) => rm5(path, { force: true })));
 }
 
+// compiler/utils/source-links.ts
+function sourceLinkWarnings(validation, mounts, publicOrigin, publicFiles) {
+  if (!validation.config) {
+    return [];
+  }
+  return sourceLinkDiagnostics(validation.links, {
+    mounts,
+    publicOrigin,
+    publicFiles: new Set(publicFiles),
+    redirects: validation.config.redirects,
+    entries: validation.entries
+  });
+}
+
 // compiler/utils/dev-refresh.ts
 function createDevRefresh(options) {
   let revision = 0;
@@ -6587,7 +7680,8 @@ function createDevRefresh(options) {
       ...prepared.collectDiagnostics,
       ...prepared.validation.diagnostics,
       ...ogImages.diagnostics,
-      ...consentChecks
+      ...consentChecks,
+      ...sourceLinkWarnings(prepared.validation, options.params.mounts, options.params.publicOrigin, [...prepared.publicFiles, ...Object.values(ogImages.manifest)])
     ]);
     if (hasErrors(consentChecks)) {
       return;
@@ -6861,15 +7955,20 @@ async function main() {
   const siteRoot = resolve4(values.source ?? ".");
   if (command === "validate") {
     const target = values.target ? await readBuildTarget(values.target) : undefined;
-    if (target) {
-      normalizeSiteMounts(target.mounts);
-    }
+    const site = localBuildTarget(siteRoot, target, {
+      origin: values.origin,
+      mounts: parseMountFlags(values.mount)
+    });
     const { collected, files } = await readSiteFiles(siteRoot);
     const result = validateSite({
       files,
       defaultConfig: localDefaultConfig(siteRoot, target)
     });
-    const diagnostics = [...collected.diagnostics, ...result.diagnostics];
+    const diagnostics = [
+      ...collected.diagnostics,
+      ...result.diagnostics,
+      ...sourceLinkWarnings(result, normalizeSiteMounts(site.mounts), site.publicOrigin, collected.files.filter((file) => file.path.startsWith("public/")).map((file) => file.path.slice("public".length)))
+    ];
     const ok = !hasErrors(diagnostics);
     if (values.json) {
       process.stdout.write(`${JSON.stringify({ ok, diagnostics, entries: result.entries }, null, 2)}

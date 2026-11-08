@@ -1,18 +1,18 @@
 ---
-import type { AuthorPageProps as Props } from "../../types/authors";
+import type { AuthorPageProps as Props, ListedAuthor } from "../../types/authors";
 import AuthorAvatar from "../../components/AuthorAvatar.astro";
-import BackLink from "../../components/BackLink.astro";
-import BrandIcon from "../../components/BrandIcon.astro";
-import Icon from "../../components/Icon.astro";
+import AuthorSocials from "../../components/AuthorSocials.astro";
 import PostCard from "../../components/PostCard.astro";
+import SiteSlot from "../../components/SiteSlot.astro";
 import Base from "../../layouts/Base.astro";
 import { allAuthors, authoredBy, personNode } from "../../lib/authors";
 import { POST_CARD_CELL } from "../../constants/post-card";
 import { cardImages } from "../../lib/cards";
 import { getBlogEntries } from "../../lib/entries";
 import { blogOptions } from "../../lib/options";
-import { absoluteUrl, areaTitle, config, href, params } from "../../lib/params";
+import { absoluteUrl, config, href, params } from "../../lib/params";
 import { breadcrumbs, pageTitle } from "../../lib/seo";
+import { slotAuthor } from "../../lib/slot-data";
 
 export async function getStaticPaths() {
   if (params.area !== "blog") {
@@ -20,7 +20,7 @@ export async function getStaticPaths() {
   }
   const entries = await getBlogEntries();
   return allAuthors(entries)
-    .filter((author) => entries.some((entry) => authoredBy(entry, author.id)))
+    .filter((author): author is ListedAuthor => author.id !== null && entries.some((entry) => authoredBy(entry, author.id)))
     .map((author) => ({ params: { author: author.id }, props: { author } }));
 }
 
@@ -32,7 +32,9 @@ const description = author.bio ?? `Posts by ${author.name}.`;
 const noindex = config.seo.indexing !== "all";
 const stacked = blogOptions.authorPage === "stacked";
 const boxed = blogOptions.layout === "cards";
+const [onlyPost] = posts.length === 1 ? posts : [];
 const postCount = `${posts.length} ${posts.length === 1 ? "post" : "posts"}`;
+const slotData = { author: slotAuthor(author, posts.length) };
 const jsonLd = [
   { "@type": "ProfilePage", "@id": `${url}#page`, url, name: author.name, mainEntity: { ...personNode(author), "@id": `${url}#person` } },
   breadcrumbs(author.name, url),
@@ -43,80 +45,75 @@ const jsonLd = [
   {
     stacked ? (
       <div class="author-stacked mx-auto w-full max-w-(--layout-index)">
-        <header class="flex flex-col items-start gap-5">
-          <AuthorAvatar author={author} size={80} loading="eager" />
-          <div class="flex flex-col gap-1">
-            <h1 id="page-title" class="font-heading text-4xl font-medium tracking-[-0.02em]">{author.name}</h1>
-            {author.title && <p class="author-title font-mono text-sm text-muted-foreground">{author.title}</p>}
-          </div>
-          {author.bio && <p class="max-w-xl text-lg leading-8 text-pretty text-muted-foreground">{author.bio}</p>}
-          {author.socials.length > 0 && (
-            <ul class="flex flex-wrap gap-2">
-              {author.socials.map((social) => (
-                <li>
-                  <a
-                    href={social.url}
-                    rel="me noopener"
-                    target="_blank"
-                    aria-label={new URL(social.url).hostname.replace(/^www\./, "")}
-                    class="author-social flex size-8 items-center justify-center rounded-md border border-border transition-colors duration-150 hover:bg-muted"
-                  >
-                    {social.kind === "website" ? <Icon name="globe" size={16} /> : <BrandIcon name={social.kind} size={16} />}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </header>
+        <SiteSlot name="author-hero" data={slotData}>
+          <header class="author-profile flex flex-col items-start gap-5">
+            <AuthorAvatar author={author} size={80} loading="eager" />
+            <div class="flex flex-col gap-1">
+              <h1 id="page-title" class="font-heading text-4xl font-medium tracking-[-0.02em]">{author.name}</h1>
+              {author.title && <p class="author-title font-mono text-sm text-muted-foreground">{author.title}</p>}
+            </div>
+            {author.bio && <p class="author-bio max-w-xl text-lg leading-8 text-pretty text-muted-foreground">{author.bio}</p>}
+            <AuthorSocials socials={author.socials} />
+          </header>
+        </SiteSlot>
         <div class="mt-14 border-t border-border pt-8">
           <h2 class="author-post-count font-mono text-sm text-muted-foreground">{postCount}</h2>
           <ul class:list={["mt-6 grid grid-cols-1 sm:grid-cols-2", boxed ? "gap-6" : "-mb-12 gap-x-8 lg:grid-cols-3"]}>
             {posts.map((entry) => (
               <li class:list={[boxed ? "h-full" : ["pb-12", POST_CARD_CELL]]}>
-                <PostCard entry={entry} images={images} variant={boxed ? "box" : "card"} showAuthor={boxed} />
+                <PostCard entry={entry} images={images} variant={boxed ? "box" : "card"} headingLevel="h3" showAuthor={boxed} />
               </li>
             ))}
           </ul>
         </div>
       </div>
     ) : (
-      <div class="mx-auto flex max-w-(--layout-index) flex-col gap-12 pt-0 sm:pt-2 lg:pt-4">
-        <header>
-          <BackLink href={href()} label={areaTitle("blog")} />
-          <div class="mt-8 flex items-center gap-5">
-            <AuthorAvatar author={author} size={64} />
-            <div class="min-w-0">
-              <h1 id="page-title" class="font-heading text-3xl leading-tight font-(--font-heading-weight) tracking-[-0.03em] sm:text-4xl">{author.name}</h1>
-              {author.title && <p class="mt-1 text-muted-foreground">{author.title}</p>}
+      <div class="mx-auto w-full max-w-(--layout-index) pt-4 sm:pt-8 lg:pt-10">
+        <SiteSlot name="author-hero" data={slotData}>
+          <header class="author-profile flex flex-col items-start">
+            <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+              <AuthorAvatar author={author} size={80} loading="eager" />
+              <div class="flex min-w-0 flex-col gap-1">
+                <h1 id="page-title" class="font-heading text-3xl leading-tight font-(--font-heading-weight) tracking-[-0.03em] text-balance sm:text-4xl">{author.name}</h1>
+                {author.title && <p class="author-title text-base text-muted-foreground">{author.title}</p>}
+              </div>
             </div>
-          </div>
-          {author.bio && <p class="mt-6 max-w-xl text-lg leading-8 text-pretty text-muted-foreground">{author.bio}</p>}
-          {
-            author.links.length > 0 && (
-              <ul class="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-                {author.links.map((link) => (
-                  <li>
-                    <a href={link} rel="me noopener" target="_blank" class="inline-flex items-center gap-1 transition-colors duration-150 hover:text-foreground">
-                      {new URL(link).hostname.replace(/^www\./, "")}
-                      <Icon name="arrow-up-right" size={13} />
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )
-          }
-        </header>
-        {
-          posts.length > 0 && (
-            <ul class="grid grid-cols-1 gap-x-8 max-sm:divide-y max-sm:divide-border sm:-mb-12 sm:grid-cols-2 lg:grid-cols-3">
+            {author.bio && <p class="author-bio mt-6 max-w-xl text-lg leading-8 text-pretty text-muted-foreground">{author.bio}</p>}
+            <AuthorSocials socials={author.socials} class="mt-6" />
+          </header>
+        </SiteSlot>
+        <section aria-labelledby="author-posts" class="mt-12 border-t border-border pt-8 sm:mt-14">
+          <h2 id="author-posts" class="author-post-count text-sm text-muted-foreground tabular-nums">{postCount}</h2>
+          {boxed ? (
+            <ul class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
               {posts.map((entry) => (
-                <li class:list={["max-sm:py-6 sm:pb-12", POST_CARD_CELL]}>
-                  <PostCard entry={entry} images={images} showAuthor={false} />
+                <li class:list={["h-full", onlyPost && "sm:col-span-2"]}>
+                  <PostCard entry={entry} images={images} variant="box" headingLevel="h3" showAuthor={false} />
                 </li>
               ))}
             </ul>
-          )
-        }
+          ) : blogOptions.layout === "list" ? (
+            <ul class="mt-2 divide-y divide-border">
+              {posts.map((entry) => (
+                <li>
+                  <PostCard entry={entry} images={images} variant="row" headingLevel="h3" showAuthor={false} />
+                </li>
+              ))}
+            </ul>
+          ) : onlyPost ? (
+            <div class="mt-6">
+              <PostCard entry={onlyPost} images={images} variant="feature" headingLevel="h3" showAuthor={false} priority />
+            </div>
+          ) : (
+            <ul class="mt-6 grid grid-cols-1 gap-x-8 max-sm:divide-y max-sm:divide-border sm:-mb-12 sm:grid-cols-2 lg:grid-cols-3">
+              {posts.map((entry) => (
+                <li class:list={["max-sm:py-6 max-sm:first:pt-0 sm:pb-12", POST_CARD_CELL]}>
+                  <PostCard entry={entry} images={images} headingLevel="h3" showAuthor={false} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     )
   }

@@ -6,10 +6,10 @@ const { tags, class: className, overlay = false } = Astro.props;
 
 {
   tags.length > 0 && (
-    <ul aria-label="Tags" class:list={["flex flex-wrap gap-1.5", overlay && "relative z-20", className]}>
+    <ul aria-label="Tags" class:list={["flex flex-wrap gap-1.5", overlay && "pointer-events-none relative z-20", className]}>
       {tags.map((tag) => (
         <li>
-          {tag.href ? <a href={tag.href} data-category-link={tag.category} class="post-tag inline-block">{tag.name}</a> : <span class="post-tag inline-block">{tag.name}</span>}
+          {tag.href ? <a href={tag.href} data-category-link={tag.category} class="post-tag pointer-events-auto inline-block">{tag.name}</a> : <span class="post-tag inline-block">{tag.name}</span>}
         </li>
       ))}
     </ul>

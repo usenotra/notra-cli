@@ -3,6 +3,7 @@ import {
   SRCSET_ATTRIBUTE,
   URL_ATTRIBUTE,
 } from "../constants/public-assets";
+import { srcsetCandidates } from "./srcset";
 
 function mountPublicUrl(
   url: string,
@@ -38,18 +39,25 @@ export function rewritePublicAssetUrls(
       (_whole, name: string, quote: string, url: string) =>
         `${name}=${quote}${rewrite(url)}${quote}`
     )
-    .replace(SRCSET_ATTRIBUTE, (_whole, quote: string, value: string) => {
-      const rewritten = value
-        .split(",")
-        .map((candidate) => {
-          const [url = "", ...descriptor] = candidate.trim().split(/\s+/);
-          return [url.startsWith("/") ? rewrite(url) : url, ...descriptor].join(
-            " "
-          );
-        })
-        .join(", ");
-      return `srcset=${quote}${rewritten}${quote}`;
-    });
+    .replace(
+      SRCSET_ATTRIBUTE,
+      (
+        _whole,
+        name: string,
+        double: string | undefined,
+        single: string | undefined
+      ) => {
+        const quote = double === undefined ? "'" : '"';
+        let value = double ?? single ?? "";
+        // From the end, so earlier offsets stay valid.
+        for (const { url, start, end } of srcsetCandidates(value).reverse()) {
+          if (url.startsWith("/")) {
+            value = value.slice(0, start) + rewrite(url) + value.slice(end);
+          }
+        }
+        return `${name}=${quote}${value}${quote}`;
+      }
+    );
 }
 
 // Astro's dev server runs Vite at base "/", so absolute public-file URLs in

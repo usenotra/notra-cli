@@ -110,10 +110,10 @@ const titleClass = "font-heading text-balance decoration-foreground/25 decoratio
       )}
       <div class="flex min-w-0 flex-1 flex-col sm:contents">
         {(show.date || tags.length > 0 || entry.data.draft || featured) && (
-          <p class:list={["relative z-20 flex flex-wrap items-center gap-x-2 text-sm tabular-nums sm:row-start-2", framed && "sm:mt-5"]}>
+          <p class:list={["pointer-events-none relative z-20 flex flex-wrap items-center gap-x-2 text-sm tabular-nums sm:row-start-2", framed && "sm:mt-5"]}>
             {featured && <span class="font-medium text-primary">Featured</span>}
             {show.date && <time datetime={isoDate(entry.data.date)} class="text-foreground">{formatDate(entry.data.date)}</time>}
-            {tags[0] && (tags[0].href ? <a href={tags[0].href} data-category-link={tags[0].category} class="text-muted-foreground transition-colors duration-150 hover:text-foreground">{tags[0].name}</a> : <span class="text-muted-foreground">{tags[0].name}</span>)}
+            {tags[0] && (tags[0].href ? <a href={tags[0].href} data-category-link={tags[0].category} class="pointer-events-auto text-muted-foreground transition-colors duration-150 hover:text-foreground">{tags[0].name}</a> : <span class="text-muted-foreground">{tags[0].name}</span>)}
             {entry.data.draft && <span class="text-warning">Draft</span>}
           </p>
         )}

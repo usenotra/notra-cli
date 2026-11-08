@@ -1,4 +1,7 @@
 import { expect, test } from 'bun:test';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { parseArgv } from '../cli/core';
 import { readCliProcess } from '../utils/cli-test';
 import Dev from '../commands/dev';
@@ -24,10 +27,12 @@ test('build has local defaults and accepts an output folder, origin, and JSON', 
   ).flags).toEqual({ source: './site', out: './out', origin: 'https://www.example.com', json: true });
 });
 
-test('validate takes a source and JSON only', () => {
+test('validate takes a source, mounts, an origin, and JSON', () => {
   expect(parseArgv([], {}, SitesValidate.flags).flags).toEqual({ source: '.' });
-  expect(parseArgv(['--source', './site', '--json'], {}, SitesValidate.flags).flags).toEqual({ source: './site', json: true });
-  expect(() => parseArgv(['--mount', 'blog=/newsroom'], {}, SitesValidate.flags)).toThrow('Unknown flag');
+  expect(parseArgv(
+    ['--source', './site', '--mount', 'blog=/newsroom', '--origin', 'https://www.example.com', '--json'], {}, SitesValidate.flags,
+  ).flags).toEqual({ source: './site', mount: ['blog=/newsroom'], origin: 'https://www.example.com', json: true });
+  expect(() => parseArgv(['--out', './out'], {}, SitesValidate.flags)).toThrow('Unknown flag');
 });
 
 test('sites help lists the commands without authentication', async () => {
@@ -48,6 +53,53 @@ test('build help shows the mount syntax and defaults', async () => {
   expect(result.stdout).toContain('./.notra/out');
   expect(result.stdout).toContain('notra sites build --mount blog=/newsroom');
   expect(result.stdout).not.toContain('--api-key');
+});
+
+test('validate accepts author links and integrations the hosted builder supports', async () => {
+  const source = await mkdtemp(join(tmpdir(), 'notra-sites-'));
+  try {
+    await mkdir(join(source, 'blog'));
+    await writeFile(join(source, 'blog.json'), JSON.stringify({
+      name: 'Fixture',
+      authors: {
+        'jane-doe': {
+          name: 'Jane Doe',
+          bluesky: 'https://bsky.app/profile/jane.bsky.social',
+          mastodon: 'https://mastodon.social/@jane',
+          threads: 'https://www.threads.net/@jane',
+          instagram: 'https://www.instagram.com/jane',
+        },
+      },
+      integrations: { capless: { key: 'cs_fixturekey123' }, rybbit: { siteId: 'abc123' }, indexnow: false },
+    }));
+    await writeFile(join(source, 'blog', 'hello.mdx'), '---\ntitle: Hello\ndate: 2026-11-01\nauthor: jane-doe\n---\n\nHi\n');
+    const result = await readCliProcess(Bun.spawn([
+      process.execPath, 'src/run.ts', 'sites', 'validate', '--source', source, '--json',
+    ], { stdout: 'pipe', stderr: 'pipe' }));
+    expect(result.stderr).toBe('');
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: true, diagnostics: [] });
+    expect(result.code).toBe(0);
+  } finally {
+    await rm(source, { recursive: true, force: true });
+  }
+});
+
+test('validate checks links at the paths given with --mount', async () => {
+  const source = await mkdtemp(join(tmpdir(), 'notra-sites-'));
+  try {
+    await mkdir(join(source, 'blog'));
+    await mkdir(join(source, 'public'));
+    await writeFile(join(source, 'blog.json'), JSON.stringify({ name: 'Fixture' }));
+    await writeFile(join(source, 'public', 'photo.png'), 'x');
+    await writeFile(join(source, 'blog', 'hello.mdx'), '---\ntitle: Hello\ndate: 2026-11-01\n---\n\n![Photo](/newsroom/photo.png)\n');
+    const validate = async (...args: string[]) => JSON.parse((await readCliProcess(Bun.spawn([
+      process.execPath, 'src/run.ts', 'sites', 'validate', '--source', source, '--json', ...args,
+    ], { stdout: 'pipe', stderr: 'pipe' }))).stdout);
+    expect((await validate()).diagnostics.map((diagnostic: { code: string }) => diagnostic.code)).toEqual(['image_missing']);
+    expect((await validate('--mount', 'blog=/newsroom')).diagnostics).toEqual([]);
+  } finally {
+    await rm(source, { recursive: true, force: true });
+  }
 });
 
 for (const command of ['validate', 'build']) {

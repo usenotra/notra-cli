@@ -26,6 +26,17 @@ migrateLegacyRefusal(__NOTRA_CONSENT_STORAGE_KEY__);
 
 export default {
   scripts: [
+    ...(analytics.capless
+      ? [
+          {
+            id: "capless",
+            src: analytics.capless.scriptUrl,
+            category: "measurement",
+            async: true,
+            attributes: { "data-key": analytics.capless.key },
+          },
+        ]
+      : []),
     ...(analytics.databuddy
       ? [
           {
@@ -73,6 +84,17 @@ export default {
         ]
       : []),
     ...(analytics.plausible ? [plausibleAnalytics(analytics.plausible)] : []),
+    ...(analytics.rybbit
+      ? [
+          {
+            id: "rybbit",
+            src: analytics.rybbit.src,
+            category: "measurement",
+            async: true,
+            attributes: analytics.rybbit.attributes,
+          },
+        ]
+      : []),
     ...(analytics.umami ? [umamiAnalytics(analytics.umami)] : []),
   ],
 } satisfies C15tClientOptionsExtension;

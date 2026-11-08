@@ -23,3 +23,7 @@ export interface FontFallback {
   descentOverride: number;
   lineGapOverride: number;
 }
+
+export interface DitherProps {
+  class?: string;
+}
