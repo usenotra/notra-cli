@@ -64,12 +64,14 @@ three segments deep; `/` mounts a section at the root.
 ### Check and build a site
 
 ```bash
-notra sites validate
+notra sites validate --mount blog=/newsroom
 notra sites build --mount blog=/newsroom
 ```
 
-`notra sites validate` checks `blog.json`, MDX, and snippets without building
-(`--json` prints the diagnostics). `notra sites build` makes the same static
+`notra sites validate` checks `blog.json`, MDX, snippets, and links without
+building (`--json` prints the diagnostics). Pass the same `--mount` and
+`--origin` you build with, so links and images are checked at the paths the
+site is served from. `notra sites build` makes the same static
 output a hosted deployment serves, in `./.notra/out` by default (`--out <dir>`
 to change it; the folder is emptied first), with each section in the folder of
 its path, such as `.notra/out/newsroom/`. Sections and `--mount` work as in

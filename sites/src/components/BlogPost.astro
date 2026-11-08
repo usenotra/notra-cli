@@ -41,7 +41,7 @@ const wide = options.width === "wide" && (options.toc || hasSidebarSlot);
 const hasToc = options.toc && headings.filter((heading) => heading.depth === 2 || heading.depth === 3).length > 1;
 const compact = options.header === "compact";
 // The compact layout shows a post's update date under its author instead of in the meta row.
-const lastEdited = compact && config.metadata.timestamp ? entry.data.updated : undefined;
+const lastEdited = compact ? updated : undefined;
 // Sections as Toc.astro groups them: each h2, or an h3 before the first h2.
 const tocSections = headings.reduce(
   (count, heading) => (heading.depth === 2 || (heading.depth === 3 && count === 0) ? count + 1 : count),
