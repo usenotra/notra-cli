@@ -44,6 +44,26 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "archiveGeoPersona",
+    "method": "DELETE",
+    "path": "/v1/projects/{projectId}/geo/personas/{personaId}",
+    "summary": "Archive a GEO persona",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "personaId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "cancelPostSchedule",
     "method": "DELETE",
     "path": "/v1/posts/{postId}/schedule",
@@ -408,6 +428,31 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "deleteSiteAuthor",
+    "method": "DELETE",
+    "path": "/v1/sites/{siteId}/authors/{authorId}",
+    "summary": "Delete a site author",
+    "tag": "Content",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "authorId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "force",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "deleteSkill",
     "method": "DELETE",
     "path": "/v1/skills/{name}",
@@ -456,6 +501,21 @@ export const OPENAPI_OPERATIONS = [
       }
     ],
     "hasBody": false
+  },
+  {
+    "id": "generateGeoPersonas",
+    "method": "POST",
+    "path": "/v1/projects/{projectId}/geo/personas/generate",
+    "summary": "Generate GEO personas",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
   },
   {
     "id": "getBrandIdentity",
@@ -593,7 +653,148 @@ export const OPENAPI_OPERATIONS = [
     "path": "/v1/geo/ingest/setup",
     "summary": "Get the install snippets",
     "tag": "GEO",
-    "parameters": [],
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "getGeoMcpAnalytics",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/traffic/mcp",
+    "summary": "Get MCP server analytics",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "getGeoMcpToolDetail",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/traffic/mcp/tools/{toolName}",
+    "summary": "Get one MCP tool's analytics",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "toolName",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "getGeoPersonaActivity",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/personas/activity",
+    "summary": "Get GEO persona activity",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "getGeoPersonaGeneration",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/personas/generation",
+    "summary": "Get the GEO persona generation status",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "getGeoPersonaResults",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/personas/{personaId}/results",
+    "summary": "Get a GEO persona's conversation results",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "personaId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "scanId",
+        "in": "query",
+        "required": false
+      }
+    ],
     "hasBody": false
   },
   {
@@ -772,6 +973,36 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "getGeoTrafficJourneyStats",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/traffic/journey-stats",
+    "summary": "Get AI journey statistics",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "getGeoTrafficLog",
     "method": "GET",
     "path": "/v1/projects/{projectId}/geo/traffic/log",
@@ -830,6 +1061,21 @@ export const OPENAPI_OPERATIONS = [
       },
       {
         "name": "to",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "host",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "path",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sites",
         "in": "query",
         "required": false
       }
@@ -1022,6 +1268,96 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "getGeoWebAnalytics",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/traffic/web",
+    "summary": "Get website analytics totals and trend",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "host",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "path",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sites",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "getGeoWebAnalyticsBreakdowns",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/traffic/web/breakdowns",
+    "summary": "Get website analytics breakdowns",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "host",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "path",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "sites",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "getGitHubActivity",
     "method": "GET",
     "path": "/v1/integrations/github/{integrationId}/activity",
@@ -1067,6 +1403,36 @@ export const OPENAPI_OPERATIONS = [
         "name": "postId",
         "in": "path",
         "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "getPostAgentReach",
+    "method": "GET",
+    "path": "/v1/posts/{postId}/agent-reach",
+    "summary": "Get a post's agent reach",
+    "tag": "Content",
+    "parameters": [
+      {
+        "name": "postId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
       }
     ],
     "hasBody": false
@@ -1201,6 +1567,21 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": true
   },
   {
+    "id": "importSiteAuthors",
+    "method": "POST",
+    "path": "/v1/sites/{siteId}/authors/import",
+    "summary": "Import Notra authors into a site",
+    "tag": "Content",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
     "id": "issueGeoIngestToken",
     "method": "POST",
     "path": "/v1/geo/ingest/token",
@@ -1314,6 +1695,21 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "listGeoAnalyticsImports",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/traffic/imports",
+    "summary": "List history imports",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "listGeoChanges",
     "method": "GET",
     "path": "/v1/projects/{projectId}/geo/changes",
@@ -1378,6 +1774,21 @@ export const OPENAPI_OPERATIONS = [
     "method": "GET",
     "path": "/v1/projects/{projectId}/geo/engines",
     "summary": "List the answer engines a project can track",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "listGeoPersonas",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/personas",
+    "summary": "List GEO personas",
     "tag": "GEO",
     "parameters": [
       {
@@ -1756,6 +2167,30 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "listSiteAuthors",
+    "method": "GET",
+    "path": "/v1/sites/{siteId}/authors",
+    "summary": "List a site's authors",
+    "tag": "Content",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "listSites",
+    "method": "GET",
+    "path": "/v1/sites",
+    "summary": "List Notra Sites",
+    "tag": "Content",
+    "parameters": [],
+    "hasBody": false
+  },
+  {
     "id": "listSkills",
     "method": "GET",
     "path": "/v1/skills",
@@ -1839,6 +2274,41 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": true
   },
   {
+    "id": "publishSite",
+    "method": "POST",
+    "path": "/v1/sites/{siteId}/publish",
+    "summary": "Publish a site's Design changes",
+    "tag": "Content",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
+    "id": "restoreGeoPersona",
+    "method": "POST",
+    "path": "/v1/projects/{projectId}/geo/personas/{personaId}/restore",
+    "summary": "Restore an archived GEO persona",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "personaId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "retryWebhookDelivery",
     "method": "POST",
     "path": "/v1/webhooks/deliveries/{deliveryId}/retry",
@@ -1864,6 +2334,26 @@ export const OPENAPI_OPERATIONS = [
         "name": "projectId",
         "in": "query",
         "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "runGeoPersona",
+    "method": "POST",
+    "path": "/v1/projects/{projectId}/geo/personas/{personaId}/run",
+    "summary": "Run a GEO persona now",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "personaId",
+        "in": "path",
+        "required": true
       }
     ],
     "hasBody": false
@@ -2113,6 +2603,26 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": true
   },
   {
+    "id": "updateGeoPersona",
+    "method": "PATCH",
+    "path": "/v1/projects/{projectId}/geo/personas/{personaId}",
+    "summary": "Update a GEO persona",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "personaId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
     "id": "updateGeoPrompt",
     "method": "PATCH",
     "path": "/v1/projects/{projectId}/geo/prompts/{promptId}",
@@ -2213,6 +2723,21 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": true
   },
   {
+    "id": "updateSiteAuthorPage",
+    "method": "PATCH",
+    "path": "/v1/sites/{siteId}/author-page",
+    "summary": "Set the author page layout",
+    "tag": "Content",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
     "id": "upsertGeoCompetitor",
     "method": "PUT",
     "path": "/v1/projects/{projectId}/geo/competitors",
@@ -2221,6 +2746,26 @@ export const OPENAPI_OPERATIONS = [
     "parameters": [
       {
         "name": "projectId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
+    "id": "upsertSiteAuthor",
+    "method": "PUT",
+    "path": "/v1/sites/{siteId}/authors/{authorId}",
+    "summary": "Create or update a site author",
+    "tag": "Content",
+    "parameters": [
+      {
+        "name": "siteId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "authorId",
         "in": "path",
         "required": true
       }
@@ -2252,6 +2797,20 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "pattern": "^[A-Za-z0-9_-]{1,100}$"
       },
       "briefId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "archiveGeoPersona": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "personaId": {
         "type": "string",
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$"
@@ -2418,6 +2977,8 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
           "type": "string",
           "enum": [
             "auto",
+            "zai/glm-5.3",
+            "zai/glm-5.3-flash",
             "anthropic/claude-opus-5.5",
             "anthropic/claude-opus-5",
             "anthropic/claude-opus-4.8",
@@ -2430,7 +2991,8 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
             "openai/gpt-5.5",
             "openai/gpt-5.4"
           ],
-          "description": "Model to respond with. Defaults to auto, which lets Notra choose."
+          "description": "Deprecated and ignored. Chats always respond with GLM 5.3 Flash.",
+          "deprecated": true
         },
         "enableThinking": {
           "type": "boolean",
@@ -3207,13 +3769,19 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
                 "type": "string",
                 "minLength": 1
               },
-              "minItems": 1,
-              "description": "GitHub integration IDs to generate from, as returned by GET /v1/integrations."
+              "default": [],
+              "description": "GitHub integration IDs to generate from, as returned in the github array of GET /v1/integrations. Defaults to none when linearIntegrationIds is set."
+            },
+            "linearIntegrationIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Linear integration IDs to generate from, as returned in the linear array of GET /v1/integrations. When omitted, runs read every enabled Linear integration; send [] to read none."
             }
           },
-          "required": [
-            "repositoryIds"
-          ]
+          "description": "Data sources each run reads from. Set at least one GitHub or Linear integration."
         },
         "outputType": {
           "type": "string",
@@ -3482,6 +4050,28 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "deleteSiteAuthor": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "authorId": {
+        "type": "string",
+        "pattern": "^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$",
+        "description": "The author's id in blog.json. Posts name the author with it and its author page lives at {blogMount}/author/{authorId}."
+      },
+      "force": {
+        "type": "string",
+        "enum": [
+          "true",
+          "false"
+        ],
+        "description": "Set to true to delete an author that is live or credited on Notra posts."
+      }
+    }
+  },
   "deleteSkill": {
     "parameters": {
       "name": {
@@ -3512,6 +4102,38 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "type": "string",
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "generateGeoPersonas": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "personaId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Regenerate this persona in place instead of creating a new set."
+        },
+        "brief": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "Describe one persona to add, such as 'a CFO at a 200-person logistics company'."
+        },
+        "promptsOnly": {
+          "type": "boolean",
+          "enum": [
+            true
+          ],
+          "description": "With personaId, only rewrite its conversation prompts and keep its details."
+        }
       }
     }
   },
@@ -3603,7 +4225,117 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
     }
   },
   "getGeoIngestSetup": {
-    "parameters": {}
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$",
+        "description": "Return the web key for one project. Omit for the oldest project's web key."
+      }
+    }
+  },
+  "getGeoMcpAnalytics": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when from/to are set."
+      },
+      "from": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "to": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      }
+    }
+  },
+  "getGeoMcpToolDetail": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "toolName": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "description": "Tool name as your MCP server registers it."
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when from/to are set."
+      },
+      "from": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "to": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      }
+    }
+  },
+  "getGeoPersonaActivity": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when from/to are set."
+      },
+      "from": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "to": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      }
+    }
+  },
+  "getGeoPersonaGeneration": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "getGeoPersonaResults": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "personaId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "scanId": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Scan to read. Defaults to the latest scan that played this persona; ids are listed in `scans`."
+      }
+    }
   },
   "getGeoPromptHistory": {
     "parameters": {
@@ -3735,6 +4467,29 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "getGeoTrafficJourneyStats": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when from/to are set."
+      },
+      "from": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "to": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      }
+    }
+  },
   "getGeoTrafficLog": {
     "parameters": {
       "projectId": {
@@ -3782,6 +4537,23 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       "to": {
         "type": "string",
         "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "host": {
+        "type": "string",
+        "maxLength": 128,
+        "description": "Hostname to filter on, such as www.example.com. Subdomains are included. Omit for every host."
+      },
+      "path": {
+        "type": "string",
+        "maxLength": 2048,
+        "description": "Only count this exact page path, such as /pricing."
+      },
+      "sites": {
+        "type": "string",
+        "enum": [
+          "exclude"
+        ],
+        "description": "`exclude` leaves out traffic to sites hosted on Notra Sites."
       }
     }
   },
@@ -3929,6 +4701,86 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "getGeoWebAnalytics": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when from/to are set."
+      },
+      "from": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "to": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "host": {
+        "type": "string",
+        "maxLength": 128,
+        "description": "Hostname to filter on, such as www.example.com. Subdomains are included. Omit for every host."
+      },
+      "path": {
+        "type": "string",
+        "maxLength": 2048,
+        "description": "Only count this exact page path, such as /pricing."
+      },
+      "sites": {
+        "type": "string",
+        "enum": [
+          "exclude"
+        ],
+        "description": "`exclude` leaves out traffic to sites hosted on Notra Sites."
+      }
+    }
+  },
+  "getGeoWebAnalyticsBreakdowns": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when from/to are set."
+      },
+      "from": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "to": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "host": {
+        "type": "string",
+        "maxLength": 128,
+        "description": "Hostname to filter on, such as www.example.com. Subdomains are included. Omit for every host."
+      },
+      "path": {
+        "type": "string",
+        "maxLength": 2048,
+        "description": "Only count this exact page path, such as /pricing."
+      },
+      "sites": {
+        "type": "string",
+        "enum": [
+          "exclude"
+        ],
+        "description": "`exclude` leaves out traffic to sites hosted on Notra Sites."
+      }
+    }
+  },
   "getGitHubActivity": {
     "parameters": {
       "integrationId": {
@@ -3970,6 +4822,29 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "type": "string",
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "getPostAgentReach": {
+    "parameters": {
+      "postId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when from/to are set."
+      },
+      "from": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      "to": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
       }
     }
   },
@@ -4140,6 +5015,35 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "importSiteAuthors": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "authorIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]{1,100}$"
+          },
+          "minItems": 1,
+          "maxItems": 100,
+          "description": "Notra author IDs from GET /v1/posts/authors. Omit to import every Notra author whose slug is not in blog.json yet."
+        },
+        "replace": {
+          "type": "boolean",
+          "description": "Replace blog.json authors that already use an imported author's slug. Without it they are skipped."
+        }
+      }
+    }
+  },
   "issueGeoIngestToken": {
     "parameters": {
       "projectId": {
@@ -4226,6 +5130,15 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "listGeoAnalyticsImports": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
   "listGeoChanges": {
     "parameters": {
       "projectId": {
@@ -4263,6 +5176,15 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
     }
   },
   "listGeoEngines": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "listGeoPersonas": {
     "parameters": {
       "projectId": {
         "type": "string",
@@ -4574,6 +5496,18 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "listSiteAuthors": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "listSites": {
+    "parameters": {}
+  },
   "listSkills": {
     "parameters": {}
   },
@@ -4779,6 +5713,8 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
           "type": "string",
           "enum": [
             "auto",
+            "zai/glm-5.3",
+            "zai/glm-5.3-flash",
             "anthropic/claude-opus-5.5",
             "anthropic/claude-opus-5",
             "anthropic/claude-opus-4.8",
@@ -4791,7 +5727,8 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
             "openai/gpt-5.5",
             "openai/gpt-5.4"
           ],
-          "description": "Model to respond with. Defaults to auto, which lets Notra choose."
+          "description": "Deprecated and ignored. Chats always respond with GLM 5.3 Flash.",
+          "deprecated": true
         },
         "enableThinking": {
           "type": "boolean",
@@ -4916,6 +5853,40 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "publishSite": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Commit message. Written from the changes when omitted."
+        }
+      }
+    }
+  },
+  "restoreGeoPersona": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "personaId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
   "retryWebhookDelivery": {
     "parameters": {
       "deliveryId": {
@@ -4931,6 +5902,20 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$",
         "description": "Bind the token to one project. Omit to track the whole organization."
+      }
+    }
+  },
+  "runGeoPersona": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "personaId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
       }
     }
   },
@@ -5910,6 +6895,105 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       ]
     }
   },
+  "updateGeoPersona": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "personaId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^\\S+(?:\\s+\\S+)?$"
+        },
+        "company": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 800
+        },
+        "searchStyle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 800
+        },
+        "profile": {
+          "type": "object",
+          "properties": {
+            "goals": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "maxItems": 6
+            },
+            "painPoints": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "maxItems": 6
+            },
+            "currentStack": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "maxItems": 6
+            },
+            "buyingTriggers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "maxItems": 6
+            },
+            "objections": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "maxItems": 6
+            }
+          },
+          "description": "Lists to replace. Omitted lists keep their value."
+        }
+      }
+    }
+  },
   "updateGeoPrompt": {
     "parameters": {
       "projectId": {
@@ -6222,7 +7306,7 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
                 "maxLength": 64
               },
               "maxItems": 5,
-              "description": "Replaces the credited authors, in display order. Up to 5 IDs from GET /v1/posts/authors. Send [] to clear."
+              "description": "Replaces the credited authors, in display order. Up to 5 IDs from GET /v1/posts/authors. A blog post that publishes to a Notra Sites site can also credit the site's own authors as site:<id>, the ref from GET /v1/sites/{siteId}/authors. Send [] to clear."
             },
             "featured": {
               "type": "boolean",
@@ -6365,7 +7449,8 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
           },
           "required": [
             "cron"
-          ]
+          ],
+          "description": "Replaces the cron settings as a whole. Send every cron field the frequency needs."
         },
         "targets": {
           "type": "object",
@@ -6376,13 +7461,18 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
                 "type": "string",
                 "minLength": 1
               },
-              "minItems": 1,
-              "description": "GitHub integration IDs to generate from, as returned by GET /v1/integrations."
+              "description": "GitHub integration IDs to generate from, as returned in the github array of GET /v1/integrations. Replaces the current GitHub targets; omit to keep them."
+            },
+            "linearIntegrationIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Linear integration IDs to generate from, as returned in the linear array of GET /v1/integrations. When omitted, runs read every enabled Linear integration; send [] to read none. Replaces the current Linear targets; omit to keep them, send [] to remove them."
             }
           },
-          "required": [
-            "repositoryIds"
-          ]
+          "description": "Data source changes. The schedule must keep at least one GitHub or Linear integration."
         },
         "outputType": {
           "type": "string",
@@ -6396,45 +7486,200 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
           "description": "Type of content each run generates."
         },
         "outputConfig": {
-          "type": "object",
-          "properties": {
-            "publishDestination": {
-              "type": "string",
-              "enum": [
-                "webflow",
-                "framer",
-                "custom"
-              ],
-              "description": "Where auto-published posts are sent."
-            },
-            "brandVoiceId": {
-              "type": "string",
-              "minLength": 1,
-              "description": "Brand identity ID to write in. Defaults to the organization's default brand identity."
-            },
-            "instructions": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 2000,
-              "description": "Free-text brief for this schedule, passed to the writer on every run on top of the brand's custom instructions. Use it to steer the angle of the content, for example tutorial-style blog posts."
-            },
-            "notify": {
-              "type": "object",
+          "anyOf": [
+            {
               "properties": {
-                "slack": {
-                  "type": "boolean"
+                "publishDestination": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "webflow",
+                        "framer",
+                        "custom",
+                        null
+                      ],
+                      "description": "Where auto-published posts are sent.",
+                      "type": "string"
+                    },
+                    {
+                      "enum": [
+                        "webflow",
+                        "framer",
+                        "custom",
+                        null
+                      ],
+                      "description": "Where auto-published posts are sent.",
+                      "type": "null"
+                    }
+                  ]
                 },
-                "email": {
-                  "type": "boolean"
+                "brandVoiceId": {
+                  "anyOf": [
+                    {
+                      "minLength": 1,
+                      "description": "Brand identity ID to write in. Defaults to the organization's default brand identity.",
+                      "type": "string"
+                    },
+                    {
+                      "minLength": 1,
+                      "description": "Brand identity ID to write in. Defaults to the organization's default brand identity.",
+                      "type": "null"
+                    }
+                  ]
+                },
+                "instructions": {
+                  "anyOf": [
+                    {
+                      "minLength": 1,
+                      "maxLength": 2000,
+                      "description": "Free-text brief for this schedule, passed to the writer on every run on top of the brand's custom instructions. Use it to steer the angle of the content, for example tutorial-style blog posts.",
+                      "type": "string"
+                    },
+                    {
+                      "minLength": 1,
+                      "maxLength": 2000,
+                      "description": "Free-text brief for this schedule, passed to the writer on every run on top of the brand's custom instructions. Use it to steer the angle of the content, for example tutorial-style blog posts.",
+                      "type": "null"
+                    }
+                  ]
+                },
+                "notify": {
+                  "anyOf": [
+                    {
+                      "properties": {
+                        "slack": {
+                          "type": "boolean"
+                        },
+                        "email": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "slack",
+                        "email"
+                      ],
+                      "description": "Where to announce new content after a successful run: Slack posts to the organization's notification channel, email goes to the workspace owners.",
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "slack": {
+                          "type": "boolean"
+                        },
+                        "email": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "slack",
+                        "email"
+                      ],
+                      "description": "Where to announce new content after a successful run: Slack posts to the organization's notification channel, email goes to the workspace owners.",
+                      "type": "null"
+                    }
+                  ]
                 }
               },
-              "required": [
-                "slack",
-                "email"
-              ],
-              "description": "Where to announce new content after a successful run: Slack posts to the organization's notification channel, email goes to the workspace owners."
+              "description": "Output setting changes, merged field by field into the current settings. Set a field to null to clear it, or send null to clear all of them.",
+              "type": "object"
+            },
+            {
+              "properties": {
+                "publishDestination": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "webflow",
+                        "framer",
+                        "custom",
+                        null
+                      ],
+                      "description": "Where auto-published posts are sent.",
+                      "type": "string"
+                    },
+                    {
+                      "enum": [
+                        "webflow",
+                        "framer",
+                        "custom",
+                        null
+                      ],
+                      "description": "Where auto-published posts are sent.",
+                      "type": "null"
+                    }
+                  ]
+                },
+                "brandVoiceId": {
+                  "anyOf": [
+                    {
+                      "minLength": 1,
+                      "description": "Brand identity ID to write in. Defaults to the organization's default brand identity.",
+                      "type": "string"
+                    },
+                    {
+                      "minLength": 1,
+                      "description": "Brand identity ID to write in. Defaults to the organization's default brand identity.",
+                      "type": "null"
+                    }
+                  ]
+                },
+                "instructions": {
+                  "anyOf": [
+                    {
+                      "minLength": 1,
+                      "maxLength": 2000,
+                      "description": "Free-text brief for this schedule, passed to the writer on every run on top of the brand's custom instructions. Use it to steer the angle of the content, for example tutorial-style blog posts.",
+                      "type": "string"
+                    },
+                    {
+                      "minLength": 1,
+                      "maxLength": 2000,
+                      "description": "Free-text brief for this schedule, passed to the writer on every run on top of the brand's custom instructions. Use it to steer the angle of the content, for example tutorial-style blog posts.",
+                      "type": "null"
+                    }
+                  ]
+                },
+                "notify": {
+                  "anyOf": [
+                    {
+                      "properties": {
+                        "slack": {
+                          "type": "boolean"
+                        },
+                        "email": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "slack",
+                        "email"
+                      ],
+                      "description": "Where to announce new content after a successful run: Slack posts to the organization's notification channel, email goes to the workspace owners.",
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "slack": {
+                          "type": "boolean"
+                        },
+                        "email": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "slack",
+                        "email"
+                      ],
+                      "description": "Where to announce new content after a successful run: Slack posts to the organization's notification channel, email goes to the workspace owners.",
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "description": "Output setting changes, merged field by field into the current settings. Set a field to null to clear it, or send null to clear all of them.",
+              "type": "null"
             }
-          }
+          ]
         },
         "enabled": {
           "type": "boolean",
@@ -6442,7 +7687,6 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         },
         "autoPublish": {
           "type": "boolean",
-          "default": false,
           "description": "Publish generated posts automatically instead of saving them as drafts."
         },
         "lookbackWindow": {
@@ -6454,17 +7698,32 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
             "last_14_days",
             "last_30_days"
           ],
-          "default": "last_7_days",
           "description": "How far back each run collects source activity."
+        }
+      }
+    }
+  },
+  "updateSiteAuthorPage": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "layout": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "stacked"
+          ]
         }
       },
       "required": [
-        "name",
-        "sourceType",
-        "sourceConfig",
-        "targets",
-        "outputType",
-        "enabled"
+        "layout"
       ]
     }
   },
@@ -6535,6 +7794,189 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "name",
         "domain"
       ]
+    }
+  },
+  "upsertSiteAuthor": {
+    "parameters": {
+      "siteId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "authorId": {
+        "type": "string",
+        "pattern": "^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$",
+        "description": "The author's id in blog.json. Posts name the author with it and its author page lives at {blogMount}/author/{authorId}."
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "maxLength": 80,
+              "type": "null"
+            }
+          ]
+        },
+        "bio": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "maxLength": 300,
+              "type": "null"
+            }
+          ]
+        },
+        "avatar": {
+          "anyOf": [
+            {
+              "pattern": "^(?:\\/(?!\\/)|https:\\/\\/)",
+              "description": "A path to an image in the site's public folder, such as /images/jane.png, or an https URL.",
+              "type": "string"
+            },
+            {
+              "pattern": "^(?:\\/(?!\\/)|https:\\/\\/)",
+              "description": "A path to an image in the site's public folder, such as /images/jane.png, or an https URL.",
+              "type": "null"
+            }
+          ]
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "format": "uri",
+              "type": "null"
+            }
+          ]
+        },
+        "x": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "format": "uri",
+              "type": "null"
+            }
+          ]
+        },
+        "linkedin": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "format": "uri",
+              "type": "null"
+            }
+          ]
+        },
+        "github": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "format": "uri",
+              "type": "null"
+            }
+          ]
+        },
+        "youtube": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "format": "uri",
+              "type": "null"
+            }
+          ]
+        },
+        "bluesky": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "format": "uri",
+              "type": "null"
+            }
+          ]
+        },
+        "mastodon": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "format": "uri",
+              "type": "null"
+            }
+          ]
+        },
+        "threads": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "format": "uri",
+              "type": "null"
+            }
+          ]
+        },
+        "instagram": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "type": "string"
+            },
+            {
+              "format": "uri",
+              "type": "null"
+            }
+          ]
+        },
+        "previousId": {
+          "type": "string",
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$",
+          "description": "Renames the author with this id to authorId, keeping its place in blog.json. Posts that name the old id lose the link until they name the new one."
+        },
+        "force": {
+          "type": "boolean",
+          "description": "Confirms renaming an author that is live or credited on Notra posts."
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "description": "The whole author: fields you leave out are removed. Links must be https URLs."
     }
   }
 };
