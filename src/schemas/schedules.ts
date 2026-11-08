@@ -190,6 +190,15 @@ const updateScheduleBodySchema = z
         linearIntegrationIds: integrationIdsSchema.optional(),
       })
       .strict()
+      .refine(
+        (targets) =>
+          targets.repositoryIds?.length !== 0 ||
+          targets.linearIntegrationIds?.length !== 0,
+        {
+          message: "A schedule needs at least one GitHub or Linear integration.",
+          path: ["repositoryIds"],
+        },
+      )
       .optional(),
     outputType: z.enum(CONTENT_TYPES).optional(),
     outputConfig: z

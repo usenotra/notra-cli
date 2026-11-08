@@ -109,6 +109,21 @@ test('create without a GitHub or Linear source fails locally', async () => {
   expect(last).toBeUndefined();
 });
 
+test('update cannot remove every GitHub and Linear source', async () => {
+  const both = await run(
+    ['schedules', 'update', 'schedule_1', '--config-file', '-'],
+    '{"targets":{"repositoryIds":[],"linearIntegrationIds":[]}}',
+  );
+  expect(both.code).toBe(2);
+  expect(JSON.parse(both.stdout).error).toContain('A schedule needs at least one GitHub or Linear integration.');
+  expect(last).toBeUndefined();
+
+  // Clearing one source is fine: the schedule may keep the other.
+  const one = await run(['schedules', 'update', 'schedule_1', '--config-file', '-'], '{"targets":{"repositoryIds":[]}}');
+  expect(one.code, one.stdout + one.stderr).toBe(0);
+  expect(last?.body).toEqual({ targets: { repositoryIds: [] } });
+});
+
 test('misspelled fields still fail locally', async () => {
   const result = await run(['schedules', 'update', 'schedule_1', '--config-file', '-'], '{"enable":false}');
   expect(result.code).toBe(2);
