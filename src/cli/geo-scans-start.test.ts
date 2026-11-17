@@ -10,15 +10,17 @@ describe('geo scans start --prompt --wait', () => {
   let finalStatus = 'completed';
   let polls = 0;
   const requests: string[] = [];
+  const bodies: string[] = [];
   const root = join(import.meta.dir, '../..');
 
   beforeAll(async () => {
     directory = await mkdtemp(join(tmpdir(), 'notra-cli-scan-test-'));
     server = Bun.serve({
       hostname: '127.0.0.1', port: 0,
-      fetch(request) {
+      async fetch(request) {
         const { pathname } = new URL(request.url);
         requests.push(`${request.method} ${pathname}`);
+        if (request.method === 'POST') bodies.push(await request.text());
         if (request.method === 'POST' && pathname === '/v1/projects/project_1/geo/scans/prompts/prompt_1') {
           return Response.json({ scanId: 'scan_1' });
         }
@@ -36,10 +38,11 @@ describe('geo scans start --prompt --wait', () => {
     if (directory) await rm(directory, { recursive: true, force: true });
   });
 
-  function run() {
+  function run(extra: string[] = []) {
     polls = 0;
     requests.length = 0;
-    const child = Bun.spawn(['bun', 'src/run.ts', 'geo', 'scans', 'start', 'project_1', '--prompt', 'prompt_1', '--wait', '--poll-interval', '1', '--yes', '--base-url', server.url.href, '--json'], {
+    bodies.length = 0;
+    const child = Bun.spawn(['bun', 'src/run.ts', 'geo', 'scans', 'start', 'project_1', '--prompt', 'prompt_1', ...extra, '--wait', '--poll-interval', '1', '--yes', '--base-url', server.url.href, '--json'], {
       cwd: root, stdin: 'pipe', stdout: 'pipe', stderr: 'pipe',
       env: { ...process.env, HOME: directory, XDG_CONFIG_HOME: directory, NOTRA_API_KEY: 'test_key', NOTRA_BASE_URL: undefined, NOTRA_ORGANIZATION_ID: undefined },
     });
@@ -65,4 +68,29 @@ describe('geo scans start --prompt --wait', () => {
     expect(result.code).not.toBe(0);
     expect(JSON.parse(result.stdout).scan.status).toBe('failed');
   });
+
+  test('rescans the prompt on only the engines passed with --engine', async () => {
+    finalStatus = 'completed';
+    const result = await run(['--engine', 'openai/chatgpt', '--engine', 'google/gemini']);
+    expect(result.code, result.stdout + result.stderr).toBe(0);
+    expect(bodies.map((body) => JSON.parse(body))).toEqual([{ engines: ['openai/chatgpt', 'google/gemini'] }]);
+  });
+
+  test('sends no engine list without --engine', async () => {
+    finalStatus = 'completed';
+    const result = await run();
+    expect(result.code, result.stdout + result.stderr).toBe(0);
+    expect(bodies.map((body) => (body ? JSON.parse(body) : {}))).toEqual([{}]);
+  });
+
+  test.each([
+    ['an empty value', ['--engine=']],
+    ['a blank value', ['--engine', '   ']],
+    ['an empty value after a valid one', ['--engine', 'openai/chatgpt', '--engine=']],
+  ])('refuses %s for --engine without starting a scan', async (_, flags) => {
+    const result = await run(flags);
+    expect(result.code, result.stdout + result.stderr).toBe(2);
+    expect(requests).toEqual([]);
+  });
 });
+
