@@ -82,4 +82,15 @@ describe('geo scans start --prompt --wait', () => {
     expect(result.code, result.stdout + result.stderr).toBe(0);
     expect(bodies.map((body) => (body ? JSON.parse(body) : {}))).toEqual([{}]);
   });
+
+  test.each([
+    ['an empty value', ['--engine=']],
+    ['a blank value', ['--engine', '   ']],
+    ['an empty value after a valid one', ['--engine', 'openai/chatgpt', '--engine=']],
+  ])('refuses %s for --engine without starting a scan', async (_, flags) => {
+    const result = await run(flags);
+    expect(result.code, result.stdout + result.stderr).toBe(2);
+    expect(requests).toEqual([]);
+  });
 });
+
