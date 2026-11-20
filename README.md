@@ -316,7 +316,9 @@ notra api request GET /v1/posts --query limit=20 --query status=draft
 Path, query, and header parameters use repeatable `--param NAME=VALUE` flags.
 Request bodies come from `--body-file`; use `-` to read JSON from stdin. The raw
 `api request` command remains available when an API deployment is newer than the
-catalog bundled with the installed CLI.
+catalog bundled with the installed CLI. Both commands prompt before DELETE
+requests and actions marked for confirmation in the catalog; scripts must pass
+`--yes`.
 
 ## Output
 

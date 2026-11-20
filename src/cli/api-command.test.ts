@@ -355,6 +355,8 @@ describe('curated API commands end to end', () => {
       ['agents', 'create', '--message', 'Hello'], ['api', 'call', 'createChat', '--body-file', '-'],
       ['api', 'request', 'POST', '/v2/eve/v1/session', '--body-file', '-'],
       ['geo', 'scans', 'start', 'project_1', '--prompt', 'prompt_1'], ['schedules', 'run', 'schedule_1'],
+      ['api', 'call', 'deletePost', '--param', 'postId=post_1'],
+      ['api', 'request', 'DELETE', '/v1/posts/post_1'],
       ['api', 'call', 'runSchedule', '--param', 'scheduleId=schedule_1'], ['brands', 'colors', 'delete', 'brand_1', 'color_1'],
       ['api', 'request', 'POST', '/v1/projects/project_1/geo/scans/prompts/prompt_1'],
       ['geo', 'prompts', 'suggestions', 'dismiss', 'project_1', 'suggestion_1'],
@@ -378,6 +380,7 @@ describe('curated API commands end to end', () => {
       ['api', 'call', 'stopAutopilotRun', '--param', 'runId=run_1'],
       ['api', 'call', 'startAutopilotWorkflowRun', '--param', 'workflowId=workflow_1'],
       ['api', 'request', 'POST', '/v1/autopilot/runs'],
+      ['api', 'request', 'POST', '/v1/autopilot/runs/run_1/stop'],
       ['api', 'request', 'POST', '/v1/autopilot/workflows/workflow_1/run'],
     ]) {
       const before = requests;
@@ -386,6 +389,9 @@ describe('curated API commands end to end', () => {
       expect(JSON.parse(result.stdout).error).toContain('Confirmation required');
       expect(requests).toBe(before);
     }
+    const stopped = await run(['api', 'request', 'POST', '/v1/autopilot/runs/run_1/stop', '--yes']);
+    expect(stopped.code, stopped.stdout).toBe(0);
+    expect(JSON.parse(stopped.stdout).path).toBe('/v1/autopilot/runs/run_1/stop');
   });
 
   test('Autopilot rejects invalid run kinds and missing IDs before making requests', async () => {
