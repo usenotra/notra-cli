@@ -13,10 +13,11 @@ export function getOperationConfirmation(operation: OpenApiOperation): string | 
 export function getRequestConfirmation(method: string, path: string): string | undefined {
   const normalizedMethod = method.toUpperCase();
   const { pathname } = new URL(path.replace(/^\/+/, ''), 'https://api.usenotra.com/');
+  const catalogPath = pathname.replace(/\/+$/, '');
   const operation = OPENAPI_OPERATIONS.find(
     (operation) =>
       operation.method === normalizedMethod &&
-      pathTemplateToRegExp(operation.path).test(pathname),
+      pathTemplateToRegExp(operation.path).test(catalogPath),
   );
   if (operation) return getOperationConfirmation(operation);
   if (normalizedMethod === 'DELETE') return `Send DELETE request to ${pathname}?`;

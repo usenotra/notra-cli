@@ -30,7 +30,8 @@ describe('getRequestConfirmation', () => {
   });
 
   test('confirms a normalized stop path and DELETE outside the catalog', () => {
-    expect(getRequestConfirmation('POST', '/v1/./autopilot/runs/run_1/stop')).toContain('Stop this Autopilot run');
+    expect(getRequestConfirmation('POST', '/v1/./autopilot/runs/run_1/stop/')).toContain('Stop this Autopilot run');
+    expect(getRequestConfirmation('POST', '/v1/schedules/schedule_1/run/')).toBeTruthy();
     expect(getRequestConfirmation('DELETE', '/v2/uncataloged/resource')).toContain('DELETE');
   });
 });
