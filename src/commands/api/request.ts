@@ -1,7 +1,7 @@
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
 import { ExitCode } from '../../constants/exit';
-import { isBillableRequest } from '../../utils/billing';
+import { getRequestConfirmation } from '../../utils/api-confirmation';
 import { confirmAction } from '../../utils/confirm';
 import { readJsonFromFileOrStdin } from '../../utils/files';
 import { parseKeyValuePairs, toQueryRecord } from '../../utils/key-value';
@@ -25,7 +25,7 @@ export default class ApiRequest extends NotraCommand {
     query: Flags.string({ description: 'Query parameter as NAME=VALUE. Repeatable.', multiple: true, default: [] }),
     'body-file': Flags.string({ description: 'JSON request body file, or "-" for stdin.' }),
     timeout: Flags.integer({ description: 'Request timeout in seconds.', min: 1, default: 30 }),
-    yes: Flags.boolean({ char: 'y', description: 'Confirm billable requests without prompting.' }),
+    yes: Flags.boolean({ char: 'y', description: 'Confirm destructive or billable requests without prompting.' }),
   };
 
   public async run(): Promise<void> {
@@ -33,8 +33,9 @@ export default class ApiRequest extends NotraCommand {
     if (!args.path.startsWith('/')) {
       this.error('API path must begin with /.', { exit: ExitCode.Usage });
     }
-    if (isBillableRequest(args.method, args.path)) {
-      const confirmed = await confirmAction(`Send billable request ${args.method} ${args.path}?`, {
+    const confirmation = getRequestConfirmation(args.method, args.path);
+    if (confirmation) {
+      const confirmed = await confirmAction(confirmation, {
         yes: flags.yes,
       });
       if (!confirmed) {

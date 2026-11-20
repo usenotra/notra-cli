@@ -158,6 +158,7 @@ with `notra geo scans start <projectId> --prompt <promptId>`. Run
 |---|---|
 | `posts` | List, get, create, update, delete, generate, generation status; schedule, inspect or cancel publishing |
 | `schedules` | List, create from GitHub and/or Linear integrations, update only the fields you send, delete; run once now, list recent runs |
+| `autopilot` | Inspect settings, active runs, custom workflows and open findings; start or stop a run |
 | `brands colors` | List, create, update, delete brand guideline colors |
 | `integrations activity` | List merged pull requests, commits or releases of a connected GitHub repository |
 | `event-triggers` | List, get, create, replace configuration, delete |
@@ -190,6 +191,27 @@ wins over the saved `organization-id` config value. Each accepts a workspace ID
 or slug. The CLI sends the choice as the `X-Notra-Organization-Id` header.
 An organization key only accepts its own workspace there (any other gives a
 403), and OAuth tokens ignore it.
+
+### Autopilot
+
+```bash
+notra autopilot status
+notra autopilot run --kind links --yes
+notra autopilot run-workflow workflow_123 --yes
+notra autopilot stop run_123 --yes
+```
+
+Use `status` to find run and workflow IDs. Without `--kind`, `run` starts the
+full Autopilot run. Starting a run can use AI credits and act on connected
+services under your existing approval settings. Starting or stopping a run
+prompts for confirmation; scripts must pass `--yes`.
+
+Use `notra auth login` or an account API key, not an organization API key.
+Status needs `autopilot.read`; starting or stopping needs `autopilot.write` and
+a workspace owner or admin. If you signed in before Autopilot was added, sign in
+again to grant its permissions.
+
+### JSON request bodies
 
 New commands with JSON bodies accept individual field flags or `--body-file` with a JSON
 object; field flags override values in that file. Use `--body-file -` for stdin.
@@ -294,7 +316,9 @@ notra api request GET /v1/posts --query limit=20 --query status=draft
 Path, query, and header parameters use repeatable `--param NAME=VALUE` flags.
 Request bodies come from `--body-file`; use `-` to read JSON from stdin. The raw
 `api request` command remains available when an API deployment is newer than the
-catalog bundled with the installed CLI.
+catalog bundled with the installed CLI. Both commands prompt before DELETE
+requests and actions marked for confirmation in the catalog; scripts must pass
+`--yes`.
 
 ## Output
 
