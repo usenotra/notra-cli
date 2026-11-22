@@ -107,6 +107,7 @@ describe('curated API commands end to end', () => {
       ['skills update', '--new-name'],
       ['posts schedule', '--scheduled-at'],
       ['agents events', '--start-index'],
+      ['autopilot run', '--kind'],
     ] as const) {
       for (const built of [false, true]) {
         const result = await run([...command.split(' '), '--help'], built);
@@ -354,6 +355,8 @@ describe('curated API commands end to end', () => {
       ['agents', 'create', '--message', 'Hello'], ['api', 'call', 'createChat', '--body-file', '-'],
       ['api', 'request', 'POST', '/v2/eve/v1/session', '--body-file', '-'],
       ['geo', 'scans', 'start', 'project_1', '--prompt', 'prompt_1'], ['schedules', 'run', 'schedule_1'],
+      ['api', 'call', 'deletePost', '--param', 'postId=post_1'],
+      ['api', 'request', 'DELETE', '/v1/posts/post_1'],
       ['api', 'call', 'runSchedule', '--param', 'scheduleId=schedule_1'], ['brands', 'colors', 'delete', 'brand_1', 'color_1'],
       ['api', 'request', 'POST', '/v1/projects/project_1/geo/scans/prompts/prompt_1'],
       ['geo', 'prompts', 'suggestions', 'dismiss', 'project_1', 'suggestion_1'],
@@ -364,6 +367,44 @@ describe('curated API commands end to end', () => {
       expect(JSON.parse(result.stdout).error).toContain('Confirmation required');
       expect(requests).toBe(before);
     }
+  });
+
+  test('Autopilot status needs no confirmation, but all run-control commands do', async () => {
+    const status = await run(['autopilot', 'status']);
+    expect(status.code, status.stdout).toBe(0);
+    expect(JSON.parse(status.stdout).path).toBe('/v1/autopilot/status');
+
+    for (const args of [
+      ['autopilot', 'run'], ['autopilot', 'stop', 'run_1'], ['autopilot', 'run-workflow', 'workflow_1'],
+      ['api', 'call', 'startAutopilotRun', '--body-file', '-'],
+      ['api', 'call', 'stopAutopilotRun', '--param', 'runId=run_1'],
+      ['api', 'call', 'startAutopilotWorkflowRun', '--param', 'workflowId=workflow_1'],
+      ['api', 'request', 'POST', '/v1/autopilot/runs'],
+      ['api', 'request', 'POST', '/v1/autopilot/runs/run_1/stop'],
+      ['api', 'request', 'POST', '/v1/autopilot/workflows/workflow_1/run'],
+    ]) {
+      const before = requests;
+      const result = await run(args, false, '{}');
+      expect(result.code, result.stdout).toBe(2);
+      expect(JSON.parse(result.stdout).error).toContain('Confirmation required');
+      expect(requests).toBe(before);
+    }
+    const stopped = await run(['api', 'request', 'POST', '/v1/autopilot/runs/run_1/stop', '--yes']);
+    expect(stopped.code, stopped.stdout).toBe(0);
+    expect(JSON.parse(stopped.stdout).path).toBe('/v1/autopilot/runs/run_1/stop');
+  });
+
+  test('Autopilot rejects invalid run kinds and missing IDs before making requests', async () => {
+    const before = requests;
+    for (const args of [
+      ['autopilot', 'run', '--kind', 'unknown', '--yes'],
+      ['autopilot', 'stop', '--yes'],
+      ['autopilot', 'run-workflow', '--yes'],
+    ]) {
+      const result = await run(args);
+      expect(result.code, result.stdout).toBe(2);
+    }
+    expect(requests).toBe(before);
   });
 
   test('invalid requests fail locally with usage errors', async () => {

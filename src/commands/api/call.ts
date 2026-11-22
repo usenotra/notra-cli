@@ -1,9 +1,9 @@
 import { Args, Flags } from '@oclif/core';
 import { NotraCommand } from '../../base-command';
-import { BILLABLE_OPERATION_IDS } from '../../constants/billing';
 import { OPENAPI_OPERATIONS } from '../../constants/openapi';
 import { ExitCode } from '../../constants/exit';
 import type { OpenApiOperation } from '../../types/openapi';
+import { getOperationConfirmation } from '../../utils/api-confirmation';
 import { confirmAction } from '../../utils/confirm';
 import { readJsonFromFileOrStdin } from '../../utils/files';
 import { parseKeyValuePairs, toQueryRecord } from '../../utils/key-value';
@@ -29,7 +29,7 @@ export default class ApiCall extends NotraCommand {
     }),
     'body-file': Flags.string({ description: 'JSON request body file, or "-" for stdin.' }),
     timeout: Flags.integer({ description: 'Request timeout in seconds.', min: 1, default: 30 }),
-    yes: Flags.boolean({ char: 'y', description: 'Confirm billable operations without prompting.' }),
+    yes: Flags.boolean({ char: 'y', description: 'Confirm destructive or billable operations without prompting.' }),
   };
 
   public async run(): Promise<void> {
@@ -78,8 +78,9 @@ export default class ApiCall extends NotraCommand {
     const body = flags['body-file']
       ? await readJsonFromFileOrStdin(flags['body-file'], 'Expected a JSON request body.')
       : undefined;
-    if (BILLABLE_OPERATION_IDS.has(operation.id)) {
-      const confirmed = await confirmAction(`Run billable operation ${operation.id}?`, {
+    const confirmation = getOperationConfirmation(operation);
+    if (confirmation) {
+      const confirmed = await confirmAction(confirmation, {
         yes: flags.yes,
       });
       if (!confirmed) {

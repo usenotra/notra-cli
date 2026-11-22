@@ -548,6 +548,15 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": true
   },
   {
+    "id": "getAutopilotStatus",
+    "method": "GET",
+    "path": "/v1/autopilot/status",
+    "summary": "Get Autopilot status",
+    "tag": "Autopilot",
+    "parameters": [],
+    "hasBody": false
+  },
+  {
     "id": "getBrandIdentity",
     "method": "GET",
     "path": "/v1/brand-identities/{brandIdentityId}",
@@ -2614,6 +2623,30 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": true
   },
   {
+    "id": "startAutopilotRun",
+    "method": "POST",
+    "path": "/v1/autopilot/runs",
+    "summary": "Start an Autopilot run",
+    "tag": "Autopilot",
+    "parameters": [],
+    "hasBody": true
+  },
+  {
+    "id": "startAutopilotWorkflowRun",
+    "method": "POST",
+    "path": "/v1/autopilot/workflows/{workflowId}/run",
+    "summary": "Start an Autopilot custom workflow",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "workflowId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "startGeoAgentReadinessScan",
     "method": "POST",
     "path": "/v1/projects/{projectId}/geo/agent-readiness/scan",
@@ -2637,6 +2670,21 @@ export const OPENAPI_OPERATIONS = [
     "parameters": [
       {
         "name": "siteId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "stopAutopilotRun",
+    "method": "POST",
+    "path": "/v1/autopilot/runs/{runId}/stop",
+    "summary": "Stop an active Autopilot run",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "runId",
         "in": "path",
         "required": true
       }
@@ -4447,6 +4495,9 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         }
       }
     }
+  },
+  "getAutopilotStatus": {
+    "parameters": {}
   },
   "getBrandIdentity": {
     "parameters": {
@@ -6520,6 +6571,39 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "startAutopilotRun": {
+    "parameters": {},
+    "body": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "readiness",
+            "keywords",
+            "commits",
+            "refresh",
+            "comparisons",
+            "rendering",
+            "links",
+            "landing"
+          ],
+          "description": "Run only this automation. Omit for the whole daily run."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "startAutopilotWorkflowRun": {
+    "parameters": {
+      "workflowId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "description": "Custom workflow id from get_autopilot_status"
+      }
+    }
+  },
   "startGeoAgentReadinessScan": {
     "parameters": {
       "projectId": {
@@ -6535,6 +6619,16 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "type": "string",
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "stopAutopilotRun": {
+    "parameters": {
+      "runId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "description": "The running Autopilot or custom workflow run, from get_autopilot_status"
       }
     }
   },
