@@ -6,7 +6,7 @@ const dim = (text: string) => (shouldUseColor() ? chalk.dim(text) : text);
 const bold = (text: string) => (shouldUseColor() ? chalk.bold(text) : text);
 
 export function renderCommentedPosts(result: unknown): string {
-  const { posts, hasMore } = result as CommentedPostsResponse;
+  const { posts, hasMore, total } = result as CommentedPostsResponse;
   const table = renderTable(posts, {
     empty: dim('No posts with open comments.'),
     columns: [
@@ -16,7 +16,9 @@ export function renderCommentedPosts(result: unknown): string {
       { header: 'Last comment', get: (post) => formatDate(post.lastCommentAt) },
     ],
   });
-  return hasMore ? `${table}\n${dim('More posts have open comments: pass --page for the next page.')}` : table;
+  if (!hasMore) return table;
+  const more = total ? `${total} posts have open comments in all.` : 'More posts have open comments.';
+  return `${table}\n${dim(`${more} Pass --page for the next page.`)}`;
 }
 
 /** Each thread: its quote, the comment, and its replies indented below. */

@@ -106,6 +106,8 @@ test('renders threads and commented posts for a terminal', async () => {
   const more = renderCommentedPosts({
     posts: [{ postId: 'post_1', title: 'Launch', openThreads: 1, lastCommentAt: null }],
     hasMore: true,
+    total: 27,
   });
   expect(more).toContain('--page');
+  expect(more).toContain('27 posts');
 });
