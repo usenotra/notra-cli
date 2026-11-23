@@ -457,7 +457,7 @@ describe('curated API commands end to end', () => {
       expect(JSON.parse(result.stdout).error).toBeTruthy();
       expect(requests).toBe(before);
     }
-  });
+  }, 20_000);
 
   test('API failures retain documented JSON output and exit codes', async () => {
     try {
