@@ -18,6 +18,8 @@ export type ApiCommandOptions = {
   // Ask before irreversible actions that are neither DELETE nor billable.
   confirm?: boolean;
   bodySchema?: ZodObject;
+  // Human-readable output for a terminal; JSON is printed otherwise.
+  render?: (result: unknown) => string;
 };
 
 export type PreparedOperation = {

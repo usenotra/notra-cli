@@ -57,6 +57,10 @@ export function createApiCommand(id: string, options: ApiCommandOptions = {}): t
         return;
       }
       const result = await client.request(spec.operation.method, prepared.path, request);
+      if (options.render && !this.emitJson()) {
+        this.log(options.render(result));
+        return;
+      }
       this.printJson(response === 'chat' && typeof result === 'string' ? parseChatStream(result) : result);
     }
   };
