@@ -103,4 +103,9 @@ test('renders threads and commented posts for a terminal', async () => {
   expect(text).toContain('Maya: Add an example');
   expect(text).toContain('↳ Alex: Done');
   expect(renderCommentedPosts({ posts: [] })).toContain('No posts with open comments.');
+  const more = renderCommentedPosts({
+    posts: [{ postId: 'post_1', title: 'Launch', openThreads: 1, lastCommentAt: null }],
+    hasMore: true,
+  });
+  expect(more).toContain('--page');
 });

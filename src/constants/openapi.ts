@@ -1919,6 +1919,16 @@ export const OPENAPI_OPERATIONS = [
         "name": "link",
         "in": "query",
         "required": false
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "page",
+        "in": "query",
+        "required": false
       }
     ],
     "hasBody": false
@@ -6094,7 +6104,20 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       "link": {
         "type": "string",
         "maxLength": 2000,
-        "description": "A post's Notra Sites preview link or its link in Notra: returns only that post. Without it, every post with open comments."
+        "description": "A post's Notra Sites preview link or its link in Notra: returns only that post. Without it, the posts with open comments, newest comment first."
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 20,
+        "description": "Posts per page"
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 1,
+        "description": "Page number"
       }
     }
   },

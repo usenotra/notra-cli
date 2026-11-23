@@ -1,5 +1,6 @@
 export type CommentedPostsResponse = {
   posts: { postId: string; title: string; openThreads: number; lastCommentAt: string | null }[];
+  hasMore?: boolean;
 };
 
 export type PostCommentsResponse = {
