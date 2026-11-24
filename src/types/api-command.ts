@@ -20,7 +20,16 @@ export type ApiCommandOptions = {
   // Billable actions always ask.
   confirm?: boolean;
   bodySchema?: ZodObject;
+  // Human-readable output for a terminal; JSON is printed otherwise.
+  render?: (result: unknown) => string;
+  // Adds --watch: re-read until the result is completed or failed.
+  watch?: {
+    status: (result: unknown) => WatchStatus;
+    describe: (result: unknown) => string;
+  };
 };
+
+export type WatchStatus = 'completed' | 'failed' | 'running';
 
 export type PreparedOperation = {
   path: string;

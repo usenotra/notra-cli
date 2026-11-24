@@ -157,6 +157,8 @@ with `notra geo scans start <projectId> --prompt <promptId>`. Run
 | Command group | Available workflows |
 |---|---|
 | `posts` | List, get, create, update, delete, generate, generation status; schedule, inspect or cancel publishing |
+| `sites preview`, `sites preview-status` | Preview a saved post on a Notra Site without a branch or pull request; rerun to rebuild it; `preview-status --watch` waits until the latest build is live |
+| `comments` | Find posts with open comments (also by preview link), read threads, reply, resolve |
 | `schedules` | List, create from GitHub and/or Linear integrations, update only the fields you send, delete; run once now, list recent runs |
 | `autopilot` | Inspect settings, active runs, custom workflows and open findings; start or stop a run |
 | `autopilot outreach` | List and read pitches, edit drafts, send or schedule, cancel, mark sent or listed, correct stage, follow-up or deal, delete; show or disconnect the mailbox |

@@ -2002,6 +2002,31 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "listCommentedPosts",
+    "method": "GET",
+    "path": "/v1/post-comments",
+    "summary": "Find posts with open comments",
+    "tag": "Content",
+    "parameters": [
+      {
+        "name": "link",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "page",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "listEventTriggers",
     "method": "GET",
     "path": "/v1/event-triggers",
@@ -2490,6 +2515,26 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "listPostComments",
+    "method": "GET",
+    "path": "/v1/posts/{postId}/comments",
+    "summary": "List a post's comment threads",
+    "tag": "Content",
+    "parameters": [
+      {
+        "name": "postId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "status",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "listPosts",
     "method": "GET",
     "path": "/v1/posts",
@@ -2796,6 +2841,26 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": true
   },
   {
+    "id": "replyToPostComment",
+    "method": "POST",
+    "path": "/v1/posts/{postId}/comments/{threadId}/replies",
+    "summary": "Reply to a comment thread",
+    "tag": "Content",
+    "parameters": [
+      {
+        "name": "postId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "threadId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
     "id": "reportGeoContentAgentFailure",
     "method": "POST",
     "path": "/v1/projects/{projectId}/geo/claims/failure",
@@ -2804,6 +2869,21 @@ export const OPENAPI_OPERATIONS = [
     "parameters": [
       {
         "name": "projectId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
+    "id": "resolvePostComments",
+    "method": "POST",
+    "path": "/v1/posts/{postId}/comments/resolve",
+    "summary": "Resolve comment threads",
+    "tag": "Content",
+    "parameters": [
+      {
+        "name": "postId",
         "in": "path",
         "required": true
       }
@@ -6311,6 +6391,28 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
   "listChats": {
     "parameters": {}
   },
+  "listCommentedPosts": {
+    "parameters": {
+      "link": {
+        "type": "string",
+        "maxLength": 2000,
+        "description": "A post's Notra Sites preview link or its link in Notra: returns only that post. Without it, the posts with open comments, newest comment first."
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 20,
+        "description": "Posts per page"
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 1,
+        "description": "Page number"
+      }
+    }
+  },
   "listEventTriggers": {
     "parameters": {
       "repositoryIds": {
@@ -6730,6 +6832,24 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
   },
   "listPostAuthors": {
     "parameters": {}
+  },
+  "listPostComments": {
+    "parameters": {
+      "postId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "open",
+          "all"
+        ],
+        "default": "open",
+        "description": "open lists unresolved threads only; all includes resolved ones"
+      }
+    }
   },
   "listPosts": {
     "parameters": {
@@ -7284,6 +7404,32 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "replyToPostComment": {
+    "parameters": {
+      "postId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "threadId": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 10000
+        }
+      },
+      "required": [
+        "body"
+      ]
+    }
+  },
   "reportGeoContentAgentFailure": {
     "parameters": {
       "projectId": {
@@ -7324,6 +7470,33 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "required": [
         "reason"
+      ]
+    }
+  },
+  "resolvePostComments": {
+    "parameters": {
+      "postId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "threadIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "maxItems": 50,
+          "description": "IDs of the threads your change addressed"
+        }
+      },
+      "required": [
+        "threadIds"
       ]
     }
   },
