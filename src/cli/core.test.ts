@@ -36,6 +36,20 @@ describe('parseArgv', () => {
     expect(result.flags).toEqual({ limit: 20, tag: ['a', 'b', 'c'], enabled: false });
   });
 
+  test('takes IDs that start with "-" as arguments, short flags still work', () => {
+    const args = { postId: Args.string({ required: true }), threadId: Args.string({ required: true }) };
+    const flags = { yes: Flags.boolean({ char: 'y' }) };
+    expect(parseArgv(['-ajiifqoU4_73jzw8lxvl', '-y', '-t1x'], args, flags)).toEqual({
+      args: { postId: '-ajiifqoU4_73jzw8lxvl', threadId: '-t1x' },
+      flags: { yes: true },
+    });
+    expect(parseArgv(['--', '-y'], { postId: Args.string({ required: true }) }, flags).args)
+      .toEqual({ postId: '-y' });
+    // With every argument taken, an unknown single-dash token is still a typo.
+    expect(() => parseArgv(['post_1', '-x'], { postId: Args.string({ required: true }) }, flags))
+      .toThrow('put it after --');
+  });
+
   test('rejects missing required values and invalid options', () => {
     expect(() =>
       parseArgv([], { projectId: Args.string({ required: true }) }, {}),

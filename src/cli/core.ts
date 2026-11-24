@@ -143,10 +143,25 @@ export function parseArgv(
 
     const equals = token.indexOf('=');
     const longName = token.startsWith('--') ? token.slice(2, equals === -1 ? undefined : equals) : undefined;
+    // IDs can start with "-" (post IDs do). A single-dash token that is no
+    // short flag is an argument while the command still takes one.
+    if (
+      longName === undefined &&
+      !chars.has(token.slice(1, equals === -1 ? undefined : equals)) &&
+      positionals.length < Object.keys(argDefinitions).length
+    ) {
+      positionals.push(token);
+      continue;
+    }
     const rawName = longName === undefined
       ? chars.get(token.slice(1, equals === -1 ? undefined : equals))
       : aliases.get(longName) ?? longName;
-    if (!rawName) throw new Errors.CLIError(`Unknown flag: ${token}`, { exit: 2 });
+    if (!rawName) {
+      throw new Errors.CLIError(
+        `Unknown flag: ${token}. To pass a value that starts with "-", put it after --.`,
+        { exit: 2 },
+      );
+    }
     const negated = !flagDefinitions[rawName] && rawName.startsWith('no-');
     const name = negated ? aliases.get(rawName.slice(3)) ?? rawName.slice(3) : rawName;
     const definition = flagDefinitions[name];

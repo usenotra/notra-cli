@@ -1,0 +1,15 @@
+---
+import { config, href } from "../lib/params";
+import Icon from "./Icon.astro";
+---
+
+<div class="flex w-full max-w-(--layout-index) flex-col items-center px-6 py-16 text-center">
+  <h2 class="font-heading text-xl font-(--font-heading-weight) tracking-[-0.015em] text-balance">No posts yet</h2>
+  <p class="mt-2 max-w-sm text-[0.9375rem] leading-6 text-pretty text-muted-foreground">
+    The first post from {config.name} is on its way. Follow the feed to read it when it's out.
+  </p>
+  <a href={href("feed.xml")} class="btn btn-secondary btn-sm mt-5">
+    <Icon name="rss" size={14} />
+    Follow via RSS
+  </a>
+</div>

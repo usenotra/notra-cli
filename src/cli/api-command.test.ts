@@ -13,6 +13,7 @@ describe('curated API commands end to end', () => {
   let server: ReturnType<typeof Bun.serve>;
   let requests = 0;
   let errorStatus = 0;
+  let errorMessage = 'Mock API error';
   let lastBody: unknown;
   let lastAuthorization: string | null;
   let serveSnapshot = false;
@@ -30,7 +31,7 @@ describe('curated API commands end to end', () => {
       hostname: '127.0.0.1', port: 0,
       async fetch(request) {
         requests++;
-        if (errorStatus) return Response.json({ error: 'Mock API error' }, { status: errorStatus });
+        if (errorStatus) return Response.json({ error: errorMessage }, { status: errorStatus });
         const url = new URL(request.url);
         const body = request.method === 'GET' || request.method === 'DELETE' ? null : await request.json().catch(() => null);
         lastBody = body;
@@ -106,6 +107,7 @@ describe('curated API commands end to end', () => {
       ['skills update', '--new-name'],
       ['posts schedule', '--scheduled-at'],
       ['agents events', '--start-index'],
+      ['autopilot run', '--kind'],
     ] as const) {
       for (const built of [false, true]) {
         const result = await run([...command.split(' '), '--help'], built);
@@ -352,6 +354,12 @@ describe('curated API commands end to end', () => {
       ['webhooks', 'endpoints', 'delete', 'endpoint_1'], ['chats', 'create', '--message', 'Hello'],
       ['agents', 'create', '--message', 'Hello'], ['api', 'call', 'createChat', '--body-file', '-'],
       ['api', 'request', 'POST', '/v2/eve/v1/session', '--body-file', '-'],
+      ['geo', 'scans', 'start', 'project_1', '--prompt', 'prompt_1'], ['schedules', 'run', 'schedule_1'],
+      ['api', 'call', 'deletePost', '--param', 'postId=post_1'],
+      ['api', 'request', 'DELETE', '/v1/posts/post_1'],
+      ['api', 'call', 'runSchedule', '--param', 'scheduleId=schedule_1'], ['brands', 'colors', 'delete', 'brand_1', 'color_1'],
+      ['api', 'request', 'POST', '/v1/projects/project_1/geo/scans/prompts/prompt_1'],
+      ['geo', 'prompts', 'suggestions', 'dismiss', 'project_1', 'suggestion_1'],
     ]) {
       const before = requests;
       const result = await run(args, false, '{"message":"Hello"}');
@@ -359,6 +367,67 @@ describe('curated API commands end to end', () => {
       expect(JSON.parse(result.stdout).error).toContain('Confirmation required');
       expect(requests).toBe(before);
     }
+  });
+
+  test('outreach sends, deletes and disconnects ask for --yes; undo-later does not', async () => {
+    for (const args of [
+      ['autopilot', 'outreach', 'send', 'pitch_1'],
+      ['autopilot', 'outreach', 'delete', 'pitch_1'],
+      ['autopilot', 'outreach', 'mailbox', 'disconnect'],
+      ['api', 'call', 'sendOutreachPitch', '--param', 'pitchId=pitch_1', '--body-file', '-'],
+      ['api', 'request', 'POST', '/v1/autopilot/outreach/pitches/pitch_1/send', '--body-file', '-'],
+    ]) {
+      const before = requests;
+      const result = await run(args, false, '{}');
+      expect(result.code, result.stdout).toBe(2);
+      expect(JSON.parse(result.stdout).error).toContain('Confirmation required');
+      expect(requests).toBe(before);
+    }
+
+    const undo = await run(['autopilot', 'outreach', 'undo-later', 'pitch_1']);
+    expect(undo.code, undo.stdout + undo.stderr).toBe(0);
+    expect(JSON.parse(undo.stdout)).toMatchObject({
+      method: 'DELETE',
+      path: '/v1/autopilot/outreach/pitches/pitch_1/later',
+    });
+  });
+
+  test('Autopilot status needs no confirmation, but all run-control commands do', async () => {
+    const status = await run(['autopilot', 'status']);
+    expect(status.code, status.stdout).toBe(0);
+    expect(JSON.parse(status.stdout).path).toBe('/v1/autopilot/status');
+
+    for (const args of [
+      ['autopilot', 'run'], ['autopilot', 'stop', 'run_1'], ['autopilot', 'run-workflow', 'workflow_1'],
+      ['api', 'call', 'startAutopilotRun', '--body-file', '-'],
+      ['api', 'call', 'stopAutopilotRun', '--param', 'runId=run_1'],
+      ['api', 'call', 'startAutopilotWorkflowRun', '--param', 'workflowId=workflow_1'],
+      ['api', 'request', 'POST', '/v1/autopilot/runs'],
+      ['api', 'request', 'POST', '/v1/autopilot/runs/run_1/stop'],
+      ['api', 'request', 'POST', '/v1/autopilot/workflows/workflow_1/run'],
+    ]) {
+      const before = requests;
+      const result = await run(args, false, '{}');
+      expect(result.code, result.stdout).toBe(2);
+      expect(JSON.parse(result.stdout).error).toContain('Confirmation required');
+      expect(requests).toBe(before);
+    }
+    const stopped = await run(['api', 'request', 'POST', '/v1/autopilot/runs/run_1/stop', '--yes']);
+    expect(stopped.code, stopped.stdout).toBe(0);
+    expect(JSON.parse(stopped.stdout).path).toBe('/v1/autopilot/runs/run_1/stop');
+  });
+
+  test('Autopilot rejects invalid run kinds and missing IDs before making requests', async () => {
+    const before = requests;
+    for (const args of [
+      ['autopilot', 'run', '--kind', 'unknown', '--yes'],
+      ['autopilot', 'stop', '--yes'],
+      ['autopilot', 'run-workflow', '--yes'],
+    ]) {
+      const result = await run(args);
+      expect(result.code, result.stdout).toBe(2);
+    }
+    expect(requests).toBe(before);
   });
 
   test('invalid requests fail locally with usage errors', async () => {
@@ -387,6 +456,23 @@ describe('curated API commands end to end', () => {
       ['agents', 'events', 'session_1', '--start-index', '-1'],
       ['skills', 'create', '--body-file', '-'],
       ['skills', 'create', '--name', 'humanizer', '--content', 'a', '--content-file', 'b'],
+      ['geo', 'prompts', 'suggestions', 'accept', 'project_1'],
+      ['geo', 'engines'],
+      ['geo', 'gaps', 'update', 'project_1', 'prompt_1'],
+      ['geo', 'briefs', 'update', 'project_1', 'brief_1'],
+      ['geo', 'briefs', 'update', 'project_1', 'brief_1', '--sections', '[]'],
+      ['geo', 'briefs', 'update', 'project_1', 'brief_1', '--expected-updated-at', '2026-11-01T00:00:00Z'],
+      ['geo', 'scans', 'start', 'project_1', '--prompt', '', '--yes'],
+      ['schedules', 'runs', 'schedule_1', '--limit', '51'],
+      ['brands', 'colors', 'create', 'brand_1', '--light-value', 'blue'],
+      ['brands', 'colors', 'create', 'brand_1', '--light-value', '#13A0DC', '--role', 'brand'],
+      ['brands', 'colors', 'update', 'brand_1', 'color_1'],
+      ['integrations', 'activity', 'integration_1', '--type', 'issues'],
+      ['integrations', 'activity', 'integration_1', '--since', 'yesterday'],
+      ['geo', 'traffic', 'web', 'project_1', '--sites', 'include'],
+      ['geo', 'traffic', 'web-breakdowns', 'project_1', '--days', '366'],
+      ['geo', 'traffic', 'journey-stats', 'project_1', '--from', 'last-week'],
+      ['geo', 'traffic', 'imports'],
     ]) {
       const before = requests;
       const result = await run(args, false, 'null');
@@ -394,7 +480,7 @@ describe('curated API commands end to end', () => {
       expect(JSON.parse(result.stdout).error).toBeTruthy();
       expect(requests).toBe(before);
     }
-  });
+  }, 20_000);
 
   test('API failures retain documented JSON output and exit codes', async () => {
     try {
@@ -406,5 +492,25 @@ describe('curated API commands end to end', () => {
         expect(result.stderr).toBe('');
       }
     } finally { errorStatus = 0; }
+  });
+
+  test('source and packaged web analytics commands explain the private beta 403', async () => {
+    errorStatus = 403;
+    errorMessage = 'Web analytics is not available for this workspace yet.';
+    try {
+      for (const command of ['web', 'web-breakdowns', 'journey-stats', 'imports']) {
+        for (const built of [false, true]) {
+          const result = await run(['geo', 'traffic', command, 'project_1'], built);
+          expect(result.code, result.stdout).toBe(3);
+          expect(result.stderr).toBe('');
+          const output = JSON.parse(result.stdout);
+          expect(output.error).toBe('Web analytics is a private beta that this workspace does not have access to yet.');
+          expect(output.detail).toContain('`web-analytics` access');
+        }
+      }
+    } finally {
+      errorStatus = 0;
+      errorMessage = 'Mock API error';
+    }
   });
 });

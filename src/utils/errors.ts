@@ -8,9 +8,10 @@ import {
 import { ExitCode } from '../constants/exit';
 import {
   ORGANIZATION_SELECTION_REQUIRED_PREFIX,
+  WEB_ANALYTICS_UNAVAILABLE_PREFIX,
   WORKSPACE_ACCESS_REVOKED_PREFIX,
 } from '../constants/http';
-import { WORKSPACE_SELECTION_HINT } from '../constants/workspaces';
+import { WEB_ANALYTICS_ACCESS_HINT, WORKSPACE_SELECTION_HINT } from '../constants/workspaces';
 import type { FriendlyError } from '../types/errors';
 import { ApiResponseDecodeError } from './parse-api-response';
 import { OAuthConnectionError } from '../lib/oauth-errors';
@@ -39,8 +40,8 @@ export function toFriendlyError(err: unknown): FriendlyError {
   }
 
   if (err instanceof ApiError) {
-    const workspaceError = toWorkspaceSelectionError(err);
-    if (workspaceError) return workspaceError;
+    const forbiddenError = toForbiddenError(err);
+    if (forbiddenError) return forbiddenError;
     const status = err.code ? `HTTP ${err.statusCode} (${err.code})` : `HTTP ${err.statusCode}`;
     return {
       message: err.message,
@@ -83,7 +84,7 @@ export function toFriendlyError(err: unknown): FriendlyError {
   return { message: String(err), exitCode: ExitCode.Generic };
 }
 
-function toWorkspaceSelectionError(err: ApiError): FriendlyError | undefined {
+function toForbiddenError(err: ApiError): FriendlyError | undefined {
   if (err.statusCode !== 403) return undefined;
   const message = err.message.trim().toLowerCase();
   if (message.startsWith(ORGANIZATION_SELECTION_REQUIRED_PREFIX)) {
@@ -97,6 +98,13 @@ function toWorkspaceSelectionError(err: ApiError): FriendlyError | undefined {
     return {
       message: 'Your credentials no longer have access to the selected workspace.',
       detail: `HTTP 403. ${WORKSPACE_SELECTION_HINT}`,
+      exitCode: ExitCode.Auth,
+    };
+  }
+  if (message.startsWith(WEB_ANALYTICS_UNAVAILABLE_PREFIX)) {
+    return {
+      message: 'Web analytics is a private beta that this workspace does not have access to yet.',
+      detail: `HTTP 403. ${WEB_ANALYTICS_ACCESS_HINT}`,
       exitCode: ExitCode.Auth,
     };
   }

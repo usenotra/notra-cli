@@ -1,3 +1,4 @@
+import { FAVICON_DIR } from "../constants/favicons";
 import { PLATFORM_LABELS } from "../constants/navigation";
 import type {
   FooterColumn,
@@ -6,6 +7,7 @@ import type {
   ResolvedDropdown,
   ResolvedLink,
 } from "../types/navigation";
+import { socialFaviconHost } from "../utils/favicons";
 import { brandIcon, lucideIcon } from "../utils/icons";
 import { resolveNavbarAreas } from "../utils/navbar-areas";
 import { listedAreas } from "./entries";
@@ -85,18 +87,21 @@ export function footerFlatLinks(): ResolvedLink[] {
 }
 
 export function footerSocials(): ResolvedLink[] {
-  return Object.entries(config.footer.socials).flatMap(([platform, url]) =>
-    url
-      ? [
-          {
-            label:
-              PLATFORM_LABELS[platform as keyof typeof PLATFORM_LABELS] ??
-              platform,
-            href: url,
-            icon: brandIcon(platform),
-            iconOnly: true,
-          },
-        ]
-      : []
-  );
+  return Object.entries(config.footer.socials).flatMap(([platform, url]) => {
+    if (!url) {
+      return [];
+    }
+    const host = socialFaviconHost(platform, url);
+    return [
+      {
+        label:
+          PLATFORM_LABELS[platform as keyof typeof PLATFORM_LABELS] ?? platform,
+        href: url,
+        icon: host
+          ? { kind: "favicon", src: href(`${FAVICON_DIR}/${host}`) }
+          : brandIcon(platform),
+        iconOnly: true,
+      },
+    ];
+  });
 }

@@ -80,10 +80,17 @@ export function schemaType(schema: JSONSchema.JSONSchema): string | undefined {
   return type ?? schema.anyOf?.map(schemaType).find((entry) => entry !== 'null');
 }
 
+function allowsNull(schema: JSONSchema.JSONSchema): boolean {
+  if (Array.isArray(schema.type)) return schema.type.includes('null');
+  return schema.type === 'null' || (schema.anyOf ?? []).some((entry) => typeof entry !== 'boolean' && allowsNull(entry));
+}
+
 export function parseSchemaValue(value: unknown, input: JSONSchema._JSONSchema): unknown {
   const schema = typeof input === 'boolean' ? {} : input;
   const type = schemaType(schema);
   if (typeof value !== 'string') return value;
+  // `--stage null` clears a nullable field.
+  if (value === 'null' && allowsNull(schema)) return null;
   if (type === 'number' || type === 'integer') return value.trim() ? Number(value) : value;
   if (type === 'boolean') return value === 'true' ? true : value === 'false' ? false : value;
   if (type === 'object' || type === 'array') {

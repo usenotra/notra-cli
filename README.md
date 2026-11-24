@@ -31,7 +31,7 @@ bunx --bun notra@latest dev
 The folder must contain `blog.json`, `blog/`, or `changelog/`; `blog.json` is
 optional. In a folder without a site, `notra dev` offers to create a starter
 site (a `blog.json`, a first post and a changelog entry) and previews it;
-`notra dev --init` does the same without asking, and existing files are never
+`notra dev --create` does the same without asking, and existing files are never
 overwritten. The preview runs at `http://localhost:4321` with live reload for
 content, components, CSS, assets, and configuration; if 4321 is taken, the
 next free port is used. Errors show in the terminal and in the browser, which
@@ -47,8 +47,41 @@ is MIT.
 notra dev --source ./hosted-site --port 4400
 ```
 
-Both `/blog` and `/changelog` are served; `/` redirects to `/blog`. Stop with
-Ctrl+C. `dev` prints server logs rather than JSON.
+The blog and changelog are served at `/blog` and `/changelog` when the site has
+a `blog/` or `changelog/` folder (both when it has neither), and `/` redirects to
+the first one. Stop with Ctrl+C. `dev` prints server logs rather than JSON.
+`notra sites dev` is the same command.
+
+To preview at the path you will serve the site from, for example behind your
+own proxy, pass `--mount <section>=<path>` once per section. Only the sections
+you list are served:
+
+```bash
+notra dev --mount blog=/newsroom
+notra dev --mount blog=/news --mount changelog=/releases
+```
+
+Paths start with `/` and use lowercase letters, digits, and dashes, at most
+three segments deep; `/` mounts a section at the root.
+
+### Check and build a site
+
+```bash
+notra sites validate --mount blog=/newsroom
+notra sites build --mount blog=/newsroom
+```
+
+`notra sites validate` checks `blog.json`, MDX, snippets, and links without
+building (`--json` prints the diagnostics). Pass the same `--mount` and
+`--origin` you build with, so links and images are checked at the paths the
+site is served from. `notra sites build` makes the same static
+output a hosted deployment serves, in `./.notra/out` by default (`--out <dir>`
+to change it; the folder is emptied first), with each section in the folder of
+its path, such as `.notra/out/newsroom/`. Sections and `--mount` work as in
+`notra dev`. The build leaves out drafts and is marked `noindex`; canonical
+links, feeds, and sitemaps use `http://localhost` unless you pass
+`--origin https://www.example.com`. Both commands exit with 1 when the site has
+errors and need no login.
 
 ## Sign in
 
@@ -115,9 +148,11 @@ notra api call getGeoSentiment --param projectId=project_123
 Run `notra <topic> --help` to see every command and flag. Every API command
 accepts `--json` for machine-readable output.
 
-GEO commands cover projects, settings, prompts, sequences, competitors, scans,
-visibility, sentiment, scan changes, prompt history, citation shelf sources,
-content gaps, briefs, agent readiness, and AI traffic. Run
+GEO commands cover projects, settings, answer engines, prompts and Search
+Console prompt suggestions, sequences, competitors, scans, visibility,
+sentiment, scan changes, prompt history, citation shelf sources, content gaps,
+briefs, agent readiness, AI traffic, and web analytics. Rescan a single prompt
+with `notra geo scans start <projectId> --prompt <promptId>`. Run
 `notra geo --help` to browse the complete command tree.
 
 ### Content and workspace workflows
@@ -125,6 +160,13 @@ content gaps, briefs, agent readiness, and AI traffic. Run
 | Command group | Available workflows |
 |---|---|
 | `posts` | List, get, create, update, delete, generate, generation status; schedule, inspect or cancel publishing |
+| `sites preview`, `sites preview-status` | Preview a saved post on a Notra Site without a branch or pull request; rerun to rebuild it; `preview-status --watch` waits until the latest build is live |
+| `comments` | Find posts with open comments (also by preview link), read threads, reply, resolve |
+| `schedules` | List, create from GitHub and/or Linear integrations, update only the fields you send, delete; run once now, list recent runs |
+| `autopilot` | Inspect settings, active runs, custom workflows and open findings; start or stop a run |
+| `autopilot outreach` | List and read pitches, edit drafts, send or schedule, cancel, mark sent or listed, correct stage, follow-up or deal, delete; show or disconnect the mailbox |
+| `brands colors` | List, create, update, delete brand guideline colors |
+| `integrations activity` | List merged pull requests, commits or releases of a connected GitHub repository |
 | `event-triggers` | List, get, create, replace configuration, delete |
 | `webhooks endpoints` | List, create, delete subscriptions |
 | `webhooks deliveries` | List, inspect payload and attempts, retry failed deliveries |
@@ -156,6 +198,56 @@ or slug. The CLI sends the choice as the `X-Notra-Organization-Id` header.
 An organization key only accepts its own workspace there (any other gives a
 403), and OAuth tokens ignore it.
 
+### Autopilot
+
+```bash
+notra autopilot status
+notra autopilot run --kind links --yes
+notra autopilot run-workflow workflow_123 --yes
+notra autopilot stop run_123 --yes
+```
+
+Use `status` to find run and workflow IDs. Without `--kind`, `run` starts the
+full Autopilot run. Starting a run can use AI credits and act on connected
+services under your existing approval settings. Starting or stopping a run
+prompts for confirmation; scripts must pass `--yes`.
+
+Use `notra auth login` or an account API key, not an organization API key.
+Status needs `autopilot.read`; starting or stopping needs `autopilot.write` and
+a workspace owner or admin. If you signed in before Autopilot was added, sign in
+again to grant its permissions.
+
+### Autopilot outreach
+
+Pitches Autopilot drafts to pages that AI answers cite without your brand, sent
+from the workspace's own Gmail or Outlook.
+
+```bash
+notra autopilot outreach list --status draft
+notra autopilot outreach list --follow-up-due true
+notra autopilot outreach get pitch_123
+notra autopilot outreach edit pitch_123 --subject "your AI search tools guide"
+notra autopilot outreach send pitch_123 --send-at suggested --yes
+notra autopilot outreach send pitch_123 --yes          # now
+notra autopilot outreach cancel pitch_123
+notra autopilot outreach details pitch_123 --stage negotiating
+notra autopilot outreach mark-listed pitch_123
+notra autopilot outreach later pitch_123         # back in the next daily brief
+notra autopilot outreach undo-later pitch_123
+notra autopilot outreach delete pitch_123 --yes
+notra autopilot outreach mailbox show
+```
+
+`send` emails a real person, so it prompts for confirmation; scripts must pass
+`--yes`. `--send-at suggested` picks the next weekday morning in the
+recipient's time zone, shown as `suggestedSendAt` by `get`. Every pitch goes
+out as plain text with an unsubscribe link. Connecting a mailbox needs the
+owner's sign-in in a browser: open the `connectUrl` from `mailbox show`.
+Reading needs `autopilot.read`; everything else needs `autopilot.write` and a
+workspace owner or admin.
+
+### JSON request bodies
+
 New commands with JSON bodies accept individual field flags or `--body-file` with a JSON
 object; field flags override values in that file. Use `--body-file -` for stdin.
 Object and complex-array flags accept JSON. String-array flags such as `--events`
@@ -176,7 +268,8 @@ publishing schedules are separate from recurring content-generation `schedules`.
 Deleting resources or cancelling publishing requires confirmation; use `--yes`
 in scripts. Creating chats, sending chat messages or tool approvals, and starting
 or continuing durable agent sessions also require confirmation because they use
-AI credits and their tools may act on data or external services.
+AI credits and their tools may act on data or external services. So do GEO
+scans, prompt rescans, and `schedules run`.
 
 Chat commands return `{ "chatId": "…", "text": "…" }` after reading the reply
 stream. When tools need approval, `pendingApprovals` includes their IDs, tool-call
@@ -217,6 +310,25 @@ actions. Optional sections have a five-second timeout and become warnings when
 unavailable; a failed visibility overview still fails the command. Stored
 sentiment analysis does not start a billed analysis run.
 
+### Web analytics (private beta)
+
+```bash
+notra geo traffic web <projectId> --days 30 --host www.example.com
+notra geo traffic web-breakdowns <projectId> --from 2026-10-01 --to 2026-10-31 --path /pricing
+notra geo traffic journey-stats <projectId> --days 7
+notra geo traffic imports <projectId>
+```
+
+`web` returns page views, visitors, sessions, and AI-referred visitors against
+the previous window, with a daily trend and the hosts seen. `web-breakdowns`
+returns top pages, sources, countries, devices, languages, AI visitor outcomes,
+outbound link clicks, Core Web Vitals, and JavaScript errors. Both accept
+`--host`, `--path`, and `--sites exclude` (leave out Notra Sites traffic).
+`journey-stats` returns AI journey counts per source and page, and `imports`
+lists history imports from Plausible, Cloudflare, or Vercel; start imports in
+the dashboard. Workspaces without `web-analytics` access get HTTP 403, which
+the CLI reports as a private beta error with exit code 3.
+
 ### Complete API access
 
 The curated commands above optimize common workflows. The `api` commands expose
@@ -239,7 +351,9 @@ notra api request GET /v1/posts --query limit=20 --query status=draft
 Path, query, and header parameters use repeatable `--param NAME=VALUE` flags.
 Request bodies come from `--body-file`; use `-` to read JSON from stdin. The raw
 `api request` command remains available when an API deployment is newer than the
-catalog bundled with the installed CLI.
+catalog bundled with the installed CLI. Both commands prompt before DELETE
+requests and actions marked for confirmation in the catalog; scripts must pass
+`--yes`.
 
 ## Output
 

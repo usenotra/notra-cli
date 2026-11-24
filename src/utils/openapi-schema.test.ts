@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { fromJSONSchema } from 'zod';
 import { OPENAPI_REQUEST_SCHEMAS } from '../constants/openapi';
-import { resolveOpenApiSchema } from './openapi-schema';
+import { caseInsensitivePattern, resolveOpenApiSchema } from './openapi-schema';
 
 describe('bundled OpenAPI request schemas', () => {
   test('every body and parameter schema compiles without unresolved references', () => {
@@ -22,6 +22,21 @@ describe('bundled OpenAPI request schemas', () => {
     expect(validator.safeParse({ value: 'ok' }).success).toBe(true);
     expect(validator.safeParse({ value: 'x' }).success).toBe(false);
     expect(fromJSONSchema(resolveOpenApiSchema({ type: 'string', nullable: true }, {})).safeParse(null).success).toBe(true);
+  });
+
+  test('keeps serialized case-insensitive patterns case-insensitive', () => {
+    const validator = fromJSONSchema(resolveOpenApiSchema(
+      { type: 'string', pattern: '^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i' },
+      {},
+    ));
+    expect(validator.safeParse('#13A0DC').success).toBe(true);
+    expect(validator.safeParse('#13a0dc').success).toBe(true);
+    expect(validator.safeParse('#13A0DG').success).toBe(false);
+    expect(caseInsensitivePattern('^foo-bar$')).toBe('^[fF][oO][oO]-[bB][aA][rR]$');
+    expect(caseInsensitivePattern('^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\d$')).toBe('^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\d$');
+    expect(resolveOpenApiSchema({ type: 'string', pattern: '^\\p{L}+$/i' }, {})).toEqual({ type: 'string' });
+    expect(caseInsensitivePattern('^(a)\\1$')).toBeUndefined();
+    expect(caseInsensitivePattern('^é$')).toBeUndefined();
   });
 
   test('fails loudly on missing, remote and recursive references', () => {

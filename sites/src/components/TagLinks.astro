@@ -1,0 +1,18 @@
+---
+import type { TagLinksProps as Props } from "../types/tags";
+
+const { tags, class: className } = Astro.props;
+---
+
+{
+  tags.length > 0 && (
+    <ul aria-label="Tags" class:list={["flex flex-wrap gap-x-1", className]}>
+      {tags.map((tag, index) => (
+        <li>
+          {tag.href ? <a href={tag.href} data-category-link={tag.category} class="transition-colors duration-150 ease-out hover:text-foreground">{tag.name}</a> : tag.name}
+          {index < tags.length - 1 && ","}
+        </li>
+      ))}
+    </ul>
+  )
+}

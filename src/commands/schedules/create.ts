@@ -15,6 +15,11 @@ export default class SchedulesCreate extends NotraCommand {
       '  --frequency daily --hour 9 --minute 0',
       '  --output-type changelog --repository repo_abc --enabled',
     ].join(' \\\n    '),
+    [
+      '<%= config.bin %> schedules create --name "Weekly Linear recap"',
+      '  --frequency weekly --day-of-week 1 --hour 9 --minute 0',
+      '  --output-type blog_post --linear-integration lin_abc',
+    ].join(' \\\n    '),
     '<%= config.bin %> schedules create --config-file ./schedule.json',
     'cat schedule.json | <%= config.bin %> schedules create --config-file -',
   ];
@@ -50,7 +55,11 @@ export default class SchedulesCreate extends NotraCommand {
       description: 'Optional anchor date for custom schedules (YYYY-MM-DD).',
     }),
     repository: Flags.string({
-      description: 'Repository ID. Repeatable.',
+      description: 'GitHub integration ID. Repeatable.',
+      multiple: true,
+    }),
+    'linear-integration': Flags.string({
+      description: 'Linear integration ID. Repeatable.',
       multiple: true,
     }),
     'output-type': Flags.string({
@@ -109,7 +118,12 @@ function buildRequestFromFlags(flags: ScheduleCreateFlags): unknown {
   required(flags.frequency, 'frequency');
   required(flags.hour, 'hour');
   required(flags.minute, 'minute');
-  required(flags.repository?.length, 'repository');
+  if (!flags.repository?.length && !flags['linear-integration']?.length) {
+    throw new Errors.CLIError(
+      '--repository or --linear-integration is required when --config-file is not used.',
+      { exit: ExitCode.Usage },
+    );
+  }
   required(flags['output-type'], 'output-type');
 
   const cron: Record<string, unknown> = {
@@ -147,7 +161,12 @@ function buildRequestFromFlags(flags: ScheduleCreateFlags): unknown {
     name: flags.name,
     sourceType: 'cron',
     sourceConfig: { cron },
-    targets: { repositoryIds: flags.repository },
+    targets: {
+      ...(flags.repository?.length ? { repositoryIds: flags.repository } : {}),
+      ...(flags['linear-integration']?.length
+        ? { linearIntegrationIds: flags['linear-integration'] }
+        : {}),
+    },
     outputType: flags['output-type'],
     enabled: flags.enabled ?? true,
   };

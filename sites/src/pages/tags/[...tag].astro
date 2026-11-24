@@ -5,6 +5,7 @@ import BackLink from "../../components/BackLink.astro";
 import ChangelogEntry from "../../components/ChangelogEntry.astro";
 import PostCard from "../../components/PostCard.astro";
 import Base from "../../layouts/Base.astro";
+import { POST_CARD_CELL } from "../../constants/post-card";
 import { cardImages } from "../../lib/cards";
 import { getAreaEntries } from "../../lib/entries";
 import { absoluteUrl, areaTitle, config, href, params } from "../../lib/params";
@@ -62,9 +63,9 @@ const jsonLd = [
     }
     {
       posts.length > 0 && (
-        <ul class="grid grid-cols-1 gap-x-8 gap-y-12 max-sm:gap-y-0 max-sm:divide-y max-sm:divide-border sm:grid-cols-2 lg:grid-cols-3">
+        <ul class="grid grid-cols-1 gap-x-8 max-sm:divide-y max-sm:divide-border sm:-mb-12 sm:grid-cols-2 lg:grid-cols-3">
           {posts.map((entry) => (
-            <li class="h-full max-sm:py-6">
+            <li class:list={["max-sm:py-6 sm:pb-12", POST_CARD_CELL]}>
               <PostCard entry={entry} images={images} />
             </li>
           ))}

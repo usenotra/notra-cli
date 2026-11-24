@@ -3,16 +3,76 @@
 // compiler/cli.ts
 import { randomBytes as randomBytes2 } from "node:crypto";
 import { renameSync, watch as watch2 } from "node:fs";
-import { mkdtemp as mkdtemp2, realpath, rm as rm5, writeFile as writeFile3 } from "node:fs/promises";
+import { mkdtemp as mkdtemp2, realpath, rm as rm6, writeFile as writeFile6 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join as join10, resolve as resolve2 } from "node:path";
+import { join as join14, resolve as resolve4 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+
+// ../../packages/sites-compiler/src/constants/validate.ts
+var TEXT_SOURCE_FILE = /\.(?:mdx?|jsx?|json|txt|css|svg)$/i;
+var MDX_FILE = /\.mdx$/i;
+var SCRIPT_FILE = /\.jsx?$/i;
+var COLLAPSED_WARNING_CODES = new Set([
+  "unknown_prop",
+  "frontmatter_unknown_key"
+]);
+var COLLAPSED_WARNING_EXAMPLES = 3;
+var ANY_SCHEME_AUTHOR_LINK_FIELDS = [
+  "url",
+  "x",
+  "linkedin",
+  "github",
+  "youtube"
+];
 
 // ../../packages/sites-compiler/src/utils/diagnostics.ts
 function hasErrors(diagnostics) {
   return diagnostics.some((diagnostic) => diagnostic.severity === "error");
 }
+function location(diagnostic) {
+  return diagnostic.line ? `${diagnostic.file}:${diagnostic.line}` : String(diagnostic.file);
+}
+function collapseRepeatedWarnings(diagnostics) {
+  const groups = new Map;
+  for (const diagnostic of diagnostics) {
+    if (COLLAPSED_WARNING_CODES.has(diagnostic.code)) {
+      const key = `${diagnostic.code}\x00${diagnostic.message}`;
+      const group = groups.get(key);
+      if (group) {
+        group.push(diagnostic);
+      } else {
+        groups.set(key, [diagnostic]);
+      }
+    }
+  }
+  return diagnostics.flatMap((diagnostic) => {
+    const group = groups.get(`${diagnostic.code}\x00${diagnostic.message}`);
+    if (!group) {
+      return [diagnostic];
+    }
+    if (group[0] !== diagnostic) {
+      return [];
+    }
+    const rest = group.slice(1);
+    if (rest.length === 0) {
+      return [diagnostic];
+    }
+    const examples = rest.slice(0, COLLAPSED_WARNING_EXAMPLES).map(location).join(", ");
+    const more = rest.length > COLLAPSED_WARNING_EXAMPLES ? ", …" : "";
+    return [
+      {
+        ...diagnostic,
+        message: `${diagnostic.message} Also in ${rest.length} more place${rest.length === 1 ? "" : "s"}: ${examples}${more}.`
+      }
+    ];
+  });
+}
+
+// ../../packages/sites-core/src/constants/entries.ts
+var SITE_ENTRY_FILE = /^(blog|changelog)\/(.+)\.(mdx?)$/;
+var SITE_ENTRY_SLUG = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
+var SITE_ENTRY_INDEX_SUFFIX = "/index";
 
 // ../../packages/sites-core/src/constants/site-layout.ts
 var SITE_NAVBAR_LINK_TYPES = [
@@ -54,12 +114,106 @@ var SITE_SLOTS_DIR = "slots";
 var SITE_SLOT_NAMES = [
   "blog-hero",
   "changelog-hero",
+  "author-hero",
   "before-post",
   "after-post",
   "sidebar",
   "after-changelog-entry",
   "before-footer"
 ];
+var SITE_ICON_NAMES = [
+  "arrow-left",
+  "arrow-right",
+  "arrow-up-right",
+  "bell",
+  "book",
+  "book-marked",
+  "book-open",
+  "bookmark",
+  "box",
+  "briefcase",
+  "building-2",
+  "calendar",
+  "chart-line",
+  "check",
+  "chevron-down",
+  "circle-check",
+  "circle-help",
+  "clock",
+  "close",
+  "cloud",
+  "code",
+  "compass",
+  "copy",
+  "cpu",
+  "credit-card",
+  "database",
+  "dollar-sign",
+  "download",
+  "external-link",
+  "file-text",
+  "flag",
+  "gift",
+  "git-branch",
+  "github",
+  "globe",
+  "graduation-cap",
+  "handshake",
+  "headphones",
+  "heart",
+  "house",
+  "image",
+  "info",
+  "layers",
+  "layout-dashboard",
+  "library",
+  "life-buoy",
+  "lightbulb",
+  "link",
+  "linkedin",
+  "list",
+  "lock",
+  "mail",
+  "map",
+  "megaphone",
+  "menu",
+  "message-circle",
+  "message-square",
+  "mic",
+  "monitor",
+  "moon",
+  "newspaper",
+  "notebook-pen",
+  "octagon-alert",
+  "package",
+  "palette",
+  "pen-line",
+  "play",
+  "plus",
+  "puzzle",
+  "rocket",
+  "rss",
+  "search",
+  "settings",
+  "shield",
+  "sparkles",
+  "star",
+  "sticky-note",
+  "sun",
+  "tag",
+  "terminal",
+  "text-align-start",
+  "triangle-alert",
+  "trophy",
+  "user",
+  "users",
+  "video",
+  "wrench",
+  "x",
+  "youtube",
+  "zap"
+];
+var SITE_AUTHOR_PAGE_LAYOUTS = ["inline", "stacked"];
 
 // ../../packages/sites-core/src/constants/sites.ts
 var SITE_AREAS = ["blog", "changelog"];
@@ -84,23 +238,67 @@ var SITE_UNAVAILABLE_SLUGS = new Set([
   "abuse",
   "account",
   "accounts",
+  "administrator",
   "auth",
   "autoconfig",
   "autodiscover",
   "billing",
+  "checkout",
   "cname",
   "console",
   "dashboard",
+  "dns",
+  "email",
   "fallback",
+  "ftp",
+  "gateway",
   "help",
+  "hostmaster",
+  "identity",
+  "imap",
   "ingest",
+  "internal",
+  "intranet",
+  "invoice",
+  "invoices",
+  "localhost",
   "login",
+  "logout",
   "mta-sts",
+  "no-reply",
+  "noreply",
+  "ns1",
+  "ns2",
+  "oauth",
+  "oauth2",
   "origin",
+  "password",
+  "pay",
+  "payment",
+  "payments",
+  "pop3",
+  "portal",
+  "postmaster",
+  "recovery",
+  "register",
+  "reset",
+  "root",
+  "secure",
   "security",
+  "sftp",
   "signin",
+  "signout",
+  "signup",
   "sites",
-  "support"
+  "smtp",
+  "sso",
+  "staging",
+  "support",
+  "verify",
+  "vpn",
+  "wallet",
+  "webmail",
+  "webmaster"
 ]);
 var SITE_MOUNT_MAX_SEGMENTS = 3;
 var SITE_PREVIEW_SESSION_SECONDS = 60 * 60 * 12;
@@ -162,6 +360,8 @@ var SITE_SOURCE_EXTENSIONS = [
   ".txt",
   ".woff",
   ".woff2",
+  ".ttf",
+  ".otf",
   ".css",
   ".riv",
   ".wasm"
@@ -181,6 +381,17 @@ var SITE_INJECTED_REACT_HOOKS = [
 ];
 var SITE_PREVIEW_VISIBILITIES = ["public", "protected"];
 var SITE_STATUSES = ["active", "suspended"];
+var SITE_SUSPENSION_CATEGORIES = [
+  "phishing",
+  "malware",
+  "deceptive_redirects",
+  "spam",
+  "terms"
+];
+var SITE_FAVICON_DIR = "_notra/favicon";
+var SITE_FAVICON_HOST = /^(?=.{1,253}$)[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+var SITE_FAVICON_MAX_BYTES = 256 * 1024;
+var SITE_FAVICON_FALLBACK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`;
 var SITE_ENGAGEMENT_MAX_VISIBLE_MS = 30 * 60 * 1000;
 
 // ../../packages/sites-core/src/constants/source.ts
@@ -192,12 +403,18 @@ var SITE_SOURCE_SAFE_SEGMENT = /^[A-Za-z0-9._@()+ -]+$/;
 // ../../packages/sites-core/src/constants/site-config.ts
 var SITE_HEX_COLOR = /^#(?:[0-9a-fA-F]{3}){1,2}$/;
 var SITE_LINK_HREF = /^(?:\/(?!\/)|https?:\/\/|mailto:)/;
+var SITE_REDIRECT_PLACEHOLDER = /^:[A-Za-z_]\w*$/;
+var SITE_REDIRECT_PLACEHOLDER_IN_TEXT = /:([A-Za-z_]\w*)/;
+var SITE_REDIRECT_DESTINATION_ORIGIN = /^[a-z][a-z\d+.-]*:(?:\/\/[^/?#]*)?/i;
 var SITE_ICON_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+var SITE_META_TAG_NAME = /^[a-z][a-z0-9:_.-]*$/i;
 var SITE_AUTHOR_ID = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
 var SITE_AUTHOR_AVATAR = /^(?:\/(?!\/)|https:\/\/)/;
 var SITE_DEFAULT_PRIMARY_COLOR = "#8B5CF6";
 var SITE_APPEARANCE_STORAGE_KEY = /^[A-Za-z0-9._-]{1,64}$/;
 var SITE_DEFAULT_APPEARANCE_STORAGE_KEY = "notra-theme";
+var SITE_FONT_WEIGHT_RANGE = /^(?:[1-8]\d\d|900) (?:[1-8]\d\d|900)$/;
+var SITE_FONT_FACES_MAX = 12;
 
 // ../../packages/sites-core/src/constants/integrations.ts
 var UMAMI_SCRIPT_URL = "https://cloud.umami.is/script.js";
@@ -210,6 +427,7 @@ var GOOGLE_ANALYTICS_CONNECT_ORIGINS = [
 ];
 var GA4_MEASUREMENT_ID = /^G-[A-Z0-9]{4,16}$/;
 var DATABUDDY_SCRIPT_URL = "https://cdn.databuddy.cc/databuddy.js";
+var DATABUDDY_REPLAY_SCRIPT_URL = "https://cdn.databuddy.cc/replay.js";
 var DATABUDDY_API_URL = "https://basket.databuddy.cc";
 var DATABUDDY_CLIENT_ID = /^[A-Za-z0-9_-]{8,64}$/;
 var DATABUDDY_CLIENT_ID_MESSAGE = "Copy the Client ID from your Databuddy website settings";
@@ -220,6 +438,20 @@ var DATABUDDY_MAX_RETRIES = 10;
 var DATABUDDY_MAX_DELAY_MS = 60000;
 var CAMEL_CASE_BOUNDARY = /[A-Z]/g;
 var TRAILING_SLASHES = /\/+$/;
+var CAPLESS_SCRIPT_URL = "https://c.capless.sh/c.js";
+var CAPLESS_KEY = /^cs_[A-Za-z0-9_-]{8,128}$/;
+var RYBBIT_SCRIPT_URL = "https://app.rybbit.io/api/script.js";
+var RYBBIT_SITE_ID = /^[A-Za-z0-9]{1,32}$/;
+var RYBBIT_SITE_ID_MESSAGE = "Copy the Site ID from your Rybbit tracking code";
+var RYBBIT_PATH_PATTERN = /^(?:\/[^\s"'<>]{0,199}|re:\S{1,200})$/;
+var RYBBIT_NAMESPACE = /^[A-Za-z_$][\w$]{0,63}$/;
+var RYBBIT_CSS_CLASS = /^-?[_A-Za-z][\w-]{0,99}$/;
+var RYBBIT_MAX_PATTERNS = 50;
+var RYBBIT_MAX_TAG_LENGTH = 256;
+var RYBBIT_MAX_SELECTOR_LENGTH = 500;
+var RYBBIT_MAX_DELAY_MS = 60000;
+var RYBBIT_MIN_REPLAY_BATCH_INTERVAL_MS = 1000;
+var RYBBIT_MAX_REPLAY_BATCH_SIZE = 1000;
 var PLAUSIBLE_SCRIPT_URL = "https://plausible.io/js/script.js";
 var POSTHOG_DEFAULT_API_HOST = "https://us.i.posthog.com";
 var POSTHOG_CSP_ORIGIN = "https://*.posthog.com";
@@ -230,8 +462,11 @@ var HOSTNAME = new RegExp(`^${HOST}$`);
 var HOSTNAME_WITH_PORT = new RegExp(`^${HOST}${PORT}$`);
 var HTTPS_BASE_URL = new RegExp(String.raw`^https:\/\/${HOST}${PORT}(?:\/[A-Za-z0-9._~-]+)*\/*$`);
 var HTTPS_SCRIPT_URL = new RegExp(String.raw`^https:\/\/${HOST}${PORT}(?:\/(?!\.{1,2}(?:\/|$))[A-Za-z0-9._~-]+)+$`);
+var RYBBIT_SCRIPT_URL_PATTERN = new RegExp(String.raw`^https:\/\/${HOST}${PORT}(?:\/(?!\.{1,2}(?:\/|$))[A-Za-z0-9._~-]+)*\/script\.js$`);
 var CSP_ORIGIN = new RegExp(String.raw`^(?:https|wss):\/\/(?:\*\.)?${HOST}${PORT}$`);
 var POSTHOG_API_KEY = /^phc_[A-Za-z0-9]{20,64}$/;
+var C15T_ANALYTICS_CATEGORY = "measurement";
+var C15T_HOST_STORAGE_KEY = "__Host-c15t";
 var C15T_SCRIPT_CATEGORIES = [
   "measurement",
   "marketing",
@@ -325,6 +560,91 @@ import { z } from "zod";
 var httpsScriptUrlSchema = z.string().trim().regex(HTTPS_SCRIPT_URL, "Use the full https:// script URL including its path, without query or hash").optional();
 var httpsBaseUrlSchema = z.string().trim().regex(HTTPS_BASE_URL, "Use an https:// URL without query or hash").overwrite((value) => value.replace(TRAILING_SLASHES, "")).optional();
 var optionalBooleanSchema = z.boolean().optional();
+var caplessSchema = z.strictObject({
+  key: z.string({
+    error: "Copy the public key (cs_…) from your Capless tracking code"
+  }).trim().regex(CAPLESS_KEY, "Copy the public key (cs_…) from your Capless tracking code").describe("Public Capless ingest key (cs_…) from your tracking code (data-key). It can only write events, so it is safe in HTML.")
+});
+var rybbitPathPatternsSchema = z.array(z.string().trim().regex(RYBBIT_PATH_PATTERN, "Use a path glob starting with /, e.g. /drafts/**, or a regex starting with re:")).max(RYBBIT_MAX_PATTERNS).optional();
+var rybbitCssClassSchema = z.string().trim().regex(RYBBIT_CSS_CLASS, "Use a single CSS class name without the dot").optional();
+var rybbitSelectorSchema = z.string().trim().min(1).max(RYBBIT_MAX_SELECTOR_LENGTH).optional();
+var rybbitMaskInputOptionsSchema = z.strictObject({
+  color: optionalBooleanSchema,
+  date: optionalBooleanSchema,
+  "datetime-local": optionalBooleanSchema,
+  email: optionalBooleanSchema,
+  month: optionalBooleanSchema,
+  number: optionalBooleanSchema,
+  password: optionalBooleanSchema,
+  range: optionalBooleanSchema,
+  search: optionalBooleanSchema,
+  select: optionalBooleanSchema,
+  tel: optionalBooleanSchema,
+  text: optionalBooleanSchema,
+  textarea: optionalBooleanSchema,
+  time: optionalBooleanSchema,
+  url: optionalBooleanSchema,
+  week: optionalBooleanSchema
+}).optional().describe(`Input types to mask when maskAllInputs is false, e.g. {"password": true, "email": true, "tel": true}. Replaces Rybbit's default of {"password": true, "email": true}.`);
+var rybbitMouseInteractionsSchema = z.strictObject({
+  MouseUp: optionalBooleanSchema,
+  MouseDown: optionalBooleanSchema,
+  Click: optionalBooleanSchema,
+  ContextMenu: optionalBooleanSchema,
+  DblClick: optionalBooleanSchema,
+  Focus: optionalBooleanSchema,
+  Blur: optionalBooleanSchema,
+  TouchStart: optionalBooleanSchema,
+  TouchMove_Departed: optionalBooleanSchema,
+  TouchEnd: optionalBooleanSchema,
+  TouchCancel: optionalBooleanSchema
+});
+var rybbitReplaySamplingSchema = z.strictObject({
+  mousemove: z.union([z.boolean(), z.number().int().min(0).max(RYBBIT_MAX_DELAY_MS)]).optional().describe("Record mouse movement: false, true or the milliseconds between samples (default: false)."),
+  mouseInteraction: z.union([z.boolean(), rybbitMouseInteractionsSchema]).optional().describe("Record mouse and touch interactions: true, false or one switch per interaction (default: Click, DblClick, Focus and Blur only)."),
+  scroll: z.number().int().min(0).max(RYBBIT_MAX_DELAY_MS).optional().describe("Milliseconds between scroll samples (default: 500)."),
+  media: z.number().int().min(0).max(RYBBIT_MAX_DELAY_MS).optional().describe("Milliseconds between media playback samples (default: 800)."),
+  input: z.enum(["all", "last"]).optional().describe('Record every input change ("all") or only the final value ("last", default).')
+}).optional().describe("How often the recorder samples visitor activity. Replaces Rybbit's defaults as a whole, so set every key you care about.");
+var rybbitSlimDomOptionsSchema = z.strictObject({
+  script: optionalBooleanSchema,
+  comment: optionalBooleanSchema,
+  headFavicon: optionalBooleanSchema,
+  headWhitespace: optionalBooleanSchema,
+  headMetaDescKeywords: optionalBooleanSchema,
+  headMetaSocial: optionalBooleanSchema,
+  headMetaRobots: optionalBooleanSchema,
+  headMetaHttpEquiv: optionalBooleanSchema,
+  headMetaAuthorship: optionalBooleanSchema,
+  headMetaVerification: optionalBooleanSchema,
+  headTitleMutations: optionalBooleanSchema
+}).optional().describe("Parts of the page left out of recordings to keep them small. Replaces Rybbit's defaults (everything but script and headTitleMutations) as a whole.");
+var rybbitReplaySchema = z.strictObject({
+  sampleRate: z.number().int().min(0).max(100).optional().describe("Percentage of sessions to record, from 0 to 100 (default: 100)."),
+  batchSize: z.number().int().min(1).max(RYBBIT_MAX_REPLAY_BATCH_SIZE).optional().describe("Recording events per upload (default: 250)."),
+  batchInterval: z.number().int().min(RYBBIT_MIN_REPLAY_BATCH_INTERVAL_MS).max(RYBBIT_MAX_DELAY_MS).optional().describe("Milliseconds between uploads, at least 1000 (default: 5000)."),
+  maskAllInputs: optionalBooleanSchema.describe("Mask every form input in recordings (default: true)."),
+  maskInputOptions: rybbitMaskInputOptionsSchema,
+  maskTextSelectors: z.array(z.string().trim().min(1).max(RYBBIT_MAX_SELECTOR_LENGTH)).max(RYBBIT_MAX_PATTERNS).optional().describe('CSS selectors whose text is masked in recordings, e.g. [".author-email"].'),
+  maskTextClass: rybbitCssClassSchema.describe(`Class that masks an element's text in recordings (default: "rr-mask").`),
+  blockClass: rybbitCssClassSchema.describe('Class that replaces an element with a placeholder in recordings (default: "rr-block").'),
+  blockSelector: rybbitSelectorSchema.describe("CSS selector for elements replaced with a placeholder in recordings."),
+  ignoreClass: rybbitCssClassSchema.describe('Class whose inputs are not recorded (default: "rr-ignore").'),
+  ignoreSelector: rybbitSelectorSchema.describe("CSS selector for inputs that are not recorded."),
+  collectFonts: optionalBooleanSchema.describe("Record web fonts so replays look like the live page (default: true)."),
+  sampling: rybbitReplaySamplingSchema,
+  slimDomOptions: rybbitSlimDomOptionsSchema
+}).optional().describe("Session replay recorder options. Turn session replay on in your Rybbit site settings; these options only tune it.");
+var rybbitSchema = z.strictObject({
+  siteId: z.string({ error: RYBBIT_SITE_ID_MESSAGE }).trim().regex(RYBBIT_SITE_ID, RYBBIT_SITE_ID_MESSAGE).describe("Public Rybbit Site ID from your tracking code (the siteId in the script URL). No API key is needed."),
+  scriptUrl: z.string().trim().regex(RYBBIT_SCRIPT_URL_PATTERN, "Use the URL of your Rybbit instance's script.js, e.g. https://stats.acme.com/api/script.js").optional().describe("Tracker script URL ending in /script.js. Defaults to https://app.rybbit.io/api/script.js; set it for a self-hosted or proxied Rybbit. Events and replays go to the same host."),
+  skipPatterns: rybbitPathPatternsSchema.describe('Up to 50 path globs (* and **) or re: regexes that are never tracked, e.g. ["/drafts/**"]. Session replay ignores them.'),
+  maskPatterns: rybbitPathPatternsSchema.describe('Up to 50 path globs or re: regexes whose matching paths are replaced by the pattern before sending, e.g. ["/authors/*"].'),
+  debounce: z.number().int().min(0).max(RYBBIT_MAX_DELAY_MS).optional().describe("Milliseconds to wait after a client-side navigation before counting the page view; 0 turns debouncing off (default: 500)."),
+  tag: z.string().trim().min(1).max(RYBBIT_MAX_TAG_LENGTH).optional().describe("Label added to every event, up to 256 characters, e.g. a site section or release."),
+  namespace: z.string().trim().regex(RYBBIT_NAMESPACE, "Use a JavaScript identifier, e.g. analytics").optional().describe('Global name of the tracker API (window.<namespace>) and of its opt-out key disable-<namespace> (default: "rybbit").'),
+  replay: rybbitReplaySchema
+});
 var ga4Schema = z.strictObject({
   measurementId: z.string({ error: "Use the measurement ID (G-…)" }).trim().regex(GA4_MEASUREMENT_ID, "Use the measurement ID (G-…)").describe("Google Analytics 4 web stream Measurement ID (G-…). Find it in Admin > Data streams > your web stream.")
 });
@@ -422,9 +742,21 @@ var databuddySchema = z.strictObject({
   batchTimeout: databuddyDelaySchema.optional().describe("Milliseconds before a partial batch is sent (default: 5000)."),
   enableRetries: optionalBooleanSchema.describe("Retry failed requests (default: true)."),
   maxRetries: z.number().int().min(0).max(DATABUDDY_MAX_RETRIES).optional().describe("Retries per failed request (default: 3)."),
-  initialRetryDelay: databuddyDelaySchema.optional().describe("Milliseconds before the first retry (default: 500).")
+  initialRetryDelay: databuddyDelaySchema.optional().describe("Milliseconds before the first retry (default: 500)."),
+  replay: z.union([
+    z.boolean(),
+    z.strictObject({
+      maskText: optionalBooleanSchema.describe("Mask page text in recordings (default: true). Set false only on pages that show no personal data; typed input stays masked."),
+      recordIframes: optionalBooleanSchema.describe("Record your own embedded pages into the parent page's recording. Set it on the framed page too (default: false)."),
+      scriptUrl: httpsScriptUrlSchema.describe("Recorder script URL. Defaults to https://cdn.databuddy.cc/replay.js; set it for a self-hosted or proxied script.")
+    })
+  ]).optional().describe("Record session replays with Databuddy's recorder (default: false). Turn session replay on for the website in Databuddy too.")
 });
 var siteIntegrationUpdateSchema = z.discriminatedUnion("provider", [
+  z.object({
+    provider: z.literal("capless"),
+    settings: caplessSchema.nullable()
+  }),
   z.object({
     provider: z.literal("databuddy"),
     settings: databuddySchema.nullable()
@@ -441,15 +773,22 @@ var siteIntegrationUpdateSchema = z.discriminatedUnion("provider", [
   z.object({
     provider: z.literal("posthog"),
     settings: posthogSchema.nullable()
+  }),
+  z.object({
+    provider: z.literal("rybbit"),
+    settings: rybbitSchema.nullable()
   })
 ]);
 var siteIntegrationsSchema = z.strictObject({
+  capless: caplessSchema.optional(),
   databuddy: databuddySchema.optional(),
   ga4: ga4Schema.optional(),
   plausible: plausibleSchema.optional(),
   posthog: posthogSchema.optional(),
+  rybbit: rybbitSchema.optional(),
   umami: umamiSchema.optional(),
-  c15t: c15tSchema.optional()
+  c15t: c15tSchema.optional(),
+  indexnow: z.boolean().optional().describe("Submit new and changed pages to IndexNow search engines such as Bing after each production deployment. It is on by default, and false turns it off.")
 }).default({}).describe("Analytics providers and the c15t consent banner for the live site. Notra installs their scripts automatically. Preview deployments and local development do not send provider events.");
 var siteSecuritySchema = z.strictObject({
   contentSecurityPolicy: z.boolean().default(true),
@@ -519,7 +858,21 @@ var siteNavbarSchema = z2.object({
     })
   ])).max(8).default([]),
   cta: siteLinkSchema.optional(),
-  primary: z2.object({ type: z2.enum(SITE_NAVBAR_LINK_TYPES), href: platformHref }).optional()
+  primary: z2.discriminatedUnion("type", [
+    z2.object({
+      type: z2.enum(SITE_NAVBAR_LINK_TYPES),
+      href: platformHref
+    }),
+    siteLinkSchema.extend({ type: z2.literal("button") })
+  ], {
+    error: `Use one of ${SITE_NAVBAR_LINK_TYPES.join(", ")}. For a button with your own label, use navbar.cta`
+  }).optional()
+}).transform(({ primary, ...navbar }) => {
+  if (primary?.type !== "button") {
+    return primary ? { ...navbar, primary } : { ...navbar };
+  }
+  const { type: _type, ...button } = primary;
+  return { ...navbar, cta: navbar.cta ?? button };
 }).default({ links: [] });
 var footerColumnSchema = z2.object({
   header: z2.string().trim().min(1).max(60).optional(),
@@ -530,7 +883,7 @@ var siteFooterSchema = z2.object({
     z2.array(siteLinkSchema).max(16),
     z2.array(footerColumnSchema).max(6)
   ]).default([]),
-  socials: z2.partialRecord(z2.enum(SITE_SOCIAL_PLATFORMS), z2.url()).default({})
+  socials: z2.partialRecord(z2.enum(SITE_SOCIAL_PLATFORMS), platformHref).default({})
 }).default({ links: [], socials: {} });
 var siteBannerSchema = z2.object({
   content: z2.string().trim().min(1).max(300),
@@ -554,7 +907,7 @@ var siteContextualSchema = z2.object({
   display: "meta"
 });
 var siteSeoSchema = z2.object({
-  metatags: z2.record(z2.string().regex(/^[a-z][a-z0-9:_.-]*$/i), z2.string().max(500)).default({}),
+  metatags: z2.record(z2.string().regex(SITE_META_TAG_NAME), z2.string().max(500)).default({}),
   indexing: z2.enum(["navigable", "all"]).default("navigable"),
   image: sitePathSchema.optional(),
   imageAlt: z2.string().trim().max(200).optional(),
@@ -592,7 +945,7 @@ var siteLayoutSchema = z2.object({
   width: z2.union([z2.number().min(40).max(120), z2.literal("full")]).default(72)
 }).default({ width: 72 });
 var blogHeroSchema = z2.object({
-  style: z2.enum(["wash", "plain", "image", "none"]).default("plain"),
+  style: z2.enum(["wash", "plain", "image", "dither", "none"]).default("plain"),
   eyebrow: z2.string().trim().max(60).optional(),
   image: sitePathSchema.optional()
 }).default({ style: "plain" });
@@ -615,15 +968,17 @@ var siteBlogSchema = z2.object({
     excerpt: z2.boolean().default(true),
     author: z2.boolean().default(true),
     date: z2.boolean().default(true),
-    readingTime: z2.boolean().default(false)
+    readingTime: z2.boolean().default(false),
+    style: z2.enum(["auto", "tile", "plain"]).default("auto")
   }).default({
     image: "auto",
     excerpt: true,
     author: true,
     date: true,
-    readingTime: false
+    readingTime: false,
+    style: "auto"
   }),
-  authorPage: z2.enum(["inline", "stacked"]).default("inline"),
+  authorPage: z2.enum(SITE_AUTHOR_PAGE_LAYOUTS).default("inline"),
   post: z2.object({
     toc: z2.boolean().default(true),
     authorCard: z2.boolean().default(true),
@@ -647,19 +1002,78 @@ var siteChangelogSchema = z2.object({
   description: z2.string().trim().max(400).optional(),
   layout: z2.enum(["timeline", "cards", "compact"]).default("timeline"),
   hero: blogHeroSchema,
-  pageActions: z2.boolean().default(false)
+  pageActions: z2.boolean().default(false),
+  minimap: z2.boolean().default(true)
 });
 var siteMetadataSchema = z2.object({
   timestamp: z2.boolean().default(true),
   dateFormat: z2.enum(["short", "long"]).default("short")
 }).default({ timestamp: true, dateFormat: "short" });
 
+// ../../packages/sites-core/src/utils/redirect-patterns.ts
+function redirectDestinationParts(destination) {
+  const origin = SITE_REDIRECT_DESTINATION_ORIGIN.exec(destination)?.[0] ?? "";
+  const parts = destination.slice(origin.length).split(SITE_REDIRECT_PLACEHOLDER_IN_TEXT);
+  parts[0] = `${origin}${parts[0]}`;
+  return parts;
+}
+function redirectPatternIssues(source, destination) {
+  const issues = [];
+  const defined = new Set;
+  for (const segment of source.split("/")) {
+    if (!segment.startsWith(":")) {
+      continue;
+    }
+    if (!SITE_REDIRECT_PLACEHOLDER.test(segment)) {
+      issues.push({
+        path: "source",
+        severity: "warning",
+        message: `"${segment}" is matched literally because it isn't a valid placeholder. Placeholders start with a letter or underscore and use letters, digits and underscores, like :slug`
+      });
+      continue;
+    }
+    const name = segment.slice(1);
+    if (defined.has(name)) {
+      issues.push({
+        path: "source",
+        severity: "error",
+        message: `:${name} is used more than once. Give each placeholder its own name`
+      });
+    }
+    defined.add(name);
+  }
+  const undefinedNames = new Set(redirectDestinationParts(destination).filter((part, index) => index % 2 === 1 && !defined.has(part)));
+  for (const name of undefinedNames) {
+    issues.push({
+      path: "destination",
+      severity: "warning",
+      message: `:${name} is kept as written because source doesn't define it. To insert a segment, add :${name} to source as a whole segment, like /blog/:${name}`
+    });
+  }
+  return issues;
+}
+
 // ../../packages/sites-core/src/schemas/site-config.ts
 import { z as z3 } from "zod";
 var redirectSchema = z3.object({
-  source: z3.string().trim().startsWith("/"),
-  destination: z3.string().trim().regex(SITE_LINK_HREF, "Use an absolute https:// URL or a path"),
+  source: z3.string().trim().startsWith("/").describe("Full path on your domain. A segment like :slug matches any one segment, and a trailing /* matches everything below the path."),
+  destination: z3.string().trim().regex(SITE_LINK_HREF, "Use an absolute https:// URL or a path").describe("A path or https:// URL. :slug inserts the segment that the same placeholder matched in source, and a trailing /* keeps the rest of the path."),
   permanent: z3.boolean().default(true)
+}).superRefine((rule, ctx) => {
+  for (const issue of redirectPatternIssues(rule.source, rule.destination)) {
+    if (issue.severity !== "error") {
+      continue;
+    }
+    ctx.addIssue({
+      code: "custom",
+      path: [issue.path],
+      message: issue.message
+    });
+  }
+});
+var webLinkSchema = z3.url({
+  protocol: /^https?$/,
+  error: "Use a full http(s):// URL"
 });
 var siteAuthorSchema = z3.strictObject({
   name: z3.string().trim().min(1).max(80),
@@ -670,17 +1084,33 @@ var siteAuthorSchema = z3.strictObject({
   x: z3.url().optional(),
   linkedin: z3.url().optional(),
   github: z3.url().optional(),
-  youtube: z3.url().optional()
+  youtube: z3.url().optional(),
+  bluesky: webLinkSchema.optional(),
+  mastodon: webLinkSchema.optional(),
+  threads: webLinkSchema.optional(),
+  instagram: webLinkSchema.optional()
 });
 var imageByModeSchema = z3.object({
   light: sitePathSchema,
   dark: sitePathSchema
 });
+var fontWeightSchema = z3.number().int().min(100).max(900);
+var fontFormatSchema = z3.enum(["woff", "woff2"]);
+var fontFileSchema = z3.strictObject({
+  source: z3.string().trim().min(1),
+  weight: z3.union([
+    fontWeightSchema,
+    z3.string().regex(SITE_FONT_WEIGHT_RANGE, 'Use a weight like 500 or a range like "100 900"')
+  ]).optional().describe('The weight in this file, or a range like "100 900" for a variable font. Defaults to the full range.'),
+  style: z3.enum(["normal", "italic"]).optional(),
+  format: fontFormatSchema.optional()
+});
 var fontSpecSchema = z3.object({
   family: z3.string().trim().min(1).max(80),
-  weight: z3.number().int().min(100).max(900).optional(),
+  weight: fontWeightSchema.optional(),
   source: z3.string().trim().min(1).optional(),
-  format: z3.enum(["woff", "woff2"]).optional()
+  format: fontFormatSchema.optional(),
+  faces: z3.array(fontFileSchema).min(1).max(SITE_FONT_FACES_MAX).optional().describe("More files of the same family, such as other weights or italics.")
 });
 var appearanceSchema = z3.union([
   z3.enum(["light", "dark", "system"]),
@@ -751,21 +1181,24 @@ var siteConfigSchema = z3.object({
   integrations: siteIntegrationsSchema,
   security: siteSecuritySchema
 });
-var frontmatterLinkSchema = z3.url({
-  protocol: /^https?$/,
-  error: "Use a full http(s):// URL"
-});
 var frontmatterAuthorSchema = z3.object({
   id: z3.string().trim().regex(SITE_AUTHOR_ID, "Use lowercase letters, digits and dashes for author ids").optional(),
   name: z3.string().trim().min(1),
   title: z3.string().trim().optional(),
   bio: z3.string().trim().optional(),
   avatar: z3.string().trim().regex(SITE_AUTHOR_AVATAR, "Use a path like /images/jan.jpg or an https:// URL").optional(),
-  url: frontmatterLinkSchema.optional(),
-  x: frontmatterLinkSchema.optional(),
-  linkedin: frontmatterLinkSchema.optional(),
-  github: frontmatterLinkSchema.optional(),
-  youtube: frontmatterLinkSchema.optional()
+  url: webLinkSchema.optional(),
+  x: webLinkSchema.optional(),
+  linkedin: webLinkSchema.optional(),
+  github: webLinkSchema.optional(),
+  youtube: webLinkSchema.optional(),
+  bluesky: webLinkSchema.optional(),
+  mastodon: webLinkSchema.optional(),
+  threads: webLinkSchema.optional(),
+  instagram: webLinkSchema.optional()
+});
+var frontmatterDate = z3.coerce.date({
+  error: "Use a date in YYYY-MM-DD format, like 2026-11-01"
 });
 var frontmatterAuthorRefSchema = z3.union([
   z3.string(),
@@ -774,8 +1207,8 @@ var frontmatterAuthorRefSchema = z3.union([
 var blogFrontmatterSchema = z3.object({
   title: z3.string().trim().min(1),
   description: z3.string().trim().optional(),
-  date: z3.coerce.date(),
-  updated: z3.coerce.date().optional(),
+  date: frontmatterDate,
+  updated: frontmatterDate.optional(),
   author: z3.union([frontmatterAuthorRefSchema, z3.array(frontmatterAuthorRefSchema)]).optional(),
   image: z3.string().optional(),
   imageAlt: z3.string().trim().optional(),
@@ -788,7 +1221,7 @@ var blogFrontmatterSchema = z3.object({
 var changelogFrontmatterSchema = z3.object({
   title: z3.string().trim().min(1),
   description: z3.string().trim().optional(),
-  date: z3.coerce.date(),
+  date: frontmatterDate,
   version: z3.string().trim().optional(),
   tags: z3.array(z3.string()).default([]),
   image: z3.string().optional(),
@@ -820,6 +1253,112 @@ function sortCustomScriptPaths(paths) {
   });
 }
 
+// ../../packages/sites-core/src/constants/mounts.ts
+var MOUNT_SEGMENT = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+
+// ../../packages/sites-core/src/utils/mounts.ts
+class SiteMountError extends Error {
+  name = "SiteMountError";
+}
+function normalizeMountPath(input) {
+  const trimmed = input.trim().toLowerCase();
+  const segments = trimmed.split("/").filter(Boolean);
+  if (segments.length === 0) {
+    return "/";
+  }
+  if (segments.length > SITE_MOUNT_MAX_SEGMENTS) {
+    throw new SiteMountError(`Mount "${input}" is nested too deep (max ${SITE_MOUNT_MAX_SEGMENTS} segments)`);
+  }
+  for (const segment of segments) {
+    if (!MOUNT_SEGMENT.test(segment) || segment === "_notra") {
+      throw new SiteMountError(`Mount "${input}" may only contain lowercase letters, digits and dashes`);
+    }
+  }
+  return `/${segments.join("/")}`;
+}
+function isWithin(path, mount) {
+  if (mount === "/") {
+    return true;
+  }
+  return path === mount || path.startsWith(`${mount}/`);
+}
+function normalizeSiteMounts(mounts) {
+  const normalized = {};
+  for (const area of SITE_AREAS) {
+    const value = mounts[area];
+    if (value !== undefined) {
+      normalized[area] = normalizeMountPath(value);
+    }
+  }
+  if (normalized.blog && normalized.changelog) {
+    if (normalized.blog === normalized.changelog) {
+      throw new SiteMountError("Blog and changelog need different paths");
+    }
+    const nestedNonRoot = normalized.blog !== "/" && isWithin(normalized.changelog, normalized.blog) || normalized.changelog !== "/" && isWithin(normalized.blog, normalized.changelog);
+    if (nestedNonRoot) {
+      throw new SiteMountError("Blog and changelog paths may not be nested inside each other");
+    }
+  }
+  if (!(normalized.blog ?? normalized.changelog)) {
+    throw new SiteMountError("At least one area needs a path");
+  }
+  return normalized;
+}
+function listMountedAreas(mounts) {
+  const areas = [];
+  for (const area of SITE_AREAS) {
+    const mount = mounts[area];
+    if (mount) {
+      areas.push({ area, mount });
+    }
+  }
+  return areas;
+}
+function resolveAreaForPath(mounts, pathname) {
+  let best = null;
+  for (const entry of listMountedAreas(mounts)) {
+    if (!isWithin(pathname, entry.mount)) {
+      continue;
+    }
+    if (!best || entry.mount.length > best.mount.length) {
+      best = entry;
+    }
+  }
+  return best;
+}
+function joinMountPath(mount, path) {
+  const tail = path.replace(/^\/+/, "");
+  if (mount === "/") {
+    return `/${tail}`;
+  }
+  return tail ? `${mount}/${tail}` : mount;
+}
+function pathCollidesWithOtherMount(mounts, area, urlPath) {
+  const owner = resolveAreaForPath(mounts, urlPath);
+  return owner !== null && owner.area !== area;
+}
+
+// ../../packages/sites-core/src/utils/entries.ts
+function parseSiteEntryFile(path) {
+  const match = SITE_ENTRY_FILE.exec(path);
+  if (!match) {
+    return null;
+  }
+  const [, area, rest, format] = match;
+  if (!(area && rest && format)) {
+    return null;
+  }
+  if (rest.split("/").some((segment) => segment.startsWith("_"))) {
+    return null;
+  }
+  const slug = rest.endsWith(SITE_ENTRY_INDEX_SUFFIX) ? rest.slice(0, -SITE_ENTRY_INDEX_SUFFIX.length) : rest;
+  return {
+    area,
+    slug,
+    format
+  };
+}
+
 // ../../packages/sites-core/src/utils/site-ignore.ts
 import ignore from "ignore";
 function createSiteIgnore(content = "") {
@@ -838,19 +1377,76 @@ function tagSlug(tag) {
 
 // ../../packages/sites-compiler/src/validate.ts
 import { Parser as Parser2 } from "acorn";
+import { fromMarkdown as fromMarkdown3 } from "mdast-util-from-markdown";
 
-// ../../packages/sites-compiler/src/constants/validate.ts
-var TEXT_SOURCE_FILE = /\.(?:mdx?|jsx?|json|txt|css|svg)$/i;
-var ENTRY_FILE = /^(blog|changelog)\/(.+)\.(mdx?)$/;
-var ENTRY_SLUG = /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/;
-var MDX_FILE = /\.mdx$/i;
-var SCRIPT_FILE = /\.jsx?$/i;
+// ../../packages/sites-compiler/src/constants/links.ts
+var LINK_ATTRIBUTE = "href";
+var ASSET_ATTRIBUTES = {
+  img: ["src"],
+  video: ["src", "poster"],
+  source: ["src"],
+  Card: ["img"],
+  Video: ["src", "poster"]
+};
+var SRCSET_ELEMENTS = new Set(["img", "source"]);
+var URL_SCHEME = /^[a-z][a-z\d+.-]*:/i;
+var HTML_TAG = /<([a-z][a-z\d-]*)\b([^>]*)>/gi;
+var HTML_ATTRIBUTE = /\s([a-z][a-z\d-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi;
+var FRAGMENT_DIRECTIVE = ":~:";
+var SUGGESTION_MAX_LENGTH_DIFFERENCE = 2;
+var AUTHOR_PAGES_PATH = "author";
+var BUILT_ROUTE_SEGMENTS = new Set([
+  "tags",
+  AUTHOR_PAGES_PATH,
+  "_notra",
+  ".well-known",
+  "404"
+]);
+var MEDIA_FILE = /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|tiff?|webp|m4v|mov|mp4|ogv|webm)$/i;
+var CHROME_AREAS = ["blog", "changelog"];
+var SLOT_PAGES = {
+  "blog-hero": { area: "blog", on: "index" },
+  "changelog-hero": { area: "changelog", on: "index" },
+  "author-hero": { area: "blog", on: "authors" },
+  "before-post": { area: "blog", on: "entries" },
+  "after-post": { area: "blog", on: "entries" },
+  sidebar: { area: "blog", on: "entries" },
+  "after-changelog-entry": { area: "changelog", on: "entries" },
+  "before-footer": "every"
+};
 
 // ../../packages/sites-compiler/src/frontmatter.ts
 import { parse as parseYaml } from "yaml";
 
 // ../../packages/sites-compiler/src/constants/frontmatter.ts
 var FRONTMATTER_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
+var YAML_KEY = /^(["']?)(.+?)\1\s*:(?:\s|$)/;
+var FRONTMATTER_EXAMPLES = {
+  title: "title: Launch week recap",
+  date: "date: 2026-11-01"
+};
+
+// ../../packages/sites-compiler/src/utils/closest-name.ts
+function editDistance(a, b) {
+  const row = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1;i <= a.length; i += 1) {
+    let previous = row[0] ?? 0;
+    row[0] = i;
+    for (let j = 1;j <= b.length; j += 1) {
+      const current = row[j] ?? 0;
+      row[j] = Math.min(current + 1, (row[j - 1] ?? 0) + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
+      previous = current;
+    }
+  }
+  return row[b.length] ?? 0;
+}
+function closestName(name, candidates) {
+  const best = candidates.map((candidate) => ({
+    candidate,
+    score: editDistance(name.toLowerCase(), candidate.toLowerCase())
+  })).sort((a, b) => a.score - b.score)[0];
+  return best && best.score <= 2 ? best.candidate : undefined;
+}
 
 // ../../packages/sites-compiler/src/constants/errors.ts
 var ACORN_LOCATION_SUFFIX = /\s*\(\d+:\d+\)$/;
@@ -880,6 +1476,13 @@ function micromarkErrorPosition(error) {
 function frontmatterError(path, code, message) {
   return { severity: "error", file: path, line: 1, code, message };
 }
+function keyLine(yaml, key) {
+  const index = yaml.split(/\r?\n/).findIndex((line) => YAML_KEY.exec(line)?.[2] === key);
+  return index === -1 ? 1 : index + 2;
+}
+function frontmatterKeyLine(source, key) {
+  return keyLine(FRONTMATTER_BLOCK.exec(source)?.[1] ?? "", key);
+}
 function parseEntryFrontmatter(path, area, source) {
   const yaml = FRONTMATTER_BLOCK.exec(source)?.[1];
   if (yaml === undefined) {
@@ -902,13 +1505,32 @@ function parseEntryFrontmatter(path, area, source) {
     };
   }
   const schema = area === "blog" ? blogFrontmatterSchema : changelogFrontmatterSchema;
+  const known = Object.keys(schema.shape);
+  const fields = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const warnings = Object.keys(fields).filter((key) => !known.includes(key)).map((key) => {
+    const suggestion = closestName(key, known);
+    return {
+      severity: "warning",
+      file: path,
+      line: keyLine(yaml, key),
+      code: "frontmatter_unknown_key",
+      message: `Frontmatter key "${key}" is not supported in ${area} entries and is ignored.${suggestion ? ` Did you mean "${suggestion}"?` : ""}`
+    };
+  });
   const parsed = schema.safeParse(raw);
   if (parsed.success) {
-    return { data: parsed.data, diagnostics: [] };
+    return { data: parsed.data, diagnostics: warnings };
   }
   return {
     data: null,
-    diagnostics: parsed.error.issues.map((issue) => frontmatterError(path, "frontmatter_invalid", `Frontmatter ${issue.path.join(".") || "value"}: ${issue.message}`))
+    diagnostics: [
+      ...parsed.error.issues.map((issue) => {
+        const [key] = issue.path;
+        const example = typeof key === "string" && fields[key] === undefined ? FRONTMATTER_EXAMPLES[key] : undefined;
+        return example ? frontmatterError(path, "frontmatter_invalid", `${path} is missing "${String(key)}" in its frontmatter. Add a line like ${example} between the --- lines.`) : frontmatterError(path, "frontmatter_invalid", `Frontmatter ${issue.path.join(".") || "value"}: ${issue.message}`);
+      }),
+      ...warnings
+    ]
   };
 }
 
@@ -943,6 +1565,33 @@ var BUILTIN_COMPONENTS = [
   "SiteAreas",
   "PrivacySettings"
 ];
+var BUILTIN_COMPONENT_PROPS = {
+  Note: ["title"],
+  Tip: ["title"],
+  Info: ["title"],
+  Warning: ["title"],
+  Check: ["title"],
+  Danger: ["title"],
+  Callout: ["variant", "title"],
+  Card: ["title", "href", "img", "cta"],
+  CardGroup: ["cols"],
+  Columns: ["cols"],
+  Tabs: [],
+  Tab: ["title"],
+  Accordion: ["title", "defaultOpen"],
+  AccordionGroup: [],
+  Steps: [],
+  Step: ["title"],
+  CodeGroup: [],
+  Frame: ["caption"],
+  Badge: [],
+  Update: ["label", "description"],
+  Video: ["src", "poster", "title"],
+  YouTube: ["id", "title"],
+  ThemeToggle: [],
+  SiteAreas: ["sections"],
+  PrivacySettings: ["class", "className"]
+};
 var BUILTIN_COMPONENT_NAMES = new Set(BUILTIN_COMPONENTS);
 var INJECTED_HOOK_NAMES = new Set(SITE_INJECTED_REACT_HOOKS);
 var BUILTINS_IMPORT_SOURCE = "@notra/builtins";
@@ -1078,7 +1727,7 @@ function referencedIdentifiers(root) {
       return;
     }
     const jsx = node;
-    if (jsx.type === "JSXIdentifier" && key === "name" && jsx.name && COMPONENT_NAME.test(jsx.name)) {
+    if (jsx.type === "JSXIdentifier" && key === "name" && parent?.type === "JSXOpeningElement" && jsx.name && COMPONENT_NAME.test(jsx.name)) {
       references.push({
         name: jsx.name,
         start: jsx.start ?? -1,
@@ -1355,7 +2004,7 @@ function analyzeJsxSnippet(path, source) {
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { mdxFromMarkdown } from "mdast-util-mdx";
 import { mdxjs } from "micromark-extension-mdxjs";
-import { visit } from "unist-util-visit";
+import { visit as visit2 } from "unist-util-visit";
 
 // ../../packages/sites-compiler/src/constants/elements.ts
 var BLOCKED_HTML_ELEMENTS = new Set(["script"]);
@@ -1379,6 +2028,9 @@ function analyzeStaticDirectives(elements, components) {
   }
   return result;
 }
+
+// ../../packages/sites-compiler/src/utils/content-links.ts
+import { visit } from "unist-util-visit";
 
 // ../../packages/sites-compiler/src/utils/mdast.ts
 function isMdxJsxElement(node) {
@@ -1409,6 +2061,131 @@ function expressionPrograms(node) {
   });
 }
 
+// ../../packages/sites-compiler/src/utils/srcset.ts
+var isSpace = (char) => char === " " || char === "\t" || char === `
+` || char === "\f" || char === "\r";
+function srcsetCandidates(srcset) {
+  const candidates = [];
+  let position = 0;
+  while (position < srcset.length) {
+    while (isSpace(srcset[position]) || srcset[position] === ",") {
+      position += 1;
+    }
+    const start = position;
+    while (position < srcset.length && !isSpace(srcset[position])) {
+      position += 1;
+    }
+    let end = position;
+    if (srcset[end - 1] === ",") {
+      while (end > start && srcset[end - 1] === ",") {
+        end -= 1;
+      }
+    } else {
+      let inParentheses = false;
+      while (position < srcset.length) {
+        const char = srcset[position];
+        position += 1;
+        if (char === "(" || char === ")") {
+          inParentheses = char === "(";
+        } else if (char === "," && !inParentheses) {
+          break;
+        }
+      }
+    }
+    if (end > start) {
+      candidates.push({ url: srcset.slice(start, end), start, end });
+    }
+  }
+  return candidates;
+}
+
+// ../../packages/sites-compiler/src/utils/content-links.ts
+function attributeKind(element, attribute) {
+  if (attribute === LINK_ATTRIBUTE) {
+    return "link";
+  }
+  return ASSET_ATTRIBUTES[element]?.includes(attribute) ? "image" : null;
+}
+function isSrcset(element, attribute) {
+  return SRCSET_ELEMENTS.has(element) && attribute.toLowerCase() === "srcset";
+}
+function attributeLinks(element, attribute, url, offset) {
+  if (isSrcset(element, attribute)) {
+    return srcsetCandidates(url).map((candidate) => ({
+      url: candidate.url,
+      kind: "image",
+      offset
+    }));
+  }
+  const kind = attributeKind(element, attribute);
+  return kind ? [{ url, kind, offset }] : [];
+}
+function htmlLinks(html, start) {
+  const links = [];
+  for (const tag of html.matchAll(HTML_TAG)) {
+    const element = tag[1]?.toLowerCase() ?? "";
+    const attributesStart = start + tag.index + 1 + element.length;
+    for (const attribute of (tag[2] ?? "").matchAll(HTML_ATTRIBUTE)) {
+      links.push(...attributeLinks(element, attribute[1]?.toLowerCase() ?? "", attribute[2] ?? attribute[3] ?? attribute[4] ?? "", attributesStart + attribute.index + 1));
+    }
+  }
+  return links;
+}
+function staticAttributeValue(value) {
+  if (typeof value === "string") {
+    return value;
+  }
+  const [statement] = value?.data?.estree?.body ?? [];
+  if (statement?.type !== "ExpressionStatement") {
+    return null;
+  }
+  const { expression } = statement;
+  if (expression.type === "Literal") {
+    return typeof expression.value === "string" ? expression.value : null;
+  }
+  if (expression.type === "TemplateLiteral" && expression.expressions.length === 0) {
+    return expression.quasis[0]?.value.cooked ?? null;
+  }
+  return null;
+}
+function contentLinks(tree) {
+  const definitions = new Map;
+  visit(tree, "definition", (node) => {
+    if (!definitions.has(node.identifier)) {
+      definitions.set(node.identifier, node.url);
+    }
+  });
+  const links = [];
+  visit(tree, (node) => {
+    const offset = node.position?.start.offset ?? 0;
+    if (node.type === "link" || node.type === "image") {
+      links.push({ url: node.url, kind: node.type, offset });
+    } else if (node.type === "linkReference" || node.type === "imageReference") {
+      const url = definitions.get(node.identifier);
+      if (url !== undefined) {
+        links.push({
+          url,
+          kind: node.type === "linkReference" ? "link" : "image",
+          offset
+        });
+      }
+    } else if (node.type === "html") {
+      links.push(...htmlLinks(node.value, offset));
+    } else if (isMdxJsxElement(node) && node.name) {
+      for (const attribute of node.attributes) {
+        if (attribute.type !== "mdxJsxAttribute") {
+          continue;
+        }
+        const url = staticAttributeValue(attribute.value);
+        if (url !== null) {
+          links.push(...attributeLinks(node.name, attribute.name, url, attribute.position?.start.offset ?? offset));
+        }
+      }
+    }
+  });
+  return links;
+}
+
 // ../../packages/sites-compiler/src/utils/text-edits.ts
 function blankFrontmatter(source) {
   const match = FRONTMATTER_BLOCK.exec(source);
@@ -1430,9 +2207,9 @@ function applyEdits(source, edits) {
 }
 
 // ../../packages/sites-compiler/src/mdx.ts
-function report(pass, code, message, offset) {
+function report(pass, code, message, offset, severity = "error") {
   pass.diagnostics.push({
-    severity: "error",
+    severity,
     code,
     message,
     file: pass.path,
@@ -1563,19 +2340,25 @@ function checkInlineComponents(pass, scan) {
     }
   }
 }
-function snippetPropEdits(program, localNames) {
+function unresolvedReferences(program, localNames) {
   const declared = declaredNames(program);
-  return referencedIdentifiers(program).filter((reference) => reference.start >= 0 && !localNames.has(reference.name) && !declared.has(reference.name) && !KNOWN_GLOBALS.has(reference.name) && !BUILTIN_COMPONENT_NAMES.has(reference.name) && !INJECTED_HOOK_NAMES.has(reference.name) && !COMPONENT_NAME.test(reference.name) && !(reference.name in globalThis)).map((reference) => ({
-    start: reference.start,
-    end: reference.start,
-    text: reference.shorthand ? `${reference.name}: props.` : "props."
-  }));
+  return referencedIdentifiers(program).filter((reference) => reference.start >= 0 && !localNames.has(reference.name) && !declared.has(reference.name) && !KNOWN_GLOBALS.has(reference.name) && !BUILTIN_COMPONENT_NAMES.has(reference.name) && !INJECTED_HOOK_NAMES.has(reference.name) && !(reference.name in globalThis));
+}
+function checkBuiltinProps(pass, element) {
+  const name = element.name;
+  const props = BUILTIN_COMPONENT_PROPS[name];
+  for (const attribute of element.attributes) {
+    if (attribute.type !== "mdxJsxAttribute" || attribute.name.startsWith("client:") || props.includes(attribute.name)) {
+      continue;
+    }
+    report(pass, "unknown_prop", props.length > 0 ? `<${name}> has no "${attribute.name}" prop, so it is ignored. Its props are ${props.join(", ")}.` : `<${name}> takes no props, so "${attribute.name}" is ignored.`, attribute.position?.start.offset ?? element.position?.start.offset ?? 0, "warning");
+  }
 }
 function walkContent(pass, tree, scan) {
   const localNames = new Set([...scan.importedNames, ...scan.exportedNames]);
   const usedBuiltins = new Set;
   const propEdits = new Map;
-  visit(tree, (node) => {
+  visit2(tree, (node) => {
     const programs = expressionPrograms(node);
     const elements = programs.flatMap(jsxClientDirectives);
     const directives = isMdxJsxElement(node) ? clientDirectives(node) : [];
@@ -1596,9 +2379,15 @@ function walkContent(pass, tree, scan) {
     pass.edits.push(...edits);
     for (const program of programs) {
       checkForbidden(pass, program);
-      if (!pass.context.isEntry) {
-        for (const edit of snippetPropEdits(program, localNames)) {
-          propEdits.set(edit.start, edit);
+      for (const reference of unresolvedReferences(program, localNames)) {
+        if (pass.context.isEntry) {
+          report(pass, "expression_undefined", `"${reference.name}" is not defined, so this page would fail to build. To show the braces as text, escape them: \\{${reference.name}\\}. To insert a site variable, write {{ ${reference.name} }} and add "${reference.name}" to variables in ${SITE_CONFIG_FILENAME}.`, reference.start);
+        } else if (!COMPONENT_NAME.test(reference.name)) {
+          propEdits.set(reference.start, {
+            start: reference.start,
+            end: reference.start,
+            text: reference.shorthand ? `${reference.name}: props.` : "props."
+          });
         }
       }
     }
@@ -1622,8 +2411,12 @@ function walkContent(pass, tree, scan) {
       }
     } else if (BUILTIN_COMPONENT_NAMES.has(root) && !localNames.has(root)) {
       usedBuiltins.add(root);
+      if (name === root) {
+        checkBuiltinProps(pass, node);
+      }
     } else if (!(localNames.has(root) || scan.contentComponents.has(root))) {
-      report(pass, "unknown_component", `Unknown component <${name}>. Import it from a snippet or use a built-in component.`, start);
+      const suggestion = closestName(root, BUILTIN_COMPONENTS);
+      report(pass, "unknown_component", suggestion ? `Unknown component <${name}>. Did you mean <${suggestion}>?` : `Unknown component <${name}>. Import it from a snippet or use a built-in component.`, start);
     }
   });
   const removed = pass.edits.filter((edit) => edit.text === "" && edit.end > edit.start);
@@ -1678,13 +2471,15 @@ function analyzeMdxFile(path, source, context) {
     diagnostics: [],
     edits: []
   };
+  const tree = parseMdx(pass);
+  const links = tree ? contentLinks(tree) : [];
   const failed = (imports) => ({
     diagnostics: pass.diagnostics,
     output: null,
     inlineModule: null,
-    imports
+    imports,
+    links
   });
-  const tree = parseMdx(pass);
   if (!tree) {
     return failed([]);
   }
@@ -1713,40 +2508,77 @@ function analyzeMdxFile(path, source, context) {
     diagnostics: pass.diagnostics,
     output: source.slice(0, frontmatterLength) + edited.slice(frontmatterLength),
     inlineModule,
-    imports: scan.imports
+    imports: scan.imports,
+    links
   };
 }
 
-// ../../packages/sites-compiler/src/utils/config-checks.ts
-function distance(a, b) {
-  const row = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let i = 1;i <= a.length; i += 1) {
-    let previous = row[0] ?? 0;
-    row[0] = i;
-    for (let j = 1;j <= b.length; j += 1) {
-      const current = row[j] ?? 0;
-      row[j] = Math.min(current + 1, (row[j - 1] ?? 0) + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
-      previous = current;
-    }
-  }
-  return row[b.length] ?? 0;
+// ../../packages/sites-core/src/utils/web-links.ts
+function isWebLink(value) {
+  const protocol = URL.parse(value)?.protocol;
+  return protocol === "http:" || protocol === "https:";
 }
+
+// ../../packages/sites-compiler/src/utils/config-checks.ts
 function unknownConfigKeyWarnings(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return [];
   }
   const known = Object.keys(siteConfigSchema.shape);
   return Object.keys(raw).filter((key) => !known.includes(key)).map((key) => {
-    const suggestion = known.map((candidate) => ({
-      candidate,
-      score: distance(key.toLowerCase(), candidate.toLowerCase())
-    })).sort((a, b) => a.score - b.score)[0];
-    const hint = suggestion && suggestion.score <= 2 ? ` Did you mean "${suggestion.candidate}"?` : "";
+    const suggestion = closestName(key, known);
+    const hint = suggestion ? ` Did you mean "${suggestion}"?` : "";
     return {
       severity: "warning",
       file: SITE_CONFIG_FILENAME,
       code: "config_unknown_key",
       message: `Unknown setting "${key}" is ignored.${hint}`
+    };
+  });
+}
+function record(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function navbarPrimaryButtonWarnings(raw) {
+  const navbar = record(record(raw).navbar);
+  if (record(navbar.primary).type !== "button") {
+    return [];
+  }
+  return [
+    {
+      severity: "warning",
+      file: SITE_CONFIG_FILENAME,
+      code: "navbar_primary_button",
+      message: navbar.cta === undefined ? 'navbar.primary with type "button" is used as navbar.cta. Rename it to "cta" and drop "type"; navbar.primary is for platform buttons like github.' : 'navbar.primary with type "button" is ignored because navbar.cta is set. Remove it; navbar.primary is for platform buttons like github.'
+    }
+  ];
+}
+function iconSettings(value, path = []) {
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) => iconSettings(item, [...path, String(index)]));
+  }
+  return Object.entries(record(value)).flatMap(([key, child]) => key === "icon" && typeof child === "string" ? [{ name: child, setting: [...path, key].join(".") }] : iconSettings(child, [...path, key]));
+}
+function unknownIconWarnings(config, source) {
+  const known = SITE_ICON_NAMES;
+  const navbar = record(record(JSON.parse(source)).navbar);
+  const aliased = record(navbar.primary).type === "button" && navbar.cta === undefined;
+  const unknown = new Map;
+  for (const icon of iconSettings({ ...config, variables: undefined })) {
+    if (!known.includes(icon.name)) {
+      const setting = aliased && icon.setting === "navbar.cta.icon" ? "navbar.primary.icon" : icon.setting;
+      unknown.set(icon.name, [...unknown.get(icon.name) ?? [], setting]);
+    }
+  }
+  return [...unknown].map(([name, settings]) => {
+    const suggestion = closestName(name, known);
+    const offset = source.search(new RegExp(`"icon"\\s*:\\s*"${name}"`));
+    return {
+      severity: "warning",
+      file: SITE_CONFIG_FILENAME,
+      ...offset === -1 ? {} : offsetToLineColumn(source, offset),
+      code: "icon_unknown",
+      message: `Icon "${name}" (${settings.join(", ")}) is not bundled with Notra and is skipped.${suggestion ? ` Did you mean "${suggestion}"?` : ""} See the icon list in the blog.json reference.`
     };
   });
 }
@@ -1773,6 +2605,27 @@ function categoryWarnings(config, blogTags) {
     file: SITE_CONFIG_FILENAME,
     code: "category_unknown",
     message: `blog.categories: no post is tagged "${name}". It is skipped.`
+  }));
+}
+function redirectPatternWarnings(config) {
+  return config.redirects.flatMap((rule, index) => redirectPatternIssues(rule.source, rule.destination).filter((issue) => issue.severity === "warning").map((issue) => ({
+    severity: "warning",
+    file: SITE_CONFIG_FILENAME,
+    code: "redirect_placeholder",
+    message: `redirects.${index}.${issue.path}: ${issue.message}`
+  })));
+}
+function authorLinkSchemeWarnings(config) {
+  return Object.entries(config.authors).flatMap(([id, author]) => ANY_SCHEME_AUTHOR_LINK_FIELDS.flatMap((field) => {
+    const value = author[field];
+    return value === undefined || isWebLink(value) ? [] : [
+      {
+        severity: "warning",
+        file: SITE_CONFIG_FILENAME,
+        code: "author_link_scheme",
+        message: `authors.${id}.${field}: only http(s) links are shown, so this link is left off the site. Use an https:// URL.`
+      }
+    ];
   }));
 }
 
@@ -1828,13 +2681,64 @@ function importCycleDiagnostics(paths, importsOf) {
   return diagnostics;
 }
 
+// ../../packages/sites-compiler/src/utils/link-pages.ts
+var CONTENT_IMPORT = /\.mdx?$/i;
+function chromePages(path, entryPages) {
+  if (SITE_CHROME_FILES.includes(path)) {
+    return CHROME_AREAS.map((area) => ({ area }));
+  }
+  const name = path.startsWith(`${SITE_SLOTS_DIR}/`) ? path.slice(SITE_SLOTS_DIR.length + 1).replace(/\.mdx$/, "") : "";
+  const slot = Object.hasOwn(SLOT_PAGES, name) ? SLOT_PAGES[name] : undefined;
+  if (slot === undefined) {
+    return null;
+  }
+  if (slot === "every") {
+    return CHROME_AREAS.map((area) => ({ area }));
+  }
+  if (slot.on === "authors") {
+    return [{ area: slot.area, under: AUTHOR_PAGES_PATH }];
+  }
+  return slot.on === "index" ? [{ area: slot.area }] : [...entryPages.get(slot.area) ?? []];
+}
+function sharedFilePages(paths, entries, imports) {
+  const entryPages = new Map;
+  for (const page of entries.values()) {
+    entryPages.set(page.area, [...entryPages.get(page.area) ?? [], page]);
+  }
+  const shared = new Map;
+  const roots = [...entries].map(([path, page]) => [
+    path,
+    [page]
+  ]);
+  for (const path of paths) {
+    const pages = chromePages(path, entryPages);
+    if (pages) {
+      shared.set(path, [...pages]);
+      roots.push([path, pages]);
+    }
+  }
+  for (const [root, pages] of roots) {
+    const seen = new Set([root]);
+    const pending = [...imports(root)];
+    for (let path = pending.pop();path !== undefined; path = pending.pop()) {
+      if (seen.has(path) || !CONTENT_IMPORT.test(path)) {
+        continue;
+      }
+      seen.add(path);
+      const known = shared.get(path) ?? [];
+      known.push(...pages);
+      shared.set(path, known);
+      pending.push(...imports(path));
+    }
+  }
+  return shared;
+}
+
 // ../../packages/sites-compiler/src/utils/markdown-html.ts
-import { fromMarkdown as fromMarkdown2 } from "mdast-util-from-markdown";
-import { visit as visit2 } from "unist-util-visit";
-function blockedMarkdownHtml(path, source) {
+import { visit as visit3 } from "unist-util-visit";
+function blockedMarkdownHtml(path, source, tree) {
   const diagnostics = [];
-  const tree = fromMarkdown2(source);
-  visit2(tree, "html", (node) => {
+  visit3(tree, "html", (node) => {
     for (const match of node.value.matchAll(HTML_OPENING_TAG)) {
       const tag = match[1]?.toLowerCase() ?? "";
       if (BLOCKED_HTML_ELEMENTS.has(tag)) {
@@ -1859,19 +2763,19 @@ var VARIABLE_REFERENCE = /\{\{\s*([A-Za-z][A-Za-z0-9_-]*)\s*\}\}/g;
 var YAML_SAFE_VALUE = /^[^"'\n#:{}[\]&*!|>%@`\\]*$/;
 
 // ../../packages/sites-compiler/src/utils/mdx-variable-ranges.ts
-import { fromMarkdown as fromMarkdown3 } from "mdast-util-from-markdown";
+import { fromMarkdown as fromMarkdown2 } from "mdast-util-from-markdown";
 import { mdxFromMarkdown as mdxFromMarkdown2 } from "mdast-util-mdx";
 import { mdxjs as mdxjs2 } from "micromark-extension-mdxjs";
-import { visit as visit3 } from "unist-util-visit";
+import { visit as visit4 } from "unist-util-visit";
 function mdxVariableCodeRanges(source) {
   const masked = source.replace(VARIABLE_OR_CODE_SPAN, (match, codeSpan, name) => codeSpan !== undefined || name === undefined ? match : match.replace(/[^\r\n]/g, "x"));
   try {
-    const tree = fromMarkdown3(masked, {
+    const tree = fromMarkdown2(masked, {
       extensions: [mdxjs2()],
       mdastExtensions: [mdxFromMarkdown2()]
     });
     const ranges = [];
-    visit3(tree, (node) => {
+    visit4(tree, (node) => {
       if (node.type === "mdxjsEsm") {
         const start = node.position?.start.offset;
         const end = node.position?.end.offset;
@@ -2013,27 +2917,8 @@ function substituteSettingText(text, variables) {
 }
 
 // ../../packages/sites-compiler/src/validate.ts
-function entryCandidate(path) {
-  const match = ENTRY_FILE.exec(path);
-  if (!match) {
-    return null;
-  }
-  const [, area, rest, format] = match;
-  if (!(area && rest && format)) {
-    return null;
-  }
-  if (rest.split("/").some((segment) => segment.startsWith("_"))) {
-    return null;
-  }
-  const slug = rest.endsWith("/index") ? rest.slice(0, -"/index".length) : rest;
-  return {
-    area,
-    slug,
-    format
-  };
-}
 function takesVariables(path) {
-  return entryCandidate(path) !== null || SITE_CHROME_FILES.includes(path) || path.startsWith("snippets/") && MDX_FILE.test(path) || path.startsWith(`${SITE_SLOTS_DIR}/`) && MDX_FILE.test(path);
+  return parseSiteEntryFile(path) !== null || SITE_CHROME_FILES.includes(path) || path.startsWith("snippets/") && MDX_FILE.test(path) || path.startsWith(`${SITE_SLOTS_DIR}/`) && MDX_FILE.test(path);
 }
 function validateSlotFile(path) {
   if (!path.startsWith(`${SITE_SLOTS_DIR}/`)) {
@@ -2128,7 +3013,10 @@ function parseSiteConfig(raw) {
       ]
     };
   }
-  const diagnostics = unknownConfigKeyWarnings(json);
+  const diagnostics = [
+    ...unknownConfigKeyWarnings(json),
+    ...navbarPrimaryButtonWarnings(json)
+  ];
   const parsed = siteConfigSchema.safeParse(json);
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
@@ -2136,6 +3024,9 @@ function parseSiteConfig(raw) {
     }
     return { config: null, diagnostics };
   }
+  diagnostics.push(...unknownIconWarnings(parsed.data, raw));
+  diagnostics.push(...redirectPatternWarnings(parsed.data));
+  diagnostics.push(...authorLinkSchemeWarnings(parsed.data));
   const settings = substituteSettingVariables(parsed.data);
   diagnostics.push(...settings.diagnostics);
   return {
@@ -2192,6 +3083,7 @@ function validateSite(input) {
       ok: false,
       config: null,
       entries: [],
+      links: [],
       outputs: new Map,
       diagnostics: [
         {
@@ -2242,11 +3134,11 @@ function validateSite(input) {
     }));
   };
   for (const path of mdxPaths) {
-    analyze(path, entryCandidate(path) !== null);
+    analyze(path, parseSiteEntryFile(path) !== null);
   }
   const importedPaths = new Set([...analyses.values()].flatMap((analysis) => analysis.imports));
   for (const path of mdxPaths) {
-    if (importedPaths.has(path) && entryCandidate(path) !== null) {
+    if (importedPaths.has(path) && parseSiteEntryFile(path) !== null) {
       analyze(path, false);
     }
   }
@@ -2261,11 +3153,13 @@ function validateSite(input) {
     }
   }
   const entries = [];
+  const links = [];
+  const entryPages = new Map;
   const seenSlugs = new Map;
   let unreadEntries = 0;
   const blogTags = new Set;
   for (const [path, content] of files) {
-    const candidate = entryCandidate(path);
+    const candidate = parseSiteEntryFile(path);
     if (!candidate || importedPaths.has(path)) {
       continue;
     }
@@ -2273,7 +3167,7 @@ function validateSite(input) {
       unreadEntries += 1;
       continue;
     }
-    if (!ENTRY_SLUG.test(candidate.slug)) {
+    if (!SITE_ENTRY_SLUG.test(candidate.slug)) {
       diagnostics.push({
         severity: "error",
         file: path,
@@ -2305,11 +3199,38 @@ function validateSite(input) {
         }
       }
     }
+    let bodyLinks = analyses.get(path)?.links ?? [];
     if (candidate.format === "md") {
-      diagnostics.push(...blockedMarkdownHtml(path, substituted));
+      const tree = fromMarkdown3(substituted);
+      diagnostics.push(...blockedMarkdownHtml(path, substituted, tree));
+      bodyLinks = contentLinks(tree);
       if (substituted !== content) {
         outputs.set(path, substituted);
       }
+    }
+    const page = {
+      area: candidate.area,
+      slug: candidate.slug,
+      draft: frontmatter.data?.draft ?? true
+    };
+    entryPages.set(path, page);
+    const linkOf = { file: path, pages: [page], shared: false };
+    for (const link of bodyLinks) {
+      links.push({
+        ...linkOf,
+        url: link.url,
+        kind: link.kind,
+        ...offsetToLineColumn(substituted, link.offset)
+      });
+    }
+    const image = frontmatter.data?.image;
+    if (image) {
+      links.push({
+        ...linkOf,
+        url: URL_SCHEME.test(image) || image.startsWith("/") ? image : `/${image}`,
+        kind: "image",
+        line: frontmatterKeyLine(substituted, "image")
+      });
     }
     entries.push({
       area: candidate.area,
@@ -2317,6 +3238,20 @@ function validateSite(input) {
       path,
       format: candidate.format
     });
+  }
+  for (const [path, pages] of sharedFilePages(files.keys(), entryPages, (path) => analyses.get(path)?.imports ?? [])) {
+    const source = sources.get(path) ?? "";
+    const fileLinks = analyses.get(path)?.links ?? (path.endsWith(".md") ? contentLinks(fromMarkdown3(source)) : []);
+    for (const link of fileLinks) {
+      links.push({
+        file: path,
+        pages,
+        shared: true,
+        url: link.url,
+        kind: link.kind,
+        ...offsetToLineColumn(source, link.offset)
+      });
+    }
   }
   if (config) {
     if (entries.length === 0 && unreadEntries === 0) {
@@ -2332,104 +3267,345 @@ function validateSite(input) {
   }
   entries.sort((a, b) => a.path.localeCompare(b.path));
   return {
-    diagnostics,
+    diagnostics: collapseRepeatedWarnings(diagnostics),
     config,
     entries,
+    links,
     outputs,
     ok: !hasErrors(diagnostics)
   };
 }
 
-// ../../packages/sites-core/src/constants/mounts.ts
-var MOUNT_SEGMENT = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
-
-// ../../packages/sites-core/src/utils/mounts.ts
-class SiteMountError extends Error {
-  name = "SiteMountError";
+// ../../packages/sites-core/src/utils/redirects.ts
+var compiled = new WeakMap;
+function siteRedirectRules(redirects) {
+  return redirects.map((rule) => ({
+    source: rule.source,
+    destination: rule.destination,
+    status: rule.permanent ? 308 : 307
+  }));
 }
-function normalizeMountPath(input) {
-  const trimmed = input.trim().toLowerCase();
-  const segments = trimmed.split("/").filter(Boolean);
-  if (segments.length === 0) {
-    return "/";
+function withoutTrailingSlash(path) {
+  return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+}
+function headerSafeLocation(location) {
+  return location.replace(/[^\u0021-\u007E]/gu, encodeURIComponent);
+}
+function sameHostLocation(location) {
+  return location.replace(/^[/\\]{2,}/u, "/");
+}
+function matchRedirect(redirects, path) {
+  const match = findRedirect(compiledRedirects(redirects), withoutTrailingSlash(path));
+  return match && {
+    ...match,
+    location: headerSafeLocation(sameHostLocation(match.location))
+  };
+}
+function compiledRedirects(redirects) {
+  let rules = compiled.get(redirects);
+  if (!rules) {
+    rules = redirects.map(compileRedirect);
+    compiled.set(redirects, rules);
   }
-  if (segments.length > SITE_MOUNT_MAX_SEGMENTS) {
-    throw new SiteMountError(`Mount "${input}" is nested too deep (max ${SITE_MOUNT_MAX_SEGMENTS} segments)`);
-  }
-  for (const segment of segments) {
-    if (!MOUNT_SEGMENT.test(segment) || segment === "_notra") {
-      throw new SiteMountError(`Mount "${input}" may only contain lowercase letters, digits and dashes`);
+  return rules;
+}
+function compileRedirect(rule) {
+  const prefix = rule.source.endsWith("/*");
+  const source = prefix ? rule.source.slice(0, -2) : withoutTrailingSlash(rule.source);
+  const carriesRest = prefix && rule.destination.endsWith("/*");
+  const placeholders = new Map;
+  const segments = source.split("/").map((segment, index) => {
+    if (!SITE_REDIRECT_PLACEHOLDER.test(segment)) {
+      return segment;
+    }
+    const name = segment.slice(1);
+    if (!placeholders.has(name)) {
+      placeholders.set(name, index);
+    }
+    return null;
+  });
+  const destination = redirectDestinationParts(carriesRest ? rule.destination.slice(0, -2) : rule.destination).map((part, index) => index % 2 === 1 ? placeholders.get(part) ?? `:${part}` : part);
+  return { segments, prefix, destination, carriesRest, status: rule.status };
+}
+function findRedirect(rules, bare) {
+  const path = bare.split("/");
+  for (const rule of rules) {
+    if (matchesSource(rule, path)) {
+      return { location: destinationFor(rule, path), status: rule.status };
     }
   }
-  return `/${segments.join("/")}`;
+  return null;
 }
-function isWithin(path, mount) {
-  if (mount === "/") {
-    return true;
+function matchesSource(rule, path) {
+  const { segments } = rule;
+  if (rule.prefix ? path.length < segments.length : path.length !== segments.length) {
+    return false;
   }
-  return path === mount || path.startsWith(`${mount}/`);
+  return segments.every((segment, index) => segment === null ? path[index] !== "" : segment === path[index]);
 }
-function normalizeSiteMounts(mounts) {
-  const normalized = {};
-  for (const area of SITE_AREAS) {
-    const value = mounts[area];
-    if (value !== undefined) {
-      normalized[area] = normalizeMountPath(value);
-    }
-  }
-  if (normalized.blog && normalized.changelog) {
-    if (normalized.blog === normalized.changelog) {
-      throw new SiteMountError("Blog and changelog need different paths");
-    }
-    const nestedNonRoot = normalized.blog !== "/" && isWithin(normalized.changelog, normalized.blog) || normalized.changelog !== "/" && isWithin(normalized.blog, normalized.changelog);
-    if (nestedNonRoot) {
-      throw new SiteMountError("Blog and changelog paths may not be nested inside each other");
-    }
-  }
-  if (!(normalized.blog ?? normalized.changelog)) {
-    throw new SiteMountError("At least one area needs a path");
-  }
-  return normalized;
-}
-function listMountedAreas(mounts) {
-  const areas = [];
-  for (const area of SITE_AREAS) {
-    const mount = mounts[area];
-    if (mount) {
-      areas.push({ area, mount });
-    }
-  }
-  return areas;
-}
-function resolveAreaForPath(mounts, pathname) {
-  let best = null;
-  for (const entry of listMountedAreas(mounts)) {
-    if (!isWithin(pathname, entry.mount)) {
-      continue;
-    }
-    if (!best || entry.mount.length > best.mount.length) {
-      best = entry;
-    }
-  }
-  return best;
-}
-function joinMountPath(mount, path) {
-  const tail = path.replace(/^\/+/, "");
-  if (mount === "/") {
-    return `/${tail}`;
-  }
-  return tail ? `${mount}/${tail}` : mount;
-}
-function pathCollidesWithOtherMount(mounts, area, urlPath) {
-  const owner = resolveAreaForPath(mounts, urlPath);
-  return owner !== null && owner.area !== area;
+function destinationFor(rule, path) {
+  const location = rule.destination.map((part) => typeof part === "number" ? encodeURIComponent(path[part] ?? "") : part).join("");
+  const rest = rule.carriesRest ? path.slice(rule.segments.length) : [];
+  return rest.length > 0 ? `${location}/${rest.map(encodeURIComponent).join("/")}` : location;
 }
 
 // compiler/build.ts
 import { spawn } from "node:child_process";
-import { cp as cp3, mkdir as mkdir4, readFile as readFile4, rm as rm3, stat as stat2, writeFile as writeFile2 } from "node:fs/promises";
+import { cp as cp3, mkdir as mkdir7, readFile as readFile7, rm as rm4, stat as stat3, writeFile as writeFile5 } from "node:fs/promises";
 import { createRequire as createRequire2 } from "node:module";
-import { dirname as dirname3, join as join7, relative, resolve } from "node:path";
+import { dirname as dirname6, join as join10, relative as relative2, resolve as resolve2 } from "node:path";
+
+// ../../packages/sites-core/src/constants/request-paths.ts
+var LLMS_LINKS = [
+  { file: "llms.txt", rel: "llms-txt" },
+  { file: "llms-full.txt", rel: "llms-full-txt" }
+];
+
+// ../../packages/sites-core/src/utils/request-paths.ts
+function normalizeRequestPath(pathname) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
+  if (decoded.includes("\x00") || decoded.includes("\\")) {
+    return null;
+  }
+  const segments = [];
+  for (const segment of decoded.split("/")) {
+    if (segment === "" || segment === ".") {
+      continue;
+    }
+    if (segment === "..") {
+      return null;
+    }
+    segments.push(segment);
+  }
+  const normalized = `/${segments.join("/")}`;
+  return decoded.endsWith("/") && normalized !== "/" ? `${normalized}/` : normalized;
+}
+function resolveFile(files, path) {
+  const trimmed = path.endsWith("/") ? path.slice(0, -1) : path;
+  const candidates = path.endsWith("/") ? [`${trimmed}/index.html`] : [path, `${path}/index.html`, `${path}.html`];
+  if (path === "/") {
+    candidates.unshift("/index.html");
+  }
+  for (const candidate of candidates) {
+    const file = files.get(candidate);
+    if (file) {
+      return file;
+    }
+  }
+  return null;
+}
+function resolveMarkdownFile(files, path) {
+  if (!path.endsWith(".md")) {
+    return null;
+  }
+  return files.get(path) ?? files.get(`${path.slice(0, -3)}/index.md`) ?? null;
+}
+function wellKnownLlmsTxtTarget(files, path) {
+  const resource = LLMS_LINKS.find(({ file }) => path.endsWith(`/.well-known/${file}`));
+  if (!resource) {
+    return null;
+  }
+  const target = `${path.slice(0, -`/.well-known/${resource.file}`.length)}/${resource.file}`;
+  return files.has(target) ? target : null;
+}
+
+// ../../packages/sites-compiler/src/links.ts
+function isServed(files, mounts, path) {
+  const area = resolveAreaForPath(mounts, path);
+  if (path === "/robots.txt" || area && area.mount !== "/" && path === joinMountPath(area.mount, "robots.txt") || wellKnownLlmsTxtTarget(files, path)) {
+    return true;
+  }
+  return path !== joinMountPath(area?.mount ?? "/", "404.md") && (resolveMarkdownFile(files, path) ?? resolveFile(files, path)) !== null;
+}
+function pagePath(mounts, page) {
+  const mount = mounts[page.area];
+  return mount === undefined ? null : joinMountPath(mount, page.slug ?? "");
+}
+function decodeFragment(fragment) {
+  try {
+    return decodeURIComponent(fragment);
+  } catch {
+    return fragment;
+  }
+}
+function linkTarget(url, page, origin) {
+  const written = url.trim();
+  if (!written || written.includes("{{")) {
+    return null;
+  }
+  const absolute = written.startsWith("//") || URL_SCHEME.test(written);
+  const rootPath = !absolute && written.startsWith("/");
+  if (page === null && !absolute && !rootPath) {
+    return null;
+  }
+  let resolved;
+  try {
+    resolved = new URL(written, new URL(page ?? "/", origin));
+  } catch {
+    return null;
+  }
+  if (absolute && !(resolved.host === origin.host && (resolved.protocol === "https:" || resolved.protocol === "http:"))) {
+    return null;
+  }
+  const rawFragment = resolved.hash ? resolved.hash.slice(1).split(FRAGMENT_DIRECTIVE)[0] ?? "" : null;
+  return {
+    path: normalizeRequestPath(resolved.pathname),
+    pathname: resolved.pathname,
+    rootPath,
+    rawFragment,
+    fragment: rawFragment === null ? null : decodeFragment(rawFragment)
+  };
+}
+function hint(name, candidates, prefix = "") {
+  const suggestion = closestName(name, [...candidates].filter((candidate) => Math.abs(candidate.length - name.length) <= SUGGESTION_MAX_LENGTH_DIFFERENCE));
+  return suggestion ? ` Did you mean ${prefix}${suggestion}?` : "";
+}
+function checksFragment(target) {
+  return target.fragment !== null && Boolean(target.rawFragment) && target.fragment.toLowerCase() !== "top";
+}
+function diagnose(links, context, site) {
+  const origin = new URL(context.publicOrigin);
+  const redirects = siteRedirectRules(context.redirects);
+  const diagnostics = [];
+  for (const link of links) {
+    const [page] = link.pages;
+    if (!(page && link.pages.some(site.isPublished))) {
+      continue;
+    }
+    const target = linkTarget(link.url, link.shared ? null : pagePath(context.mounts, page), origin);
+    if (!target) {
+      continue;
+    }
+    const written = link.url.trim();
+    const location = {
+      severity: "warning",
+      file: link.file,
+      line: link.line,
+      ...link.column === undefined ? {} : { column: link.column }
+    };
+    const code = link.kind === "link" ? "link_broken" : "image_missing";
+    if (target.path === null) {
+      if (resolveAreaForPath(context.mounts, target.pathname)) {
+        diagnostics.push({
+          ...location,
+          code,
+          message: `${link.kind === "link" ? "Broken link to" : "Missing image"} ${written}: Notra can't read this path and answers it with 400 Bad Request. Write % as %25 and leave out .. segments.`
+        });
+      }
+      continue;
+    }
+    if (target.rootPath && context.publicFiles.has(target.path) || matchRedirect(redirects, target.path)) {
+      continue;
+    }
+    const served = site.serves(target.path);
+    if (served === null) {
+      continue;
+    }
+    if (served) {
+      if (link.kind !== "link" || !checksFragment(target)) {
+        continue;
+      }
+      const ids = site.ids(target.path);
+      if (ids && !ids.has(target.rawFragment) && !ids.has(target.fragment)) {
+        const resolved = `${target.path}#${target.rawFragment}`;
+        const shown = written === resolved || written.startsWith("#") ? written : `${written} (${resolved})`;
+        diagnostics.push({
+          ...location,
+          code,
+          message: `Broken link to ${shown}: ${target.path} has no heading or other element with id "${target.fragment}".${hint(target.fragment, ids, "#")}`
+        });
+      }
+      continue;
+    }
+    const owner = resolveAreaForPath(context.mounts, target.path);
+    if (!owner && !(link.kind === "image" && target.rootPath)) {
+      continue;
+    }
+    const writtenPath = written.split("#")[0];
+    const shown = writtenPath === target.path ? target.path : `${writtenPath} (${target.path})`;
+    if (link.kind === "link") {
+      diagnostics.push({
+        ...location,
+        code,
+        message: `Broken link to ${shown}: no page, file or redirect has this path.${hint(target.path, site.pages)}`
+      });
+      continue;
+    }
+    const prefix = owner && owner.mount !== "/" && target.path.startsWith(`${owner.mount}/`) ? owner.mount : "";
+    const publicPath = target.path.slice(prefix.length);
+    diagnostics.push({
+      ...location,
+      code,
+      message: `Missing image ${shown}: there is no public${publicPath} in the repository.${hint(publicPath, context.publicFiles, prefix)}`
+    });
+  }
+  return diagnostics;
+}
+function brokenLinkDiagnostics(links, context) {
+  const files = new Map([...context.files].map((file) => [file, file]));
+  const ids = new Map;
+  const pages = [...context.files].filter((file) => file.endsWith("/index.html")).map((file) => file.slice(0, -"/index.html".length) || "/");
+  return diagnose(links, context, {
+    isPublished: (page) => {
+      const path = pagePath(context.mounts, page);
+      if (path === null || page.under === undefined) {
+        return path !== null && isServed(files, context.mounts, path);
+      }
+      const under = joinMountPath(path, page.under);
+      return pages.some((built) => built.startsWith(`${under}/`));
+    },
+    serves: (path) => resolveAreaForPath(context.mounts, path) !== null && isServed(files, context.mounts, path),
+    ids: (path) => {
+      const file = resolveMarkdownFile(files, path) ? null : resolveFile(files, path);
+      if (!file?.endsWith(".html")) {
+        return null;
+      }
+      if (!ids.has(file)) {
+        ids.set(file, context.ids?.(file) ?? null);
+      }
+      return ids.get(file) ?? null;
+    },
+    pages
+  });
+}
+function sourceLinkDiagnostics(links, context) {
+  const slugs = new Map;
+  for (const entry of context.entries) {
+    const area = slugs.get(entry.area) ?? new Set;
+    slugs.set(entry.area, area.add(entry.slug));
+  }
+  const publicFiles = new Map([...context.publicFiles].map((file) => [file, file]));
+  const mounted = listMountedAreas(context.mounts);
+  return diagnose(links, context, {
+    isPublished: (page) => context.mounts[page.area] !== undefined && page.draft !== true && page.under === undefined,
+    serves: (path) => {
+      const area = resolveAreaForPath(context.mounts, path);
+      const rest = !area || area.mount === "/" ? path : path.slice(area.mount.length);
+      const segments = rest.split("/").filter(Boolean);
+      const [first = "", last = ""] = [segments[0], segments.at(-1)];
+      if (BUILT_ROUTE_SEGMENTS.has(first)) {
+        return null;
+      }
+      if (!area || segments.length === 0) {
+        return area !== null;
+      }
+      if (resolveFile(publicFiles, rest) || slugs.get(area.area)?.has(segments.join("/"))) {
+        return true;
+      }
+      return last.includes(".") && !MEDIA_FILE.test(last) ? null : false;
+    },
+    ids: () => null,
+    pages: mounted.flatMap(({ area, mount }) => [
+      mount,
+      ...[...slugs.get(area) ?? []].map((slug) => joinMountPath(mount, slug))
+    ])
+  });
+}
 
 // ../../packages/sites-core/src/schemas/deployment.ts
 import { z as z4 } from "zod";
@@ -2479,7 +3655,9 @@ var siteManifestSchema = z4.object({
   redirects: z4.array(siteRedirectRuleSchema),
   contentSecurityPolicy: siteContentSecurityPolicySchema.optional(),
   analyticsConsent: z4.boolean().optional(),
-  consentBackendURL: z4.url().optional()
+  indexNow: z4.literal(false).optional(),
+  consentStorageKey: z4.literal(C15T_HOST_STORAGE_KEY).optional(),
+  faviconHost: z4.string().regex(SITE_FAVICON_HOST).optional()
 });
 var siteServingPointerSchema = z4.object({
   deploymentId: z4.string(),
@@ -2508,6 +3686,7 @@ var siteServingStateSchema = z4.object({
   siteId: z4.string(),
   slug: z4.string(),
   status: z4.enum(SITE_STATUSES),
+  suspension: z4.object({ category: z4.enum(SITE_SUSPENSION_CATEGORIES) }).nullable().default(null),
   production: siteServingPointerSchema.nullable(),
   productionRollback: z4.boolean().default(false),
   previews: z4.record(z4.string(), sitePreviewPointerSchema),
@@ -2546,7 +3725,8 @@ var siteBuildRequestSchema = z5.object({
   includeDrafts: z5.boolean().default(false),
   analytics: z5.boolean().default(false),
   branding: z5.boolean().default(true),
-  defaultConfig: siteConfigSchema.optional()
+  defaultConfig: siteConfigSchema.optional(),
+  hostingDomain: z5.string().regex(/^[a-z0-9.-]+$/).optional()
 });
 var siteBuildRedirectSchema = z5.object({
   source: z5.string().startsWith("/").max(500),
@@ -2566,13 +3746,18 @@ var siteBuildResultSchema = z5.object({
   redirects: z5.array(siteBuildRedirectSchema).max(500),
   contentSecurityPolicy: siteContentSecurityPolicySchema.nullable().default(null),
   analyticsConsent: z5.boolean().optional(),
-  consentBackendURL: z5.url().optional()
+  indexNow: z5.boolean().optional(),
+  consentStorageKey: z5.literal(C15T_HOST_STORAGE_KEY).optional(),
+  faviconHost: z5.string().regex(SITE_FAVICON_HOST).optional()
 });
 
 // ../../packages/sites-core/src/utils/data-attributes.ts
 function dataAttributes(options) {
   const attributes = {};
   for (const [key, value] of Object.entries(options)) {
+    if (value === undefined) {
+      continue;
+    }
     const name = key.replace(CAMEL_CASE_BOUNDARY, (letter) => `-${letter.toLowerCase()}`);
     attributes[`data-${name}`] = typeof value === "string" ? value : JSON.stringify(value);
   }
@@ -2580,14 +3765,39 @@ function dataAttributes(options) {
 }
 
 // ../../packages/sites-core/src/utils/integrations.ts
+function rybbitScript({
+  siteId,
+  scriptUrl,
+  replay,
+  ...options
+}) {
+  const src = new URL(scriptUrl ?? RYBBIT_SCRIPT_URL);
+  src.searchParams.set("siteId", siteId);
+  const replayOptions = Object.fromEntries(Object.entries(replay ?? {}).map(([key, value]) => [
+    `replay${key[0]?.toUpperCase()}${key.slice(1)}`,
+    value
+  ]));
+  return {
+    src: src.href,
+    attributes: dataAttributes({ ...options, ...replayOptions })
+  };
+}
 function inlineScriptLiteral(value) {
   return JSON.stringify(value).replaceAll("<", "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 }
-function integrationHeadScripts(integrations) {
+function integrationHeadScripts(integrations, hostingDomain) {
   const scripts = [];
-  const { databuddy, ga4, plausible, posthog, umami } = integrations;
+  const onHostingDomain = hostingDomain && `("."+location.hostname).endsWith(${inlineScriptLiteral(`.${hostingDomain}`)})`;
+  const { capless, databuddy, ga4, plausible, posthog, rybbit, umami } = integrations;
+  if (capless) {
+    scripts.push({
+      kind: "external",
+      src: CAPLESS_SCRIPT_URL,
+      attributes: { async: true, "data-key": capless.key }
+    });
+  }
   if (databuddy) {
-    const { scriptUrl, ...options } = databuddy;
+    const { scriptUrl, replay, ...options } = databuddy;
     scripts.push({
       kind: "external",
       src: scriptUrl ?? DATABUDDY_SCRIPT_URL,
@@ -2597,6 +3807,23 @@ function integrationHeadScripts(integrations) {
         ...dataAttributes(options)
       }
     });
+    if (replay) {
+      const { scriptUrl: replayScriptUrl, ...replayOptions } = replay === true ? {} : replay;
+      scripts.push({
+        kind: "external",
+        src: replayScriptUrl ?? DATABUDDY_REPLAY_SCRIPT_URL,
+        attributes: {
+          async: true,
+          crossorigin: "anonymous",
+          ...dataAttributes({
+            clientId: options.clientId,
+            apiUrl: options.apiUrl,
+            maskPatterns: options.maskPatterns,
+            ...replayOptions
+          })
+        }
+      });
+    }
   }
   if (ga4) {
     scripts.push({
@@ -2605,7 +3832,7 @@ function integrationHeadScripts(integrations) {
       attributes: { async: true }
     }, {
       kind: "inline",
-      code: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config",${inlineScriptLiteral(ga4.measurementId)});`
+      code: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config",${inlineScriptLiteral(ga4.measurementId)}${onHostingDomain ? `,${onHostingDomain}?{cookie_domain:"none"}:{}` : ""});`
     });
   }
   if (plausible) {
@@ -2622,7 +3849,15 @@ function integrationHeadScripts(integrations) {
     };
     scripts.push({
       kind: "inline",
-      code: `${POSTHOG_LOADER}posthog.init(${inlineScriptLiteral(posthog.apiKey)},${inlineScriptLiteral(options)});`
+      code: `${POSTHOG_LOADER}posthog.init(${inlineScriptLiteral(posthog.apiKey)},${onHostingDomain ? `Object.assign(${inlineScriptLiteral(options)},${onHostingDomain}?{cross_subdomain_cookie:false}:{})` : inlineScriptLiteral(options)});`
+    });
+  }
+  if (rybbit) {
+    const { src, attributes } = rybbitScript(rybbit);
+    scripts.push({
+      kind: "external",
+      src,
+      attributes: { ...attributes, defer: true }
     });
   }
   if (umami) {
@@ -2644,13 +3879,22 @@ function analyticsGatedByConsent(integrations) {
 function integrationCspSources(integrations) {
   const scriptSrc = [];
   const connectSrc = [];
-  const { c15t, databuddy, ga4, plausible, posthog, umami } = integrations;
+  const { c15t, capless, databuddy, ga4, plausible, posthog, rybbit, umami } = integrations;
   if (c15t) {
     connectSrc.push(new URL(c15t.backendURL).origin);
+  }
+  if (capless) {
+    const origin = new URL(CAPLESS_SCRIPT_URL).origin;
+    scriptSrc.push(origin);
+    connectSrc.push(origin);
   }
   if (databuddy) {
     scriptSrc.push(new URL(databuddy.scriptUrl ?? DATABUDDY_SCRIPT_URL).origin);
     connectSrc.push(new URL(databuddy.apiUrl ?? DATABUDDY_API_URL).origin);
+    if (databuddy.replay) {
+      const replayScriptUrl = databuddy.replay === true ? undefined : databuddy.replay.scriptUrl;
+      scriptSrc.push(new URL(replayScriptUrl ?? DATABUDDY_REPLAY_SCRIPT_URL).origin);
+    }
   }
   if (ga4) {
     scriptSrc.push(GOOGLE_TAG_ORIGIN);
@@ -2669,6 +3913,11 @@ function integrationCspSources(integrations) {
       scriptSrc.push(origin);
       connectSrc.push(origin);
     }
+  }
+  if (rybbit) {
+    const origin = new URL(rybbit.scriptUrl ?? RYBBIT_SCRIPT_URL).origin;
+    scriptSrc.push(origin);
+    connectSrc.push(origin);
   }
   if (umami) {
     const scriptOrigin = new URL(umami.scriptUrl ?? UMAMI_SCRIPT_URL).origin;
@@ -2711,42 +3960,100 @@ function buildSiteContentSecurityPolicy(params) {
   return [
     `script-src ${scriptSrc.join(" ")}`,
     `connect-src ${connectSrc.join(" ")}`,
-    ...params.integrations.posthog && params.integrations.posthog.sessionRecording !== false ? [
+    ...params.integrations.posthog && params.integrations.posthog.sessionRecording !== false || params.integrations.databuddy?.replay ? [
       `worker-src 'self' blob: data: ${sortedUnique(scriptOrigins).join(" ")}`
     ] : [],
     ...SITE_CSP_STATIC_DIRECTIVES
   ].join("; ");
 }
 
+// src/constants/favicons.ts
+var FAVICON_HOST = /^(?=.{1,253}$)[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+
+// src/utils/favicons.ts
+function faviconHost(url) {
+  if (!URL.canParse(url)) {
+    return null;
+  }
+  const { protocol, hostname } = new URL(url);
+  return (protocol === "https:" || protocol === "http:") && FAVICON_HOST.test(hostname) ? hostname : null;
+}
+function footerFaviconHost(config) {
+  const website = config.footer.socials.website;
+  return website && faviconHost(website) || undefined;
+}
+
 // src/constants/public-assets.ts
 var URL_ATTRIBUTE = /\b(src|href|poster|content|data-src)=(["'])(\/[^"']*)\2/g;
-var SRCSET_ATTRIBUTE = /\bsrcset=(["'])([^"']*)\1/g;
+var SRCSET_ATTRIBUTE = /\b(srcset)=(?:"([^"]*)"|'([^']*)')/gi;
+
+// src/utils/srcset.ts
+var isSpace2 = (char) => char === " " || char === "\t" || char === `
+` || char === "\f" || char === "\r";
+function srcsetCandidates2(srcset) {
+  const candidates = [];
+  let position = 0;
+  while (position < srcset.length) {
+    while (isSpace2(srcset[position]) || srcset[position] === ",") {
+      position += 1;
+    }
+    const start = position;
+    while (position < srcset.length && !isSpace2(srcset[position])) {
+      position += 1;
+    }
+    let end = position;
+    if (srcset[end - 1] === ",") {
+      while (end > start && srcset[end - 1] === ",") {
+        end -= 1;
+      }
+    } else {
+      let inParentheses = false;
+      while (position < srcset.length) {
+        const char = srcset[position];
+        position += 1;
+        if (char === "(" || char === ")") {
+          inParentheses = char === "(";
+        } else if (char === "," && !inParentheses) {
+          break;
+        }
+      }
+    }
+    if (end > start) {
+      candidates.push({ url: srcset.slice(start, end), start, end });
+    }
+  }
+  return candidates;
+}
 
 // src/utils/public-assets.ts
+function mountPublicUrl(url, mount, publicFiles) {
+  if (url.startsWith("//")) {
+    return url;
+  }
+  const match = /^([^?#]*)(.*)$/.exec(url);
+  const path = match?.[1] ?? url;
+  let decoded = path;
+  try {
+    decoded = decodeURI(path);
+  } catch {
+    decoded = path;
+  }
+  return publicFiles.has(decoded) ? `${mount}${path}${match?.[2] ?? ""}` : url;
+}
 function rewritePublicAssetUrls(html, mount, publicFiles) {
   if (mount === "/" || publicFiles.size === 0) {
     return html;
   }
-  const rewrite = (url) => {
-    const match = /^([^?#]*)(.*)$/.exec(url);
-    const path = match?.[1] ?? url;
-    let decoded = path;
-    try {
-      decoded = decodeURI(path);
-    } catch {
-      decoded = path;
+  const rewrite = (url) => mountPublicUrl(url, mount, publicFiles);
+  return html.replace(URL_ATTRIBUTE, (_whole, name, quote, url) => `${name}=${quote}${rewrite(url)}${quote}`).replace(SRCSET_ATTRIBUTE, (_whole, name, double, single) => {
+    const quote = double === undefined ? "'" : '"';
+    let value = double ?? single ?? "";
+    for (const { url, start, end } of srcsetCandidates2(value).reverse()) {
+      if (url.startsWith("/")) {
+        value = value.slice(0, start) + rewrite(url) + value.slice(end);
+      }
     }
-    return publicFiles.has(decoded) ? `${mount}${path}${match?.[2] ?? ""}` : url;
-  };
-  return html.replace(URL_ATTRIBUTE, (whole, name, quote, url) => url.startsWith("//") ? whole : `${name}=${quote}${rewrite(url)}${quote}`).replace(SRCSET_ATTRIBUTE, (_whole, quote, value) => {
-    const rewritten = value.split(",").map((candidate) => {
-      const [url = "", ...descriptor] = candidate.trim().split(/\s+/);
-      return [
-        url.startsWith("/") && !url.startsWith("//") ? rewrite(url) : url,
-        ...descriptor
-      ].join(" ");
-    }).join(", ");
-    return `srcset=${quote}${rewritten}${quote}`;
+    return `${name}=${quote}${value}${quote}`;
   });
 }
 
@@ -2804,7 +4111,7 @@ import { fromHtml } from "hast-util-from-html";
 import { toMdast } from "hast-util-to-mdast";
 import { gfmToMarkdown } from "mdast-util-gfm";
 import { toMarkdown } from "mdast-util-to-markdown";
-import { SKIP, visit as visit4 } from "unist-util-visit";
+import { SKIP, visit as visit5 } from "unist-util-visit";
 
 // compiler/constants/markdown.ts
 var DROPPED_TAGS = new Set([
@@ -2835,7 +4142,7 @@ function paragraph(children) {
 }
 function findMarkdownRoot(tree) {
   let root = null;
-  visit4(tree, "element", (node) => {
+  visit5(tree, "element", (node) => {
     if (node.properties.dataMdRoot !== undefined) {
       root = node;
       return false;
@@ -2845,14 +4152,14 @@ function findMarkdownRoot(tree) {
   return root;
 }
 function simplify(root) {
-  visit4(root, "comment", (_node, index, parent) => {
+  visit5(root, "comment", (_node, index, parent) => {
     if (parent && index !== undefined) {
       parent.children.splice(index, 1);
       return [SKIP, index];
     }
     return;
   });
-  visit4(root, "element", (node, index, parent) => {
+  visit5(root, "element", (node, index, parent) => {
     if (!parent || index === undefined) {
       return;
     }
@@ -2870,7 +4177,7 @@ function simplify(root) {
     if (node.tagName === "aside" && typeof props.ariaLabel === "string") {
       node.tagName = "blockquote";
       let titled = false;
-      visit4(node, "element", (inner) => {
+      visit5(node, "element", (inner) => {
         if (inner.properties.dataCalloutTitle !== undefined) {
           inner.children = [strong(textOf(inner))];
           titled = true;
@@ -2935,7 +4242,7 @@ function textBlocks(node) {
   return blocks.filter(Boolean);
 }
 function absolutize(tree, pageUrl) {
-  visit4(tree, (node) => {
+  visit5(tree, (node) => {
     if ((node.type === "link" || node.type === "image") && node.url) {
       try {
         node.url = new URL(node.url, pageUrl).toString();
@@ -3149,28 +4456,396 @@ ${instructions}` : `# ${name}`,
 
 // compiler/constants/build.ts
 var AREA_PAGES_FILE = "notra-pages.json";
+var LOCAL_FAVICON_FETCH_TIMEOUT_MS = 5000;
 var ASTRO_LOG_NOISE = [
   /\[glob-loader\] No files found matching/,
   /\[glob-loader\] The base directory .* does not exist/,
   /\[content\] The collection "(?:blog|changelog)" does not exist or is empty/,
-  /┃ (?:Local|Network)\s+http:\/\/127\.0\.0\.1:\d+/
+  /┃ (?:Local|Network)\s+http:\/\/127\.0\.0\.1:\d+/,
+  /astro\s+v[\d.]+\s+ready in/,
+  /watching for file changes\.\.\./,
+  /\[types\] Generated/,
+  /\[content\] Sync(?:ing|ed) content/
 ];
 var SHIKI_UNKNOWN_LANGUAGE = /\[Shiki\] The language "([^"]+)" doesn't exist/;
 
+// compiler/content-images.ts
+import { createHash } from "node:crypto";
+import { mkdir as mkdir2, readFile as readFile2, stat, writeFile as writeFile2 } from "node:fs/promises";
+import { basename, extname, join as join3, relative, resolve } from "node:path";
+
+// compiler/constants/content-images.ts
+var CONTENT_ROOT_CLASS = "mdx-content";
+var CONTENT_IMAGE_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp"
+]);
+var CONTENT_IMAGE_WIDTHS = [640, 960, 1280, 1920, 2560];
+var CONTENT_IMAGE_WEBP = {
+  lossless: { nearLossless: true, quality: 60 },
+  lossy: { quality: 90, smartSubsample: true }
+};
+var CONTENT_IMAGE_LOSSLESS_FORMATS = new Set(["png"]);
+var CONTENT_IMAGE_RGB_SPACES = new Set([
+  "srgb",
+  "rgb",
+  "rgb16",
+  "scrgb"
+]);
+var CONTENT_IMAGES_DIR = "_notra/assets/images";
+var CONTENT_IMAGE_SETTINGS_VERSION = "2";
+var CONTENT_IMAGE_ENCODE_TIMEOUT_SECONDS = 30;
+var CONTENT_IMAGE_BUDGET = {
+  maxImages: 500,
+  maxDurationMs: 120000,
+  concurrency: 4
+};
+
+// compiler/utils/animated-png.ts
+var PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
+function isAnimatedPng(data) {
+  if (!PNG_SIGNATURE.every((byte, index) => data[index] === byte)) {
+    return false;
+  }
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  let offset = PNG_SIGNATURE.length;
+  while (offset + 8 <= data.byteLength) {
+    const length = view.getUint32(offset);
+    const type = String.fromCharCode(...data.subarray(offset + 4, offset + 8));
+    if (type === "acTL") {
+      return true;
+    }
+    if (type === "IDAT" || type === "IEND") {
+      return false;
+    }
+    offset += 12 + length;
+  }
+  return false;
+}
+
+// compiler/utils/content-image-tags.ts
+import { SAXParser } from "parse5-sax-parser";
+var attribute = (attrs, name) => attrs.find((attr) => attr.name === name)?.value;
+var OPTIMIZABLE_SRC = /^\/(?!\/)[^\s,?#&"'<>]+$/;
+function findContentImages(html) {
+  if (!(html.includes(CONTENT_ROOT_CLASS) && /<img[\s/>]/i.test(html))) {
+    return [];
+  }
+  const parser = new SAXParser({ sourceCodeLocationInfo: true });
+  const images = [];
+  let rootTag = null;
+  let depth = 0;
+  parser.on("startTag", (token) => {
+    if (rootTag === null) {
+      const classes = attribute(token.attrs, "class")?.split(/\s+/) ?? [];
+      if (classes.includes(CONTENT_ROOT_CLASS) && !token.selfClosing) {
+        rootTag = token.tagName;
+        depth = 1;
+      }
+      return;
+    }
+    if (token.tagName === rootTag && !token.selfClosing) {
+      depth += 1;
+      return;
+    }
+    if (token.tagName !== "img" || !token.sourceCodeLocation) {
+      return;
+    }
+    const src = attribute(token.attrs, "src");
+    if (!src || !OPTIMIZABLE_SRC.test(src) || attribute(token.attrs, "srcset") !== undefined) {
+      return;
+    }
+    const { endOffset } = token.sourceCodeLocation;
+    images.push({
+      src,
+      insertAt: html[endOffset - 2] === "/" ? endOffset - 2 : endOffset - 1,
+      loading: attribute(token.attrs, "loading")?.toLowerCase(),
+      hasSizes: attribute(token.attrs, "sizes") !== undefined,
+      hasDimensions: attribute(token.attrs, "width") !== undefined && attribute(token.attrs, "height") !== undefined
+    });
+  });
+  parser.on("endTag", (token) => {
+    if (rootTag !== null && token.tagName === rootTag) {
+      depth -= 1;
+      if (depth === 0) {
+        rootTag = null;
+      }
+    }
+  });
+  parser.end(html);
+  return images;
+}
+function contentImageSizes(image, originalWidth) {
+  const sizes = `min(${originalWidth}px, 100vw)`;
+  return image.loading === "lazy" && image.hasDimensions ? `auto, ${sizes}` : sizes;
+}
+function addContentImageSrcsets(html, images, variantsFor) {
+  let result = "";
+  let offset = 0;
+  for (const image of [...images].sort((a, b) => a.insertAt - b.insertAt)) {
+    const variants = variantsFor(image.src);
+    const original = variants?.at(-1);
+    if (!(variants && original) || variants.length < 2) {
+      continue;
+    }
+    const srcset = variants.map((candidate) => `${candidate.url} ${candidate.width}w`).join(", ");
+    let added = ` srcset="${srcset}"`;
+    if (!image.hasSizes) {
+      added += ` sizes="${contentImageSizes(image, original.width)}"`;
+    }
+    result += html.slice(offset, image.insertAt) + added;
+    offset = image.insertAt;
+  }
+  return result + html.slice(offset);
+}
+
+// compiler/content-images.ts
+async function importSharp() {
+  return (await import("sharp")).default;
+}
+function mountOf(path, mounts) {
+  return [...mounts].filter((mount) => mount === "/" || path === mount || path.startsWith(`${mount}/`)).sort((a, b) => b.length - a.length)[0] ?? null;
+}
+function outputFile(outDir, src, mounts) {
+  let path;
+  try {
+    path = decodeURI(src);
+  } catch {
+    return null;
+  }
+  if (path.split("/").some((segment) => segment === "." || segment === "..") || !mountOf(path, mounts) || path.includes("/_notra/") || !CONTENT_IMAGE_EXTENSIONS.has(extname(path).toLowerCase())) {
+    return null;
+  }
+  const file = resolve(outDir, `.${path}`);
+  return relative(outDir, file).startsWith("..") ? null : file;
+}
+function assetsUrl(src, mounts) {
+  return joinMountPath(mountOf(decodeURI(src), mounts) ?? "/", CONTENT_IMAGES_DIR);
+}
+async function makeVariants(sharp, outDir, mounts, src, file, deadline, now) {
+  const none = { variants: null, created: 0 };
+  const data = await readFile2(file);
+  const metadata = await sharp(data).metadata();
+  const width = metadata.autoOrient?.width ?? metadata.width;
+  if (!width || (metadata.pages ?? 1) > 1 || isAnimatedPng(data)) {
+    return none;
+  }
+  const widths = CONTENT_IMAGE_WIDTHS.filter((candidate) => candidate < width);
+  if (widths.length === 0) {
+    return none;
+  }
+  const hash = createHash("sha256").update(CONTENT_IMAGE_SETTINGS_VERSION).update(data).digest("hex").slice(0, 10);
+  const stem = basename(file, extname(file)).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "image";
+  const encoding = CONTENT_IMAGE_LOSSLESS_FORMATS.has(metadata.format ?? "") ? CONTENT_IMAGE_WEBP.lossless : CONTENT_IMAGE_WEBP.lossy;
+  const keepProfile = Boolean(metadata.icc && CONTENT_IMAGE_RGB_SPACES.has(metadata.space ?? ""));
+  const baseUrl = assetsUrl(src, mounts);
+  const directory = join3(outDir, `.${baseUrl}`);
+  await mkdir2(directory, { recursive: true });
+  const candidates = [];
+  for (const target of widths) {
+    if (now() > deadline) {
+      if (candidates.length === 0) {
+        return { ...none, outOfTime: true };
+      }
+      break;
+    }
+    let output;
+    try {
+      const pipeline = sharp(data).timeout({ seconds: CONTENT_IMAGE_ENCODE_TIMEOUT_SECONDS }).autoOrient().resize({ width: target, withoutEnlargement: true });
+      output = await (keepProfile ? pipeline.keepIccProfile() : pipeline).webp(encoding).toBuffer();
+    } catch (error) {
+      if (candidates.length === 0) {
+        throw error;
+      }
+      break;
+    }
+    if (output.byteLength >= data.byteLength) {
+      break;
+    }
+    const name = `${stem}-${hash}-${target}.webp`;
+    await writeFile2(join3(directory, name), output);
+    candidates.push({ url: `${baseUrl}/${name}`, width: target });
+  }
+  if (candidates.length === 0) {
+    return none;
+  }
+  return {
+    variants: [...candidates, { url: src, width }],
+    created: candidates.length
+  };
+}
+async function optimizeContentImages(params) {
+  const now = params.now ?? Date.now;
+  const started = now();
+  const result = {
+    pages: new Map,
+    diagnostics: [],
+    images: 0,
+    variants: 0,
+    durationMs: 0
+  };
+  const tagsByPage = new Map;
+  const sources = new Map;
+  for (const [urlPath, html] of params.pageHtml) {
+    const tags = findContentImages(html).filter((tag) => {
+      const file = outputFile(params.outDir, tag.src, params.mounts);
+      if (file) {
+        sources.set(tag.src, file);
+      }
+      return file !== null;
+    });
+    if (tags.length > 0) {
+      tagsByPage.set(urlPath, tags);
+    }
+  }
+  if (sources.size === 0) {
+    return result;
+  }
+  let sharp;
+  try {
+    sharp = await (params.loadSharp ?? importSharp)();
+  } catch (error) {
+    result.diagnostics.push({
+      severity: "warning",
+      file: null,
+      code: "content_images_unavailable",
+      message: `Images in posts were published without smaller copies: the image library could not load (${error instanceof Error ? error.message : String(error)}).`
+    });
+    result.durationMs = now() - started;
+    return result;
+  }
+  const budget = params.budget ?? CONTENT_IMAGE_BUDGET;
+  const variants = new Map;
+  const failed = [];
+  const queue = [...sources].slice(0, budget.maxImages);
+  let skippedForBudget = sources.size - queue.length;
+  const worker = async () => {
+    for (let next = queue.shift();next; next = queue.shift()) {
+      if (now() - started > budget.maxDurationMs) {
+        skippedForBudget += 1;
+        continue;
+      }
+      const [src, file] = next;
+      try {
+        if (!(await stat(file).catch(() => null))?.isFile()) {
+          continue;
+        }
+        const made = await makeVariants(sharp, params.outDir, params.mounts, src, file, started + budget.maxDurationMs, now);
+        if (made.outOfTime) {
+          skippedForBudget += 1;
+          continue;
+        }
+        variants.set(src, made.variants);
+        if (made.variants) {
+          result.images += 1;
+          result.variants += made.created;
+        }
+      } catch {
+        failed.push(src);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: budget.concurrency }, worker));
+  for (const [urlPath, tags] of tagsByPage) {
+    if (!tags.some((tag) => variants.get(tag.src))) {
+      continue;
+    }
+    const html = params.pageHtml.get(urlPath) ?? "";
+    result.pages.set(urlPath, addContentImageSrcsets(html, tags, (src) => variants.get(src) ?? null));
+  }
+  if (failed.length > 0) {
+    result.diagnostics.push({
+      severity: "warning",
+      file: null,
+      code: "content_image_failed",
+      message: `${failed.length} image${failed.length === 1 ? "" : "s"} could not be read and kept only the original: ${failed.slice(0, 5).join(", ")}${failed.length > 5 ? ", …" : ""}`
+    });
+  }
+  if (skippedForBudget > 0) {
+    result.diagnostics.push({
+      severity: "warning",
+      file: null,
+      code: "content_images_budget",
+      message: `${skippedForBudget} image${skippedForBudget === 1 ? "" : "s"} in posts kept only the original because the build reached its image limit (${budget.maxImages} images or ${budget.maxDurationMs / 1000} seconds).`
+    });
+  }
+  result.durationMs = now() - started;
+  return result;
+}
+
+// compiler/local-favicons.ts
+import { mkdir as mkdir3, writeFile as writeFile3 } from "node:fs/promises";
+import { dirname as dirname2, join as join4 } from "node:path";
+
+// ../../packages/utils/src/constants/favicon.ts
+var FAVICON_DOMAIN_OVERRIDES = {
+  "digitalocean.com": "cloud.digitalocean.com"
+};
+
+// ../../packages/utils/src/google-favicon.ts
+var GOOGLE_FAVICON_SIZE = 128;
+var RESERVED_EXAMPLE_DOMAIN = /(?:^|\.)example(?:\.(?:com|net|org))?$/i;
+function isReservedExampleDomain(domain) {
+  return domain !== null && RESERVED_EXAMPLE_DOMAIN.test(domain);
+}
+function googleFaviconUrl(domain, size = GOOGLE_FAVICON_SIZE) {
+  if (!domain || isReservedExampleDomain(domain)) {
+    return null;
+  }
+  const url = new URL("https://www.google.com/s2/favicons");
+  const host = domain.toLowerCase().replace(/^www\./, "");
+  url.searchParams.set("domain", FAVICON_DOMAIN_OVERRIDES[host] ?? domain);
+  url.searchParams.set("sz", String(size));
+  return url.toString();
+}
+
+// compiler/local-favicons.ts
+async function fetchFavicon(host, fetcher) {
+  const url = googleFaviconUrl(host);
+  if (!url) {
+    return null;
+  }
+  try {
+    const response = await fetcher(url, {
+      redirect: "follow",
+      signal: AbortSignal.timeout(LOCAL_FAVICON_FETCH_TIMEOUT_MS)
+    });
+    if (!response.headers.get("Content-Type")?.startsWith("image/")) {
+      return null;
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return response.ok && bytes.byteLength > 0 && bytes.byteLength <= SITE_FAVICON_MAX_BYTES ? bytes : null;
+  } catch {
+    return null;
+  }
+}
+async function fallbackIcon() {
+  try {
+    const sharp = (await import("sharp")).default;
+    return await sharp(Buffer.from(SITE_FAVICON_FALLBACK_SVG), { density: 288 }).resize(64, 64).png().toBuffer();
+  } catch {
+    return new TextEncoder().encode(SITE_FAVICON_FALLBACK_SVG);
+  }
+}
+async function writeLocalFavicons(params) {
+  const icon = await fetchFavicon(params.host, params.fetch ?? fetch) ?? await fallbackIcon();
+  await Promise.all(params.mounts.map(async (mount) => {
+    const file = join4(params.outDir, joinMountPath(mount, `${SITE_FAVICON_DIR}/${params.host}`));
+    await mkdir3(dirname2(file), { recursive: true });
+    await writeFile3(file, icon);
+  }));
+}
+
 // compiler/og-images.ts
-import { readFile as readFile2 } from "node:fs/promises";
+import { readFile as readFile3 } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { extname, join as join3 } from "node:path";
-import { Resvg } from "@resvg/resvg-js";
-import satori from "satori";
+import { extname as extname2, join as join5 } from "node:path";
 
-// src/constants/og.ts
-var OG_MANIFEST_FILE = "og-manifest.json";
-
-// compiler/constants/og-images.ts
+// ../../packages/sites-og/src/constants/og-images.ts
 var OG_IMAGE_WIDTH = 1200;
 var OG_IMAGE_HEIGHT = 630;
-var OG_IMAGES_DIR = "_notra/og";
 var OG_FONT_SUBSETS = [
   "latin",
   "latin-ext",
@@ -3178,13 +4853,20 @@ var OG_FONT_SUBSETS = [
   "greek"
 ];
 var OG_FONT_WEIGHTS = [400, 500, 600, 700];
+var OG_FONT_FILES = OG_FONT_SUBSETS.flatMap((subset) => OG_FONT_WEIGHTS.map((weight) => ({
+  name: `Inter ${subset}`,
+  weight,
+  file: `inter-${subset}-${weight}-normal.woff`
+})));
 var OG_FONT_FAMILY = OG_FONT_SUBSETS.map((subset) => `"Inter ${subset}"`).join(", ");
+var OG_CUSTOM_FONT_NAME = "Thumbnail";
 var OG_BACKGROUND_MIME_TYPES = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".svg": "image/svg+xml"
 };
+var OG_FONT_EXTENSIONS = [".ttf", ".otf", ".woff"];
 var OG_THEME = {
   light: { background: "#ffffff", text: "#0a0a0a", muted: "#6b7280" },
   dark: { background: "#0a0a0a", text: "#fafafa", muted: "#a1a1aa" }
@@ -3198,14 +4880,31 @@ var OG_ARTICLE_AVATAR_SIZE = 50;
 var OG_ARTICLE_MAX_AVATARS = 4;
 var OG_AUTHOR_AVATAR_SIZE = 64;
 var OG_AUTHOR_LOGO_SIZE = 56;
+var OG_SHORT_DATE = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC"
+});
+var OG_SHORT_DATE_WITH_YEAR = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC"
+});
+var OG_LONG_DATE = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  timeZone: "UTC"
+});
 
-// compiler/utils/og-card.ts
+// ../../packages/sites-og/src/utils/og-title.ts
 function titleSize(title) {
   const step = OG_TITLE_SIZES.find((candidate) => title.length <= candidate.maxLength) ?? OG_TITLE_SIZES[2];
   return step.size;
 }
 
-// compiler/components/og-article-card.tsx
+// ../../packages/sites-og/src/components/og-article-card.tsx
 import { jsxDEV } from "react/jsx-dev-runtime";
 function OgArticleCard(content) {
   const colors = OG_THEME[content.appearance];
@@ -3235,7 +4934,7 @@ function OgArticleCard(content) {
       padding: "72px 80px",
       backgroundColor: colors.background,
       color: colors.text,
-      fontFamily: OG_FONT_FAMILY,
+      fontFamily: content.fontFamily ?? OG_FONT_FAMILY,
       fontSize: 28,
       fontWeight: 500
     },
@@ -3320,7 +5019,7 @@ function OgArticleCard(content) {
   }, undefined, true, undefined, this);
 }
 
-// compiler/components/og-author-card.tsx
+// ../../packages/sites-og/src/components/og-author-card.tsx
 import { jsxDEV as jsxDEV2 } from "react/jsx-dev-runtime";
 function OgAuthorCard(content) {
   const colors = OG_THEME[content.appearance];
@@ -3335,7 +5034,7 @@ function OgAuthorCard(content) {
       padding: 80,
       backgroundColor: colors.background,
       color: colors.text,
-      fontFamily: OG_FONT_FAMILY
+      fontFamily: content.fontFamily ?? OG_FONT_FAMILY
     },
     children: [
       content.background ? /* @__PURE__ */ jsxDEV2("img", {
@@ -3453,7 +5152,7 @@ function OgAuthorCard(content) {
   }, undefined, true, undefined, this);
 }
 
-// compiler/components/og-card.tsx
+// ../../packages/sites-og/src/components/og-card.tsx
 import { jsxDEV as jsxDEV3 } from "react/jsx-dev-runtime";
 function OgCard(content) {
   const colors = OG_THEME[content.appearance];
@@ -3467,7 +5166,7 @@ function OgCard(content) {
       padding: "88px 88px 72px",
       backgroundColor: colors.background,
       color: colors.text,
-      fontFamily: OG_FONT_FAMILY,
+      fontFamily: content.fontFamily ?? OG_FONT_FAMILY,
       position: "relative"
     },
     children: [
@@ -3535,45 +5234,167 @@ function OgCard(content) {
   }, undefined, true, undefined, this);
 }
 
+// ../../packages/sites-og/src/utils/og-card.ts
+function ogFontFamily(custom) {
+  return custom ? `"${OG_CUSTOM_FONT_NAME}", ${OG_FONT_FAMILY}` : OG_FONT_FAMILY;
+}
+function ogLogoPath(config) {
+  const { logo, favicon } = config;
+  const path = typeof logo === "string" ? logo : logo?.light;
+  return path ?? (typeof favicon === "string" ? favicon : favicon?.light);
+}
+function ogAccent(config) {
+  return config.thumbnails.appearance === "dark" ? config.colors.light ?? config.colors.primary : config.colors.primary;
+}
+function ogDomain(publicOrigin) {
+  return new URL(publicOrigin).hostname.replace(/^www\./, "");
+}
+function withSiteName2(siteName, title) {
+  return title.startsWith(siteName) ? title : `${siteName} · ${title}`;
+}
+function formatShortDate(date, now) {
+  const sameYear = date.getUTCFullYear() === now.getUTCFullYear();
+  return (sameYear ? OG_SHORT_DATE : OG_SHORT_DATE_WITH_YEAR).format(date);
+}
+function authorWithFallback(author, logo) {
+  return author && !author.avatar && logo ? { ...author, avatar: logo } : author;
+}
+function ogEntryCard({
+  config,
+  areaTitle,
+  entry,
+  style,
+  now
+}) {
+  const { layout, label } = config.thumbnails;
+  if (layout === "article") {
+    return OgArticleCard({
+      ...style,
+      date: formatShortDate(entry.date, now),
+      category: entry.tags[0] ?? label ?? areaTitle,
+      title: entry.title,
+      description: entry.description,
+      authors: entry.authors
+    });
+  }
+  if (layout === "author") {
+    return OgAuthorCard({
+      ...style,
+      label: label ?? areaTitle,
+      title: entry.title,
+      author: authorWithFallback(entry.authors[0], style.logo)
+    });
+  }
+  return OgCard({
+    ...style,
+    eyebrow: withSiteName2(config.name, areaTitle),
+    title: entry.title,
+    footer: [entry.version, OG_LONG_DATE.format(entry.date)].filter(Boolean).join(" · ")
+  });
+}
+function ogAreaCard({
+  config,
+  title,
+  section,
+  description,
+  style
+}) {
+  const { layout, label } = config.thumbnails;
+  const category = label ?? section;
+  if (layout === "article") {
+    return OgArticleCard({
+      ...style,
+      date: config.name,
+      category: category === title ? "" : category,
+      title,
+      description,
+      authors: []
+    });
+  }
+  if (layout === "author") {
+    return OgAuthorCard({ ...style, label: category, title });
+  }
+  return OgCard({
+    ...style,
+    eyebrow: config.name,
+    title,
+    footer: style.domain
+  });
+}
+function ogStyle(config, assets) {
+  return {
+    appearance: config.thumbnails.appearance,
+    accent: ogAccent(config),
+    logo: assets.logo,
+    domain: assets.domain,
+    background: assets.background,
+    fontFamily: ogFontFamily(assets.customFont)
+  };
+}
+
+// ../../packages/sites-og/src/utils/og-render.ts
+import { Resvg } from "@resvg/resvg-js";
+import { createElement } from "react";
+import satori from "satori";
+async function renderOgPng(card, fonts) {
+  const svg = await satori(card, {
+    width: OG_IMAGE_WIDTH,
+    height: OG_IMAGE_HEIGHT,
+    fonts
+  });
+  return new Resvg(svg, {
+    fitTo: { mode: "width", value: OG_IMAGE_WIDTH }
+  }).render().asPng();
+}
+function isOgFontPath(path) {
+  const lower = path.toLowerCase().replace(/[?#].*$/, "");
+  return OG_FONT_EXTENSIONS.some((extension) => lower.endsWith(extension));
+}
+async function loadOgCustomFont(data) {
+  const font = {
+    name: OG_CUSTOM_FONT_NAME,
+    weight: 400,
+    style: "normal",
+    data: Buffer.from(data)
+  };
+  try {
+    await satori(createElement("div", { style: { display: "flex", fontFamily: OG_CUSTOM_FONT_NAME } }, "Aa"), { width: 40, height: 40, fonts: [font] });
+    return font;
+  } catch {
+    return null;
+  }
+}
+
+// src/constants/og.ts
+var OG_MANIFEST_FILE = "og-manifest.json";
+
+// compiler/constants/og-images.ts
+var OG_IMAGES_DIR = "_notra/og";
+
 // compiler/og-images.ts
 var fontsPromise = null;
 function loadFonts() {
   fontsPromise ??= (async () => {
     const require2 = createRequire(import.meta.url);
-    const specs = OG_FONT_SUBSETS.flatMap((subset) => OG_FONT_WEIGHTS.map((weight) => ({ subset, weight })));
-    return Promise.all(specs.map(async ({ subset, weight }) => ({
-      name: `Inter ${subset}`,
+    return Promise.all(OG_FONT_FILES.map(async ({ name, weight, file }) => ({
+      name,
       weight,
       style: "normal",
-      data: await readFile2(require2.resolve(`@fontsource/inter/files/inter-${subset}-${weight}-normal.woff`))
+      data: await readFile3(require2.resolve(`@fontsource/inter/files/${file}`))
     })));
   })();
   return fontsPromise;
 }
-function formatShortDate(date, now) {
-  const sameYear = date.getUTCFullYear() === now.getUTCFullYear();
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "long",
-    ...sameYear ? {} : { year: "numeric" },
-    timeZone: "UTC"
-  }).format(date);
-}
-function formatDate(date) {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC"
-  }).format(date);
+function publicPath(path) {
+  return path.startsWith("/") ? path : `/${path}`;
 }
 async function loadBackground(params) {
   const path = params.config.thumbnails.background;
   if (!path) {
     return {};
   }
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-  const mimeType = OG_BACKGROUND_MIME_TYPES[extname(normalized).toLowerCase()];
+  const normalized = publicPath(path);
+  const mimeType = OG_BACKGROUND_MIME_TYPES[extname2(normalized).toLowerCase()];
   if (!(mimeType && params.publicFiles.includes(normalized))) {
     return {
       diagnostic: {
@@ -3584,19 +5405,19 @@ async function loadBackground(params) {
       }
     };
   }
-  const bytes = await readFile2(join3(params.workDir, "site", "public", normalized));
+  const bytes = await readFile3(join5(params.workDir, "site", "public", normalized));
   return { dataUri: `data:${mimeType};base64,${bytes.toString("base64")}` };
 }
 async function publicImage(params, path) {
   if (!path || /^https?:\/\//.test(path)) {
     return;
   }
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-  const mimeType = OG_BACKGROUND_MIME_TYPES[extname(normalized).toLowerCase()];
+  const normalized = publicPath(path);
+  const mimeType = OG_BACKGROUND_MIME_TYPES[extname2(normalized).toLowerCase()];
   if (!(mimeType && params.publicFiles.includes(normalized))) {
     return;
   }
-  const bytes = await readFile2(join3(params.workDir, "site", "public", normalized));
+  const bytes = await readFile3(join5(params.workDir, "site", "public", normalized));
   return `data:${mimeType};base64,${bytes.toString("base64")}`;
 }
 async function resolveAuthor(params, ref) {
@@ -3618,50 +5439,28 @@ async function resolveAuthors(params, value) {
   const authors = await Promise.all(refs.map((ref) => resolveAuthor(params, ref)));
   return authors.filter((author) => author !== undefined);
 }
-function authorWithFallback(author, logo) {
-  return author && !author.avatar && logo ? { ...author, avatar: logo } : author;
-}
-function siteLogo(config) {
-  const { logo, favicon } = config;
-  const path = typeof logo === "string" ? logo : logo?.light;
-  return path ?? (typeof favicon === "string" ? favicon : favicon?.light);
-}
-async function renderPng(card, fonts) {
-  const svg = await satori(card, {
-    width: OG_IMAGE_WIDTH,
-    height: OG_IMAGE_HEIGHT,
-    fonts
-  });
-  return new Resvg(svg, {
-    fitTo: { mode: "width", value: OG_IMAGE_WIDTH }
-  }).render().asPng();
-}
-function areaCard(params, area, style) {
-  const { config } = params;
-  const title = configuredAreaTitle(config, area);
-  const section = config.thumbnails.label ?? AREA_DEFAULT_TITLES[area];
-  if (config.thumbnails.layout === "article") {
-    return OgArticleCard({
-      ...style,
-      date: config.name,
-      category: section === title ? "" : section,
-      title,
-      description: config[area]?.description ?? config.description,
-      authors: []
-    });
+async function loadCustomFont(params) {
+  const path = params.config.thumbnails.font;
+  if (!path) {
+    return {};
   }
-  if (config.thumbnails.layout === "author") {
-    return OgAuthorCard({ ...style, label: section, title });
-  }
-  return OgCard({
-    ...style,
-    eyebrow: config.name,
-    title,
-    footer: style.domain
+  const normalized = publicPath(path);
+  const warning = (reason) => ({
+    diagnostic: {
+      severity: "warning",
+      file: SITE_CONFIG_FILENAME,
+      code: "thumbnail_font",
+      message: `thumbnails.font: ${path} ${reason}. Share images use Inter instead.`
+    }
   });
+  if (!(isOgFontPath(normalized) && params.publicFiles.includes(normalized))) {
+    return warning("is not a TTF, OTF or WOFF file in public/");
+  }
+  const font = await loadOgCustomFont(await readFile3(join5(params.workDir, "site", "public", normalized)));
+  return font ? { font } : warning("couldn't be read as a font");
 }
 async function writeCard(params, card, fonts, urlPath) {
-  await writeFileEnsured(join3(params.workDir, "site", "public", urlPath), await renderPng(card, fonts));
+  await writeFileEnsured(join5(params.workDir, "site", "public", urlPath), await renderOgPng(card, fonts));
 }
 async function writeOgImages(params) {
   const started = Date.now();
@@ -3669,87 +5468,73 @@ async function writeOgImages(params) {
   const diagnostics = [];
   const { config } = params;
   if (config.thumbnails.enabled) {
-    const [fonts, background] = await Promise.all([
+    const [inter, background, custom, logo] = await Promise.all([
       loadFonts(),
-      loadBackground(params)
+      loadBackground(params),
+      loadCustomFont(params),
+      publicImage(params, ogLogoPath(config))
     ]);
-    if (background.diagnostic) {
-      diagnostics.push(background.diagnostic);
+    for (const diagnostic of [background.diagnostic, custom.diagnostic]) {
+      if (diagnostic) {
+        diagnostics.push(diagnostic);
+      }
     }
-    const appearance = config.thumbnails.appearance;
-    const style = {
-      appearance,
-      accent: appearance === "dark" ? config.colors.light ?? config.colors.primary : config.colors.primary,
-      logo: await publicImage(params, siteLogo(config)),
-      domain: new URL(params.publicOrigin).hostname.replace(/^www\./, ""),
-      background: background.dataUri
-    };
-    const { accent, logo, domain } = style;
+    const fonts = custom.font ? [custom.font, ...inter] : inter;
+    const style = ogStyle(config, {
+      logo,
+      background: background.dataUri,
+      domain: ogDomain(params.publicOrigin),
+      customFont: Boolean(custom.font)
+    });
     const now = new Date;
     const areas = config.seo.image ? [] : params.areas;
     await Promise.all(areas.map(async (area) => {
       const urlPath = `/${OG_IMAGES_DIR}/${area}.png`;
-      await writeCard(params, areaCard(params, area, style), fonts, urlPath);
+      const card = ogAreaCard({
+        config,
+        title: configuredAreaTitle(config, area),
+        section: AREA_DEFAULT_TITLES[area],
+        description: config[area]?.description ?? config.description,
+        style
+      });
+      await writeCard(params, card, fonts, urlPath);
       manifest[area] = urlPath;
     }));
     await Promise.all(params.entries.map(async (entry) => {
-      const source = await readFile2(join3(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), "utf8");
+      const source = await readFile3(join5(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), "utf8");
       const { data } = parseEntryFrontmatter(entry.path, entry.area, source);
       if (!data || data.image || data.draft && !params.includeDrafts) {
         return;
       }
-      const version = "version" in data ? data.version : undefined;
-      const authors = config.thumbnails.layout !== "default" && "author" in data ? await resolveAuthors(params, data.author) : [];
-      const areaTitle = configuredAreaTitle(config, entry.area);
-      let card;
-      if (config.thumbnails.layout === "article") {
-        card = OgArticleCard({
-          date: formatShortDate(data.date, now),
-          category: data.tags[0] ?? config.thumbnails.label ?? areaTitle,
+      const card = ogEntryCard({
+        config,
+        areaTitle: configuredAreaTitle(config, entry.area),
+        entry: {
           title: data.title,
           description: data.description,
-          domain,
-          appearance,
-          accent,
-          logo,
-          authors,
-          background: background.dataUri
-        });
-      } else if (config.thumbnails.layout === "author") {
-        card = OgAuthorCard({
-          label: config.thumbnails.label ?? areaTitle,
-          title: data.title,
-          domain,
-          appearance,
-          logo,
-          author: authorWithFallback(authors[0], logo),
-          background: background.dataUri
-        });
-      } else {
-        card = OgCard({
-          eyebrow: withSiteName(config.name, areaTitle, " · "),
-          title: data.title,
-          footer: [version, formatDate(data.date)].filter(Boolean).join(" · "),
-          appearance,
-          accent,
-          background: background.dataUri
-        });
-      }
+          date: data.date,
+          version: "version" in data ? data.version : undefined,
+          tags: data.tags,
+          authors: config.thumbnails.layout !== "default" && "author" in data ? await resolveAuthors(params, data.author) : []
+        },
+        style,
+        now
+      });
       const urlPath = `/${OG_IMAGES_DIR}/${entry.area}/${entry.slug}.png`;
       await writeCard(params, card, fonts, urlPath);
       manifest[`${entry.area}/${entry.slug}`] = urlPath;
     }));
   }
   const sorted = Object.fromEntries(Object.entries(manifest).sort(([a], [b]) => a.localeCompare(b)));
-  await writeFileEnsured(join3(params.workDir, OG_MANIFEST_FILE), `${JSON.stringify(sorted, null, 2)}
+  await writeFileEnsured(join5(params.workDir, OG_MANIFEST_FILE), `${JSON.stringify(sorted, null, 2)}
 `);
   return { manifest: sorted, diagnostics, durationMs: Date.now() - started };
 }
 
 // compiler/prepare.ts
-import { createHash as createHash2 } from "node:crypto";
-import { cp as cp2, mkdir as mkdir3, readFile as readFile3, rm as rm2, stat } from "node:fs/promises";
-import { dirname as dirname2, join as join6, sep } from "node:path";
+import { createHash as createHash3 } from "node:crypto";
+import { cp as cp2, mkdir as mkdir5, readFile as readFile5, rm as rm2, stat as stat2 } from "node:fs/promises";
+import { dirname as dirname4, join as join9, sep } from "node:path";
 
 // ../../packages/sites-core/src/utils/source-files.ts
 function isSiteContentPath(path) {
@@ -3774,14 +5559,14 @@ function isCollectedSiteSourcePath(path) {
 // compiler/collect.ts
 import { constants } from "node:fs";
 import { lstat, open, opendir } from "node:fs/promises";
-import { join as join4 } from "node:path";
+import { join as join6 } from "node:path";
 async function collectSiteSource(siteRoot) {
   const files = [];
   const diagnostics = [];
   let totalBytes = 0;
   let ignoreContent = null;
   try {
-    const file = await open(join4(siteRoot, SITE_IGNORE_FILENAME), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    const file = await open(join6(siteRoot, SITE_IGNORE_FILENAME), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
     try {
       const stats = await file.stat();
       if (!stats.isFile() || stats.size > SITE_IGNORE_MAX_BYTES) {
@@ -3823,7 +5608,7 @@ async function collectSiteSource(siteRoot) {
         }
       };
     }
-    const stats = await lstat(join4(siteRoot, relativePath));
+    const stats = await lstat(join6(siteRoot, relativePath));
     if (isIgnored(stats.isDirectory() ? `${relativePath}/` : relativePath)) {
       return { kind: "skip" };
     }
@@ -3861,7 +5646,7 @@ async function collectSiteSource(siteRoot) {
   let stopped = false;
   while (directories.length > 0 && !stopped) {
     const relativeDir = directories.pop() ?? "";
-    const directory = await opendir(join4(siteRoot, relativeDir));
+    const directory = await opendir(join6(siteRoot, relativeDir));
     for await (const entry of directory) {
       const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
       const result = await inspect(relativePath);
@@ -3903,14 +5688,185 @@ async function collectSiteSource(siteRoot) {
   return { files, totalBytes, diagnostics, ignoreContent };
 }
 
-// compiler/utils/site-fonts.ts
-import { createHash } from "node:crypto";
-import { cp, mkdir as mkdir2, mkdtemp, readdir as readdir2, rename, rm } from "node:fs/promises";
-import { join as join5 } from "node:path";
+// compiler/utils/font-fallbacks.ts
+import { createHash as createHash2 } from "node:crypto";
+import { readFile as readFile4 } from "node:fs/promises";
+import { dirname as dirname3, join as join7 } from "node:path";
+import { fromBuffer } from "@capsizecss/unpack";
+
+// src/constants/theme.ts
+var FONT_DEFAULT_BODY_WEIGHT = 400;
+var FONT_DEFAULT_HEADING_WEIGHT = 500;
+
+// src/utils/theme-fonts.ts
+function specFaces(spec) {
+  const family = spec?.family;
+  if (!family) {
+    return [];
+  }
+  return [
+    {
+      family,
+      weight: spec.weight,
+      source: spec.source,
+      format: spec.format
+    },
+    ...(spec.faces ?? []).map((face) => ({
+      family,
+      weight: face.weight,
+      style: face.style,
+      source: face.source,
+      format: face.format ?? spec.format
+    }))
+  ];
+}
+function fontRoles(fonts) {
+  const body = fonts?.body?.family ? fonts.body : fonts;
+  const heading = [fonts?.heading, fonts, fonts?.body].find((spec) => spec?.family);
+  return [
+    {
+      role: "body",
+      spec: body,
+      weight: fonts?.body?.weight ?? fonts?.weight ?? FONT_DEFAULT_BODY_WEIGHT
+    },
+    {
+      role: "heading",
+      spec: heading,
+      weight: fonts?.heading?.weight ?? FONT_DEFAULT_HEADING_WEIGHT
+    }
+  ].flatMap(({ role, spec, weight }) => spec?.family ? [{ role, family: spec.family, weight, faces: specFaces(spec) }] : []);
+}
+function coversWeight(weight, target) {
+  if (weight === undefined) {
+    return true;
+  }
+  const [low = Number.NaN, high = low] = String(weight).trim().split(/\s+/).map(Number);
+  return Math.min(low, high) <= target && target <= Math.max(low, high);
+}
+function uprightFaces(role) {
+  return role.faces.filter((face) => face.source && (face.style ?? "normal") === "normal");
+}
+function roleFace(role) {
+  return uprightFaces(role).find((face) => coversWeight(face.weight, role.weight));
+}
+function metricsFace(role) {
+  return roleFace(role) ?? uprightFaces(role)[0];
+}
+function isSiteFontPath(source) {
+  return !/^[a-z][a-z\d+.-]*:|^\/\//i.test(source);
+}
 
 // compiler/constants/fonts.ts
+var FONT_FALLBACK_LOCAL = "Arial";
+var FONT_FALLBACK_METRICS = {
+  ascent: 1854,
+  descent: -434,
+  lineGap: 67,
+  unitsPerEm: 2048,
+  xWidthAvg: 913
+};
+var GOOGLE_FONT_FACE_RE = /(?:\/\*\s*([\w-]+)\s*\*\/\s*)?@font-face\s*\{([^}]*)\}/g;
+
+// compiler/utils/font-fallbacks.ts
+var metricsCache = new Map;
+async function fontMetrics(bytes) {
+  const key = createHash2("sha256").update(bytes).digest("hex");
+  const cached = metricsCache.get(key);
+  if (cached) {
+    return cached;
+  }
+  const { ascent, descent, lineGap, unitsPerEm, xWidthAvg } = await fromBuffer(bytes);
+  if (!(unitsPerEm > 0 && xWidthAvg > 0 && ascent > 0)) {
+    throw new Error("The font file has no usable metrics");
+  }
+  const metrics = { ascent, descent, lineGap, unitsPerEm, xWidthAvg };
+  metricsCache.set(key, metrics);
+  return metrics;
+}
+function percent(value) {
+  return Math.round(value * 1e4) / 100;
+}
+function fallbackFor(family, metrics) {
+  const sizeAdjust = metrics.xWidthAvg / metrics.unitsPerEm / (FONT_FALLBACK_METRICS.xWidthAvg / FONT_FALLBACK_METRICS.unitsPerEm);
+  const em = metrics.unitsPerEm * sizeAdjust;
+  return {
+    family,
+    local: FONT_FALLBACK_LOCAL,
+    sizeAdjust: percent(sizeAdjust),
+    ascentOverride: percent(metrics.ascent / em),
+    descentOverride: percent(Math.abs(metrics.descent) / em),
+    lineGapOverride: percent(metrics.lineGap / em)
+  };
+}
+function googleFontFile(css, family, weight) {
+  const faces = [...css.matchAll(GOOGLE_FONT_FACE_RE)].map(([, subset, body = ""]) => ({
+    subset,
+    family: /font-family:\s*['"]?([^;'"]+)/.exec(body)?.[1]?.trim(),
+    style: /font-style:\s*(\w+)/.exec(body)?.[1] ?? "normal",
+    weight: /font-weight:\s*([\d ]+)/.exec(body)?.[1],
+    url: /url\(\s*["']?([^\s"')]+)/.exec(body)?.[1]
+  })).filter((face) => face.family?.toLowerCase() === family.toLowerCase() && face.style === "normal" && face.url);
+  const matching = faces.filter((face) => coversWeight(face.weight, weight));
+  const face = matching.find((item) => item.subset === "latin") ?? matching[0] ?? faces.find((item) => item.subset === "latin") ?? faces[0];
+  return face?.url;
+}
+async function roleFontFile(role, params) {
+  const face = metricsFace(role);
+  if (face?.source) {
+    if (!isSiteFontPath(face.source)) {
+      return;
+    }
+    const path = `/${face.source.replace(/[?#].*$/, "").replace(/^\/+/, "")}`;
+    if (!params.publicFiles.has(path)) {
+      throw new Error(`${face.source} is not a file in public/`);
+    }
+    return join7(params.siteRoot, "public", path);
+  }
+  if (role.faces.some((item) => item.source) || !params.stylesheet) {
+    return;
+  }
+  const stylesheet = join7(params.workDir, "site", "public", params.stylesheet);
+  const file = googleFontFile(await readFile4(stylesheet, "utf8"), role.family, role.weight);
+  return file?.startsWith("./") ? join7(dirname3(stylesheet), file.slice(2)) : undefined;
+}
+async function siteFontFallbacks(config, params) {
+  const result = { fallbacks: [], diagnostics: [] };
+  const families = new Set;
+  for (const role of fontRoles(config.fonts)) {
+    if (families.has(role.family)) {
+      continue;
+    }
+    families.add(role.family);
+    try {
+      const file = await roleFontFile(role, params);
+      if (file) {
+        result.fallbacks.push(fallbackFor(role.family, await fontMetrics(await readFile4(file))));
+      }
+    } catch (error) {
+      result.diagnostics.push({
+        severity: "warning",
+        file: SITE_CONFIG_FILENAME,
+        code: "font_fallback",
+        message: `Could not measure ${role.family} for its fallback font, so text may shift when it loads. ${error instanceof Error ? error.message : String(error)}`
+      });
+    }
+  }
+  return result;
+}
+
+// compiler/utils/site-fonts.ts
+import { cp, mkdir as mkdir4, mkdtemp, readdir as readdir2, rename, rm } from "node:fs/promises";
+import { join as join8 } from "node:path";
+
+// ../../packages/sites-core/src/constants/fonts.ts
 var GOOGLE_FONTS_CSS_URL = "https://fonts.googleapis.com/css2";
 var GOOGLE_FONTS_LICENSE_URL = "https://raw.githubusercontent.com/google/fonts/main";
+var GOOGLE_FONTS_FILE_ORIGIN = "https://fonts.gstatic.com";
+var GOOGLE_FONTS_ENDPOINTS = {
+  css: GOOGLE_FONTS_CSS_URL,
+  files: GOOGLE_FONTS_FILE_ORIGIN,
+  licenses: GOOGLE_FONTS_LICENSE_URL
+};
 var FONT_LICENSE_LOCATIONS = [
   ["ofl", "OFL.txt"],
   ["apache", "LICENSE.txt"],
@@ -3930,8 +5886,18 @@ var FONT_WEIGHT_RANGES = [
 ];
 var FONT_COMMON_WEIGHTS = [300, 400, 500, 600, 700];
 var DEFAULT_HEADING_WEIGHT = 600;
+var FONT_CACHE_DIR = "font-cache";
 
-// compiler/utils/site-fonts.ts
+// ../../packages/sites-core/src/utils/hash.ts
+async function sha256Hex(data) {
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+// ../../packages/sites-core/src/utils/site-fonts.ts
+var encoder = new TextEncoder;
+var decoder = new TextDecoder;
+
 class FontRequestError extends Error {
   status;
   constructor(status) {
@@ -3961,6 +5927,12 @@ function weightCandidates(weights) {
     ])
   ];
 }
+function headingSpec(fonts) {
+  if (fonts?.heading?.family) {
+    return fonts.heading;
+  }
+  return fonts?.family ? fonts : fonts?.body;
+}
 function requestedWeights(fonts) {
   const headingWeight = fonts?.heading?.weight;
   const uses = [
@@ -3969,13 +5941,13 @@ function requestedWeights(fonts) {
       weights: [fonts?.body?.weight ?? fonts?.weight]
     },
     {
-      spec: fonts?.heading?.family ? fonts.heading : fonts?.family ? fonts : fonts?.body,
+      spec: headingSpec(fonts),
       weights: headingWeight === undefined ? [undefined, DEFAULT_HEADING_WEIGHT] : [headingWeight]
     }
   ];
   const families = new Map;
   for (const { spec, weights } of uses) {
-    if (spec?.family && !spec.source) {
+    if (spec?.family && !spec.source && !spec.faces) {
       families.set(spec.family, [
         ...families.get(spec.family) ?? [],
         ...weights
@@ -3992,27 +5964,19 @@ function googleFontsUrl(specs) {
   url.searchParams.set("display", "swap");
   return url;
 }
-async function firstSupportedSpec(family, options) {
-  for (const spec of options) {
-    try {
-      await fetchFontAsset(googleFontsUrl(new Map([[family, spec]])).toString(), FONT_CSS_MAX_BYTES);
-      return spec;
-    } catch (error) {
-      if (!(error instanceof FontRequestError && error.status === 400)) {
-        throw error;
-      }
-    }
-  }
-  throw new Error(`Google Fonts has no ${family} in the requested weights`);
+function cssRequestUrl(url, endpoints) {
+  const target = new URL(endpoints.css);
+  target.search = url.search;
+  return target.toString();
 }
-async function supportedFontsUrl(candidates) {
-  const specs = await Promise.all([...candidates].map(async ([family, options]) => [family, await firstSupportedSpec(family, options)]));
-  return googleFontsUrl(new Map(specs));
+async function shortHash(data) {
+  return (await sha256Hex(data)).slice(0, 16);
 }
-async function fetchFontAsset(url, maxBytes) {
+async function fetchFontAsset(url, maxBytes, signal) {
+  const timeout = AbortSignal.timeout(FONT_FETCH_TIMEOUT_MS);
   const response = await fetch(url, {
     redirect: "error",
-    signal: AbortSignal.timeout(FONT_FETCH_TIMEOUT_MS),
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     headers: { "User-Agent": FONT_USER_AGENT }
   });
   if (!response.ok || !response.body) {
@@ -4037,47 +6001,146 @@ async function fetchFontAsset(url, maxBytes) {
   } finally {
     await reader.cancel();
   }
-  return Buffer.concat(chunks);
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
-async function fetchFontLicense(family) {
+async function firstSupportedSpec(family, options, endpoints, signal) {
+  for (const spec of options) {
+    try {
+      await fetchFontAsset(cssRequestUrl(googleFontsUrl(new Map([[family, spec]])), endpoints), FONT_CSS_MAX_BYTES, signal);
+      return spec;
+    } catch (error) {
+      if (!(error instanceof FontRequestError && error.status === 400)) {
+        throw error;
+      }
+    }
+  }
+  throw new Error(`Google Fonts has no ${family} in the requested weights`);
+}
+async function supportedFontsUrl(candidates, endpoints, signal) {
+  const specs = await Promise.all(candidates.map(async ([family, options]) => [
+    family,
+    await firstSupportedSpec(family, options, endpoints, signal)
+  ]));
+  return googleFontsUrl(new Map(specs));
+}
+async function fetchFontLicense(family, endpoints, signal) {
   const directory = family.toLowerCase().replace(/[^a-z0-9]/g, "");
   for (const [category, name] of FONT_LICENSE_LOCATIONS) {
     try {
-      return await fetchFontAsset(`${GOOGLE_FONTS_LICENSE_URL}/${category}/${directory}/${name}`, FONT_CSS_MAX_BYTES);
-    } catch {}
+      return await fetchFontAsset(`${endpoints.licenses}/${category}/${directory}/${name}`, FONT_CSS_MAX_BYTES, signal);
+    } catch {
+      signal?.throwIfAborted();
+    }
   }
   throw new Error(`Could not retrieve the redistribution license for ${family}`);
 }
-async function prepareSiteFonts(config, workDir) {
-  const families = requestedWeights(config.fonts);
-  if (families.size === 0) {
-    return { publicFiles: [], diagnostics: [] };
+async function downloadFontFiles(url, families, requireEveryFamily, endpoints, signal) {
+  const css = decoder.decode(await fetchFontAsset(cssRequestUrl(url, endpoints), FONT_CSS_MAX_BYTES, signal));
+  const urls = [
+    ...new Set([...css.matchAll(FONT_URL_RE)].flatMap((match) => match[1] ? [match[1]] : []))
+  ];
+  if (urls.length === 0) {
+    throw new Error("Font stylesheet contains no font files");
   }
+  const served = css.toLowerCase();
+  if (requireEveryFamily && families.some((family) => !served.includes(`font-family: '${family.toLowerCase()}'`))) {
+    throw new FontRequestError(400);
+  }
+  const sources = urls.map((source) => {
+    const parsed = new URL(source);
+    if (parsed.origin !== new URL(endpoints.files).origin || parsed.username || parsed.password || parsed.search || parsed.hash || !FONT_PATH_RE.test(parsed.pathname)) {
+      throw new Error("Unsupported font file URL");
+    }
+    return { source, extension: parsed.pathname.split(".").at(-1) };
+  });
+  const files = [];
+  const replacements = new Map;
+  const downloads = families.map((family) => async () => {
+    const license = await fetchFontLicense(family, endpoints, signal);
+    files.push({
+      name: `font-license-${await shortHash(license)}.txt`,
+      data: license
+    });
+  });
+  downloads.push(...sources.map(({ source, extension }) => async () => {
+    const bytes = await fetchFontAsset(source, FONT_FILE_MAX_BYTES, signal);
+    const name = `font-${await shortHash(bytes)}.${extension}`;
+    files.push({ name, data: bytes });
+    replacements.set(source, `./${name}`);
+  }));
+  const results = await Promise.allSettled(Array.from({ length: FONT_DOWNLOAD_CONCURRENCY }, async () => {
+    let download = downloads.shift();
+    while (download) {
+      signal?.throwIfAborted();
+      await download();
+      download = downloads.shift();
+    }
+  }));
+  for (const result of results) {
+    if (result.status === "rejected") {
+      throw result.reason;
+    }
+  }
+  const localCss = css.replace(FONT_URL_RE, (_, source) => `url("${replacements.get(source)}")`);
+  if (/https?:\/\//i.test(localCss) || /@import/i.test(localCss)) {
+    throw new Error("Unsupported external font stylesheet reference");
+  }
+  const stylesheet = encoder.encode(localCss);
+  files.push({
+    name: `fonts-${await shortHash(stylesheet)}.css`,
+    data: stylesheet
+  });
+  return files.sort((a, b) => a.name.localeCompare(b.name));
+}
+async function planSiteFonts(fonts) {
+  const families = requestedWeights(fonts);
+  if (families.size === 0) {
+    return null;
+  }
+  const candidates = [...families].map(([family, weights]) => [family, weightCandidates(weights)]);
+  const url = googleFontsUrl(new Map(candidates.map(([family, specs]) => [family, specs[0] ?? ""]))).toString();
+  return {
+    key: await sha256Hex(encoder.encode(url + JSON.stringify(candidates))),
+    url,
+    families: [...families.keys()],
+    candidates
+  };
+}
+async function downloadSiteFonts(plan, { signal, endpoints = GOOGLE_FONTS_ENDPOINTS } = {}) {
+  try {
+    return await downloadFontFiles(new URL(plan.url), plan.families, true, endpoints, signal);
+  } catch (error) {
+    if (!(error instanceof FontRequestError && error.status === 400)) {
+      throw error;
+    }
+    return await downloadFontFiles(await supportedFontsUrl(plan.candidates, endpoints, signal), plan.families, false, endpoints, signal);
+  }
+}
+
+// compiler/utils/site-fonts.ts
+async function prepareSiteFonts(config, workDir) {
   let stagingDir;
   let publicDir;
   try {
-    const candidates = new Map([...families].map(([family, weights]) => [
-      family,
-      weightCandidates(weights)
-    ]));
-    const url = googleFontsUrl(new Map([...candidates].map(([family, specs]) => [family, specs[0] ?? ""])));
-    const key = createHash("sha256").update(url.toString()).update(JSON.stringify([...candidates])).digest("hex");
-    const cacheRoot = join5(workDir, "font-cache");
-    const cacheDir = join5(cacheRoot, key);
-    const publicPath = `/${SITE_ASSETS_DIR}/fonts/${key}`;
-    publicDir = join5(workDir, "site", "public", publicPath);
+    const plan = await planSiteFonts(config.fonts);
+    if (!plan) {
+      return { publicFiles: [], diagnostics: [] };
+    }
+    const cacheRoot = join8(workDir, FONT_CACHE_DIR);
+    const cacheDir = join8(cacheRoot, plan.key);
+    const publicPath = `/${SITE_ASSETS_DIR}/fonts/${plan.key}`;
+    publicDir = join8(workDir, "site", "public", publicPath);
     if (!await exists(cacheDir)) {
-      await mkdir2(cacheRoot, { recursive: true });
-      stagingDir = await mkdtemp(join5(cacheRoot, "batch-"));
-      try {
-        await downloadSiteFonts(url, [...families.keys()], stagingDir, true);
-      } catch (error) {
-        if (!(error instanceof FontRequestError && error.status === 400)) {
-          throw error;
-        }
-        await rm(stagingDir, { recursive: true, force: true });
-        stagingDir = await mkdtemp(join5(cacheRoot, "batch-"));
-        await downloadSiteFonts(await supportedFontsUrl(candidates), [...families.keys()], stagingDir, false);
+      await mkdir4(cacheRoot, { recursive: true });
+      stagingDir = await mkdtemp(join8(cacheRoot, "batch-"));
+      for (const file of await downloadSiteFonts(plan)) {
+        await writeFileEnsured(join8(stagingDir, file.name), file.data);
       }
       await rename(stagingDir, cacheDir);
       stagingDir = undefined;
@@ -4108,58 +6171,6 @@ async function prepareSiteFonts(config, workDir) {
     };
   }
 }
-async function downloadSiteFonts(url, families, stagingDir, requireEveryFamily) {
-  const css = (await fetchFontAsset(url.toString(), FONT_CSS_MAX_BYTES)).toString("utf8");
-  const urls = [
-    ...new Set([...css.matchAll(FONT_URL_RE)].flatMap((match) => match[1] ? [match[1]] : []))
-  ];
-  if (urls.length === 0) {
-    throw new Error("Font stylesheet contains no font files");
-  }
-  const served = css.toLowerCase();
-  if (requireEveryFamily && families.some((family) => !served.includes(`font-family: '${family.toLowerCase()}'`))) {
-    throw new FontRequestError(400);
-  }
-  const sources = urls.map((source) => {
-    const parsed = new URL(source);
-    if (parsed.protocol !== "https:" || parsed.host !== "fonts.gstatic.com" || parsed.username || parsed.password || parsed.search || parsed.hash || !FONT_PATH_RE.test(parsed.pathname)) {
-      throw new Error("Unsupported font file URL");
-    }
-    return { source, extension: parsed.pathname.split(".").at(-1) };
-  });
-  const replacements = new Map;
-  const downloads = families.map((family) => async () => {
-    const license = await fetchFontLicense(family);
-    const hash = createHash("sha256").update(license).digest("hex").slice(0, 16);
-    await writeFileEnsured(join5(stagingDir, `font-license-${hash}.txt`), license);
-  });
-  downloads.push(...sources.map(({ source, extension }) => async () => {
-    const bytes = await fetchFontAsset(source, FONT_FILE_MAX_BYTES);
-    const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 16);
-    const name = `font-${hash}.${extension}`;
-    await writeFileEnsured(join5(stagingDir, name), bytes);
-    replacements.set(source, `./${name}`);
-  }));
-  const results = await Promise.allSettled(Array.from({ length: FONT_DOWNLOAD_CONCURRENCY }, async () => {
-    let download = downloads.shift();
-    while (download) {
-      await download();
-      download = downloads.shift();
-    }
-  }));
-  for (const result of results) {
-    if (result.status === "rejected") {
-      throw result.reason;
-    }
-  }
-  const localCss = css.replace(FONT_URL_RE, (_, source) => `url("${replacements.get(source)}")`);
-  if (/https?:\/\//i.test(localCss) || /@import/i.test(localCss)) {
-    throw new Error("Unsupported external font stylesheet reference");
-  }
-  const hash = createHash("sha256").update(localCss).digest("hex").slice(0, 16);
-  const stylesheet = `fonts-${hash}.css`;
-  await writeFileEnsured(join5(stagingDir, stylesheet), localCss);
-}
 
 // compiler/prepare.ts
 async function readSiteFiles(siteRoot) {
@@ -4167,7 +6178,7 @@ async function readSiteFiles(siteRoot) {
   if (hasErrors(collected.diagnostics)) {
     return { collected, files: new Map };
   }
-  const texts = await Promise.all(collected.files.map((file) => isTextSourceFile(file.path) ? readFile3(join6(siteRoot, file.path), "utf8") : null));
+  const texts = await Promise.all(collected.files.map((file) => isTextSourceFile(file.path) ? readFile5(join9(siteRoot, file.path), "utf8") : null));
   const files = new Map(collected.files.map((file, index) => [file.path, texts[index] ?? null]));
   if (collected.ignoreContent !== null) {
     files.set(SITE_IGNORE_FILENAME, collected.ignoreContent);
@@ -4183,6 +6194,7 @@ async function prepareSite(params) {
         config: null,
         diagnostics: [],
         entries: [],
+        links: [],
         outputs: new Map
       },
       collectDiagnostics: collected.diagnostics,
@@ -4204,80 +6216,89 @@ async function prepareSite(params) {
     };
   }
   if (params.incremental) {
-    const siteDir = join6(params.workDir, "site");
-    const entriesDir = join6(params.workDir, "entries");
+    const siteDir = join9(params.workDir, "site");
+    const entriesDir = join9(params.workDir, "entries");
     const expected = new Set([
-      ...collected.files.map((file) => join6(siteDir, file.path)),
-      ...[...validation.outputs.keys()].map((path) => join6(siteDir, path)),
-      ...validation.entries.map((entry) => join6(entriesDir, entry.area, `${entry.slug}.${entry.format}`))
+      ...collected.files.map((file) => join9(siteDir, file.path)),
+      ...[...validation.outputs.keys()].map((path) => join9(siteDir, path)),
+      ...validation.entries.map((entry) => join9(entriesDir, entry.area, `${entry.slug}.${entry.format}`))
     ]);
     const staged = [
       ...await listFiles(siteDir).catch(() => []),
       ...await listFiles(entriesDir).catch(() => [])
     ];
-    const generated = `${join6(siteDir, "public", "_notra")}${sep}`;
+    const generated = `${join9(siteDir, "public", "_notra")}${sep}`;
     await Promise.all(staged.filter((path) => !expected.has(path) && !path.startsWith(generated)).map((path) => rm2(path, { force: true })));
     await Promise.all([...expected].map(async (path) => {
-      const existing = await stat(path).catch(() => null);
+      const existing = await stat2(path).catch(() => null);
       if (existing?.isDirectory()) {
         await rm2(path, { recursive: true, force: true });
       }
     }));
   } else {
-    await rm2(join6(params.workDir, "site"), { recursive: true, force: true });
-    await rm2(join6(params.workDir, "entries"), { recursive: true, force: true });
+    await rm2(join9(params.workDir, "site"), { recursive: true, force: true });
+    await rm2(join9(params.workDir, "entries"), { recursive: true, force: true });
   }
-  await Promise.all(SITE_AREAS.map((area) => mkdir3(join6(params.workDir, "entries", area), { recursive: true })));
+  await Promise.all(SITE_AREAS.map((area) => mkdir5(join9(params.workDir, "entries", area), { recursive: true })));
   await Promise.all(collected.files.map(async (file) => {
-    const target = join6(params.workDir, "site", file.path);
+    const target = join9(params.workDir, "site", file.path);
     const transformed = validation.outputs.get(file.path);
     if (transformed !== undefined) {
       await writeFileEnsured(target, transformed);
       return;
     }
     if (params.incremental) {
-      await writeFileEnsured(target, await readFile3(join6(params.siteRoot, file.path)));
+      await writeFileEnsured(target, await readFile5(join9(params.siteRoot, file.path)));
     } else {
-      await mkdir3(dirname2(target), { recursive: true });
-      await cp2(join6(params.siteRoot, file.path), target);
+      await mkdir5(dirname4(target), { recursive: true });
+      await cp2(join9(params.siteRoot, file.path), target);
     }
   }));
-  await Promise.all([...validation.outputs].filter(([path]) => !files.has(path)).map(([path, source]) => writeFileEnsured(join6(params.workDir, "site", path), source)));
-  const customCss = collected.files.filter((file) => isSiteStylesheet(file.path)).map((file) => `@import ${JSON.stringify(join6(params.workDir, "site", file.path))};`).join(`
+  await Promise.all([...validation.outputs].filter(([path]) => !files.has(path)).map(([path, source]) => writeFileEnsured(join9(params.workDir, "site", path), source)));
+  const customCss = collected.files.filter((file) => isSiteStylesheet(file.path)).map((file) => `@import ${JSON.stringify(join9(params.workDir, "site", file.path))};`).join(`
 `);
-  await writeFileEnsured(join6(params.workDir, "custom.css"), `${customCss}
+  await writeFileEnsured(join9(params.workDir, "custom.css"), `${customCss}
 `);
-  await mkdir3(join6(params.workDir, "site", "public", SITE_ASSETS_DIR), {
+  await mkdir5(join9(params.workDir, "site", "public", SITE_ASSETS_DIR), {
     recursive: true
   });
   const customScripts = await Promise.all(sortCustomScriptPaths(collected.files.map((file) => file.path)).map(async (path) => {
-    const source = await readFile3(join6(params.siteRoot, path));
+    const source = await readFile5(join9(params.siteRoot, path));
     const name = path.replace(/\.js$/i, "").replace(/[^A-Za-z0-9_-]+/g, "-");
-    const fileName = `custom-${name}.${createHash2("sha256").update(source).digest("hex").slice(0, 10)}.js`;
-    await writeFileEnsured(join6(params.workDir, "site", "public", SITE_ASSETS_DIR, fileName), source);
+    const fileName = `custom-${name}.${createHash3("sha256").update(source).digest("hex").slice(0, 10)}.js`;
+    await writeFileEnsured(join9(params.workDir, "site", "public", SITE_ASSETS_DIR, fileName), source);
     return { path, fileName };
   }));
-  await Promise.all(validation.entries.map((entry) => writeFileEnsured(join6(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), validation.outputs.get(entry.path) ?? files.get(entry.path) ?? "")));
+  await Promise.all(validation.entries.map((entry) => writeFileEnsured(join9(params.workDir, "entries", entry.area, `${entry.slug}.${entry.format}`), validation.outputs.get(entry.path) ?? files.get(entry.path) ?? "")));
   const fonts = await prepareSiteFonts(validation.config, params.workDir);
-  validation.diagnostics.push(...fonts.diagnostics);
+  const fallbacks = await siteFontFallbacks(validation.config, {
+    siteRoot: params.siteRoot,
+    workDir: params.workDir,
+    publicFiles: new Set(publicFiles),
+    stylesheet: fonts.stylesheet
+  });
+  validation.diagnostics.push(...fonts.diagnostics, ...fallbacks.diagnostics);
   return {
     validation,
     collectDiagnostics: collected.diagnostics,
     publicFiles: [...publicFiles, ...fonts.publicFiles],
     customScripts,
-    fontStylesheet: fonts.stylesheet
+    fontStylesheet: fonts.stylesheet,
+    fontFallbacks: fallbacks.fallbacks
   };
 }
 
 // compiler/utils/astro-log.ts
+import { stripVTControlCharacters } from "node:util";
 function createAstroLogFilter() {
   const reportedLanguages = new Set;
   return (text) => text.split(`
 `).filter((line) => {
-    if (ASTRO_LOG_NOISE.some((pattern) => pattern.test(line))) {
+    const plain = stripVTControlCharacters(line);
+    if (ASTRO_LOG_NOISE.some((pattern) => pattern.test(plain))) {
       return false;
     }
-    const language = SHIKI_UNKNOWN_LANGUAGE.exec(line)?.[1];
+    const language = SHIKI_UNKNOWN_LANGUAGE.exec(plain)?.[1];
     if (language === undefined) {
       return true;
     }
@@ -4320,24 +6341,29 @@ var CONSENT_SHADOWS = {
 var DATABUDDY_CONNECTION_KEYS = new Set([
   "clientId",
   "scriptUrl",
-  "apiUrl"
+  "apiUrl",
+  "replay"
 ]);
 
 // compiler/utils/consent.ts
 function consentAnalytics({
+  capless,
   databuddy,
   ga4,
   plausible,
   posthog,
+  rybbit,
   umami
 }) {
   const databuddyConfig = databuddy && {
     clientId: databuddy.clientId,
     scriptUrl: databuddy.scriptUrl,
     apiUrl: databuddy.apiUrl,
+    replay: databuddy.replay,
     options: Object.fromEntries(Object.entries(databuddy).filter(([key]) => !DATABUDDY_CONNECTION_KEYS.has(key)))
   };
   return {
+    capless: capless && { key: capless.key, scriptUrl: CAPLESS_SCRIPT_URL },
     databuddy: databuddyConfig,
     gtag: ga4 && { id: ga4.measurementId },
     posthog: posthog && {
@@ -4349,6 +6375,7 @@ function consentAnalytics({
       domain: plausible.domain,
       scriptUrl: plausible.server ? `https://${plausible.server}/js/script.js` : undefined
     },
+    rybbit: rybbit && rybbitScript(rybbit),
     umami: umami && {
       websiteId: umami.websiteId,
       scriptUrl: umami.scriptUrl,
@@ -4356,12 +6383,16 @@ function consentAnalytics({
     }
   };
 }
-function siteConsent(config, customScripts, analytics, dev) {
+function onHostingDomain(publicOrigin, hostingDomain) {
+  return hostingDomain !== undefined && `.${new URL(publicOrigin).hostname}`.endsWith(`.${hostingDomain}`);
+}
+function siteConsent(config, customScripts, analytics, dev, publicOrigin, hostingDomain) {
   const { c15t } = config.integrations;
   if (!c15t) {
     return null;
   }
   const gated = c15t.scripts ?? {};
+  const crossSubdomain = c15t.crossSubdomain && !onHostingDomain(publicOrigin, hostingDomain);
   return {
     backendURL: analytics ? c15t.backendURL : null,
     devTools: dev && c15t.devTools,
@@ -4374,12 +6405,14 @@ function siteConsent(config, customScripts, analytics, dev) {
     options: {
       ui: "react",
       colorScheme: "none",
+      consentCategories: analytics ? [C15T_ANALYTICS_CATEGORY] : undefined,
       presentation: { prompt: c15t.prompt, preferences: c15t.preferences },
       legalLinks: c15t.legalLinks,
       i18n: c15t.locale ? { locale: c15t.locale, detectLanguage: false } : undefined,
       storageConfig: {
-        crossSubdomain: c15t.crossSubdomain,
-        defaultExpiryDays: c15t.expiryDays
+        defaultDomain: crossSubdomain ? `.${new URL(publicOrigin).hostname.split(".").slice(-2).join(".")}` : undefined,
+        defaultExpiryDays: c15t.expiryDays,
+        storageKey: crossSubdomain || !publicOrigin.startsWith("https:") ? undefined : C15T_HOST_STORAGE_KEY
       },
       disableAnimation: c15t.disableAnimation,
       theme: {
@@ -4392,21 +6425,30 @@ function siteConsent(config, customScripts, analytics, dev) {
     }
   };
 }
-function consentScriptDiagnostics(config, customScripts) {
+function consentDiagnostics(config, customScripts, publicOrigin, hostingDomain) {
   const paths = new Set(customScripts.map((script) => script.path));
-  return Object.keys(config.integrations.c15t?.scripts ?? {}).filter((path) => !paths.has(path)).map((path) => ({
+  const diagnostics = Object.keys(config.integrations.c15t?.scripts ?? {}).filter((path) => !paths.has(path)).map((path) => ({
     severity: "error",
     file: "blog.json",
     code: "consent_script_missing",
     message: `integrations.c15t.scripts lists ${path}, but there is no custom script at that path.`
   }));
+  if (config.integrations.c15t?.crossSubdomain && onHostingDomain(publicOrigin, hostingDomain)) {
+    diagnostics.push({
+      severity: "warning",
+      file: "blog.json",
+      code: "consent_cross_subdomain_ignored",
+      message: `integrations.c15t.crossSubdomain only applies on your own domain. On ${hostingDomain} the consent choice stays on this site's host, so other sites there can't read or change it.`
+    });
+  }
+  return diagnostics;
 }
 
 // compiler/utils/head-scripts.ts
-function siteHeadScripts(config, mount, customScripts, analytics) {
+function siteHeadScripts(config, mount, customScripts, analytics, hostingDomain) {
   const gated = config.integrations.c15t?.scripts ?? {};
   return [
-    ...analytics && !analyticsGatedByConsent(config.integrations) ? integrationHeadScripts(config.integrations) : [],
+    ...analytics && !analyticsGatedByConsent(config.integrations) ? integrationHeadScripts(config.integrations, hostingDomain) : [],
     ...customScripts.filter((script) => !gated[script.path]).map((script) => ({
       kind: "external",
       src: joinMountPath(mount, `${SITE_ASSETS_DIR}/${script.fileName}`),
@@ -4415,8 +6457,43 @@ function siteHeadScripts(config, mount, customScripts, analytics) {
   ];
 }
 
+// compiler/utils/html-ids.ts
+import { SAXParser as SAXParser2 } from "parse5-sax-parser";
+
+// compiler/constants/html-ids.ts
+var CLIENT_ONLY_ISLAND = 'client="only"';
+
+// compiler/utils/html-ids.ts
+function htmlIds(html) {
+  if (html.includes(CLIENT_ONLY_ISLAND)) {
+    return null;
+  }
+  const ids = new Set;
+  const parser = new SAXParser2;
+  let templates = 0;
+  parser.on("startTag", (token) => {
+    if (templates === 0) {
+      for (const { name, value } of token.attrs) {
+        if (name === "id" || name === "name" && token.tagName === "a") {
+          ids.add(value);
+        }
+      }
+    }
+    if (token.tagName === "template" && !token.selfClosing) {
+      templates += 1;
+    }
+  });
+  parser.on("endTag", (token) => {
+    if (token.tagName === "template" && templates > 0) {
+      templates -= 1;
+    }
+  });
+  parser.end(html);
+  return ids;
+}
+
 // compiler/utils/inline-scripts.ts
-import { createHash as createHash3 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 
 // compiler/constants/inline-scripts.ts
 var SCRIPT_ELEMENT = /<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi;
@@ -4445,18 +6522,18 @@ function inlineScriptHashes(html) {
 `, `
 `).replaceAll("\r", `
 `);
-    hashes.push(createHash3("sha256").update(text, "utf8").digest("base64"));
+    hashes.push(createHash4("sha256").update(text, "utf8").digest("base64"));
   }
   return hashes;
 }
 
 // compiler/utils/nested-links.ts
-import { SAXParser } from "parse5-sax-parser";
+import { SAXParser as SAXParser3 } from "parse5-sax-parser";
 function unnestLinks(html) {
   if (!/<a(?:\s|\/|>)/i.test(html)) {
     return html;
   }
-  const parser = new SAXParser({ sourceCodeLocationInfo: true });
+  const parser = new SAXParser3({ sourceCodeLocationInfo: true });
   const dropped = [];
   const edits = [];
   parser.on("startTag", (token) => {
@@ -4489,13 +6566,97 @@ function hasReactComponents(outputs) {
   return [...outputs.keys()].some((path) => /\.jsx?$/i.test(path) && !path.startsWith("public/") && !isCustomScriptPath(path));
 }
 
+// compiler/utils/work-lock.ts
+import { randomUUID } from "node:crypto";
+import { link, mkdir as mkdir6, readFile as readFile6, rm as rm3, writeFile as writeFile4 } from "node:fs/promises";
+import { dirname as dirname5 } from "node:path";
+
+// compiler/utils/usage-error.ts
+class UsageError extends Error {
+  name = "UsageError";
+}
+
+// compiler/utils/work-lock.ts
+function isRunning(pid) {
+  if (!(Number.isInteger(pid) && pid > 0)) {
+    return false;
+  }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+async function publish(path) {
+  const token = `${process.pid} ${randomUUID()}`;
+  const draft = `${path}.${process.pid}.${randomUUID()}`;
+  await writeFile4(draft, token);
+  try {
+    await link(draft, path);
+    return token;
+  } catch (error) {
+    if (error.code === "EEXIST") {
+      return null;
+    }
+    throw error;
+  } finally {
+    await rm3(draft, { force: true });
+  }
+}
+async function ownerOf(path) {
+  const token = await readFile6(path, "utf8").catch(() => null);
+  if (token === null) {
+    return null;
+  }
+  return { pid: Number(token.split(" ")[0]), token };
+}
+async function removeIfStill(path, token) {
+  if ((await ownerOf(path))?.token === token) {
+    await rm3(path, { force: true });
+  }
+}
+async function clearStale(lockPath, stale) {
+  const guard = `${lockPath}.takeover`;
+  const guardToken = await publish(guard);
+  if (guardToken === null) {
+    const holder = await ownerOf(guard);
+    if (holder && !isRunning(holder.pid)) {
+      await removeIfStill(guard, holder.token);
+    }
+    return;
+  }
+  try {
+    await removeIfStill(lockPath, stale.token);
+  } finally {
+    await removeIfStill(guard, guardToken);
+  }
+}
+async function lockWorkDir(lockPath) {
+  await mkdir6(dirname5(lockPath), { recursive: true });
+  for (let attempt = 0;attempt < 5; attempt += 1) {
+    const token = await publish(lockPath);
+    if (token !== null) {
+      return () => removeIfStill(lockPath, token);
+    }
+    const owner = await ownerOf(lockPath);
+    if (owner && isRunning(owner.pid)) {
+      throw new UsageError(`Another Notra Sites build (process ${owner.pid}) is running with this toolchain. Wait for it to finish, then build again. If none is running, delete ${lockPath}.`);
+    }
+    if (owner) {
+      await clearStale(lockPath, owner);
+    }
+  }
+  throw new UsageError(`Couldn't lock the build folder. Try the build again, or delete ${lockPath} if no build is running.`);
+}
+
 // compiler/build.ts
 function astroBin(toolchainRoot) {
-  const require2 = createRequire2(join7(toolchainRoot, "package.json"));
+  const require2 = createRequire2(join10(toolchainRoot, "package.json"));
   const packageJsonPath = require2.resolve("astro/package.json");
   const packageJson = require2(packageJsonPath);
   const bin = typeof packageJson.bin === "string" ? packageJson.bin : packageJson.bin.astro;
-  return resolve(dirname3(packageJsonPath), bin ?? "astro.js");
+  return resolve2(dirname6(packageJsonPath), bin ?? "astro.js");
 }
 function runAstro(toolchainRoot, command, paramsPath, extraArgs = [], onOutput = (chunk) => process.stderr.write(chunk)) {
   return new Promise((resolvePromise, reject) => {
@@ -4523,7 +6684,7 @@ function runAstro(toolchainRoot, command, paramsPath, extraArgs = [], onOutput =
   });
 }
 async function writeBuildParams(path, params) {
-  await writeFile2(path, JSON.stringify(params));
+  await writeFile5(path, JSON.stringify(params));
 }
 function failedBuild(diagnostics, areas = []) {
   return {
@@ -4537,7 +6698,18 @@ function failedBuild(diagnostics, areas = []) {
   };
 }
 async function buildSite(options) {
-  const workDir = options.workDir ?? join7(options.toolchainRoot, ".notra", "work");
+  if (options.workDir) {
+    return buildInWorkDir(options, options.workDir);
+  }
+  const workDir = join10(options.toolchainRoot, ".notra", "work");
+  const unlock = await lockWorkDir(`${workDir}.lock`);
+  try {
+    return await buildInWorkDir(options, workDir);
+  } finally {
+    await unlock();
+  }
+}
+async function buildInWorkDir(options, workDir) {
   const mounts = normalizeSiteMounts(options.target.mounts);
   const prepared = await prepareSite({
     siteRoot: options.siteRoot,
@@ -4549,8 +6721,10 @@ async function buildSite(options) {
     ...prepared.validation.diagnostics
   ];
   const config = prepared.validation.config;
+  const publicOrigin = new URL(options.target.publicOrigin).origin;
+  const { hostingDomain } = options.target;
   if (config) {
-    diagnostics.push(...consentScriptDiagnostics(config, prepared.customScripts));
+    diagnostics.push(...consentDiagnostics(config, prepared.customScripts, publicOrigin, hostingDomain));
   }
   if (hasErrors(diagnostics) || !(prepared.validation.ok && config)) {
     return failedBuild(diagnostics);
@@ -4571,22 +6745,22 @@ async function buildSite(options) {
 `);
   }
   const publicFileList = [...prepared.publicFiles, ...ogImagePaths];
-  await rm3(join7(workDir, "out"), { recursive: true, force: true });
-  await rm3(join7(workDir, "cache"), { recursive: true, force: true });
-  await rm3(options.outDir, { recursive: true, force: true });
-  await mkdir4(options.outDir, { recursive: true });
-  const publicOrigin = new URL(options.target.publicOrigin).origin;
+  await rm4(join10(workDir, "out"), { recursive: true, force: true });
+  await rm4(join10(workDir, "cache"), { recursive: true, force: true });
+  await rm4(options.outDir, { recursive: true, force: true });
+  await mkdir7(options.outDir, { recursive: true });
   const publicFiles = new Set(publicFileList);
   const areas = [];
   const areaPages = [];
-  const consent = siteConsent(config, prepared.customScripts, options.target.analytics, false);
+  const consent = siteConsent(config, prepared.customScripts, options.target.analytics, false, publicOrigin, hostingDomain);
   const pageHtml = new Map;
   for (const { area, mount } of listMountedAreas(mounts)) {
-    const paramsPath = join7(workDir, `params.${area}.json`);
+    const paramsPath = join10(workDir, `params.${area}.json`);
     await writeBuildParams(paramsPath, {
       area,
       mount,
       publicOrigin,
+      hostingDomain,
       siteId: options.target.siteId,
       deploymentId: options.target.deploymentId,
       noindex: options.target.noindex,
@@ -4595,10 +6769,11 @@ async function buildSite(options) {
       workDir,
       publicFiles: publicFileList,
       fontStylesheet: prepared.fontStylesheet,
+      fontFallbacks: prepared.fontFallbacks,
       mounts,
       config,
       hasReactComponents: hasReactComponents(prepared.validation.outputs),
-      headScripts: siteHeadScripts(config, mount, prepared.customScripts, options.target.analytics),
+      headScripts: siteHeadScripts(config, mount, prepared.customScripts, options.target.analytics, hostingDomain),
       consent
     });
     const started = Date.now();
@@ -4619,11 +6794,11 @@ ${log.trim().split(`
       });
       return failedBuild(diagnostics, areas);
     }
-    const areaOut = join7(workDir, "out", area);
+    const areaOut = join10(workDir, "out", area);
     for (const file of await listFiles(areaOut)) {
-      const relativePath = relative(areaOut, file).split("\\").join("/");
+      const relativePath = relative2(areaOut, file).split("\\").join("/");
       if (relativePath === AREA_PAGES_FILE) {
-        areaPages.push(JSON.parse(await readFile4(file, "utf8")));
+        areaPages.push(JSON.parse(await readFile7(file, "utf8")));
         continue;
       }
       const urlPath = joinMountPath(mount, relativePath);
@@ -4636,22 +6811,44 @@ ${log.trim().split(`
         });
         continue;
       }
-      const target = join7(options.outDir, urlPath);
-      await mkdir4(dirname3(target), { recursive: true });
+      const target = join10(options.outDir, urlPath);
+      await mkdir7(dirname6(target), { recursive: true });
       if (file.endsWith(".html")) {
-        const html = rewritePublicAssetUrls(unnestLinks(await readFile4(file, "utf8")), mount, publicFiles);
+        const html = rewritePublicAssetUrls(unnestLinks(await readFile7(file, "utf8")), mount, publicFiles);
         pageHtml.set(urlPath, html);
-        await writeFile2(target, html);
+        await writeFile5(target, html);
       } else {
         await cp3(file, target);
       }
     }
-    const probePath = join7(options.outDir, mount, "_notra", "probe.txt");
-    await mkdir4(dirname3(probePath), { recursive: true });
-    await writeFile2(probePath, `notra-site=${options.target.siteId}
+    const probePath = join10(options.outDir, mount, "_notra", "probe.txt");
+    await mkdir7(dirname6(probePath), { recursive: true });
+    await writeFile5(probePath, `notra-site=${options.target.siteId}
 area=${area}
 `);
     areas.push({ area, mount, durationMs: Date.now() - started });
+  }
+  const contentImages = await optimizeContentImages({
+    outDir: options.outDir,
+    pageHtml,
+    mounts: listMountedAreas(mounts).map(({ mount }) => mount)
+  });
+  diagnostics.push(...contentImages.diagnostics);
+  for (const [urlPath, html] of contentImages.pages) {
+    pageHtml.set(urlPath, html);
+    await writeFile5(join10(options.outDir, urlPath), html);
+  }
+  if (contentImages.images > 0) {
+    process.stderr.write(`Made ${contentImages.variants} smaller copies of ${contentImages.images} ${contentImages.images === 1 ? "image" : "images"} in ${contentImages.durationMs} ms
+`);
+  }
+  const faviconHost = footerFaviconHost(config);
+  if (options.localFavicons && faviconHost) {
+    await writeLocalFavicons({
+      outDir: options.outDir,
+      mounts: listMountedAreas(mounts).map(({ mount }) => mount),
+      host: faviconHost
+    });
   }
   await writeAgentFiles({
     outDir: options.outDir,
@@ -4680,7 +6877,18 @@ area=${area}
     });
   }
   const outputFiles = await listFiles(options.outDir);
-  const sizes = await Promise.all(outputFiles.map(async (file) => (await stat2(file)).size));
+  diagnostics.push(...brokenLinkDiagnostics(prepared.validation.links, {
+    mounts,
+    publicOrigin,
+    files: new Set(outputFiles.map((file) => `/${relative2(options.outDir, file).split("\\").join("/")}`)),
+    publicFiles,
+    redirects: config.redirects,
+    ids: (file) => {
+      const html = pageHtml.get(file);
+      return html === undefined ? null : htmlIds(html);
+    }
+  }));
+  const sizes = await Promise.all(outputFiles.map(async (file) => (await stat3(file)).size));
   return {
     ok: !hasErrors(diagnostics),
     diagnostics,
@@ -4690,19 +6898,29 @@ area=${area}
     redirects: config.redirects,
     contentSecurityPolicy,
     analyticsConsent: analyticsGatedByConsent(config.integrations),
-    consentBackendURL: config.integrations.c15t?.backendURL
+    indexNow: config.integrations.indexnow !== false,
+    consentStorageKey: consent?.options.storageConfig.storageKey,
+    faviconHost
   };
 }
 async function readBuildTarget(path) {
-  return siteBuildRequestSchema.parse(JSON.parse(await readFile4(path, "utf8")));
+  return siteBuildRequestSchema.parse(JSON.parse(await readFile7(path, "utf8")));
 }
 
 // compiler/constants/cli.ts
+var LOCAL_SITE_ID = "local";
+var LOCAL_BUILD_ORIGIN = "http://localhost";
 var USAGE = `notra-sites <command>
 
-  validate [--source <dir>] [--target <file>] [--json]  Check settings, MDX and snippets
-  build --source <dir> --target <file> --out <dir> [--json]
-  dev [--source <dir>] [--target <file>] [--area blog|changelog] [--port 4321]   (serves every area; --area picks the one "/" redirects to)`;
+  validate [--source <dir>] [--target <file>] [--mount <area>=<path>]... [--origin <url>] [--json]  Check settings, MDX, snippets and links
+  build [--source <dir>] --out <dir> [--target <file>] [--mount <area>=<path>]... [--origin <url>] [--json]
+  dev [--source <dir>] [--target <file>] [--mount <area>=<path>]... [--area blog|changelog] [--port 4321]
+
+  dev and build serve the areas with a folder (both when neither has one) at /blog and /changelog, or those in --target.
+  --mount blog=/newsroom serves only the areas listed, at those paths, and replaces the mounts of --target.
+  build without --target makes a local build: noindex, no drafts, links on --origin (default ${LOCAL_BUILD_ORIGIN}).
+  validate checks links for the areas and --origin a build with the same flags would use.
+  --area picks where "/" redirects in dev and, without --target or --mount, also serves that area.`;
 var DEV_READY_TIMEOUT_MS = 60000;
 var DEV_PORT_SEARCH_RANGE = 100;
 var ASTRO_READY_URL = /http:\/\/127\.0\.0\.1:(\d+)(?=\D)/;
@@ -4720,6 +6938,7 @@ var DEV_PROXY_RETRY_ERRORS = new Set([
   "ETIMEDOUT"
 ]);
 var DEV_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+var DEV_FAVICON_URL = "https://www.google.com/s2/favicons";
 
 // compiler/dev-server.ts
 import { spawn as spawn2 } from "node:child_process";
@@ -4734,12 +6953,12 @@ import {
 } from "node:fs";
 import { createServer, request } from "node:http";
 import { connect, createServer as createNetServer } from "node:net";
-import { dirname as dirname4, join as join8, relative as relative2 } from "node:path";
+import { dirname as dirname7, join as join11, relative as relative3 } from "node:path";
 import { pipeline } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
 
 // compiler/utils/dev-error-page.ts
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 function escapeHtml(value) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
@@ -4756,7 +6975,7 @@ function devErrorsKey(errors) {
   if (errors.length === 0) {
     return "";
   }
-  return createHash4("sha1").update(JSON.stringify(errors.map((error) => [
+  return createHash5("sha1").update(JSON.stringify(errors.map((error) => [
     error.file,
     error.line,
     error.column,
@@ -4822,7 +7041,7 @@ function isLocalDevHost(host) {
 }
 
 // compiler/utils/dev-markdown.ts
-import { readFile as readFile5 } from "node:fs/promises";
+import { readFile as readFile8 } from "node:fs/promises";
 async function devMarkdown(area, pathname, origin, signal) {
   let path = pathname.replace(/\.md$/, "") || "/";
   const upstreamSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(1e4)]) : AbortSignal.timeout(1e4);
@@ -4864,7 +7083,7 @@ async function devMarkdown(area, pathname, origin, signal) {
   const html = await response.text();
   const url = new URL(path, origin).toString();
   const markdown = entry ? entryMarkdown(entry, url, htmlToMarkdown(html, url)) : indexMarkdown(pages, origin);
-  const params = JSON.parse(await readFile5(area.paramsPath, {
+  const params = JSON.parse(await readFile8(area.paramsPath, {
     encoding: "utf8",
     signal: upstreamSignal
   }));
@@ -4919,29 +7138,37 @@ async function findUnusedPort(from) {
   throw new Error(`No free port between ${from} and ${from + DEV_PORT_SEARCH_RANGE}`);
 }
 async function startAstroDev(toolchainRoot, area) {
-  const root = join8(dirname4(area.paramsPath), "astro", area.area);
+  const root = join11(dirname7(area.paramsPath), "astro", area.area);
   area.hmrToken ??= randomBytes(18).toString("base64url");
   area.hmrGeneration = (area.hmrGeneration ?? 0) + 1;
   mkdirSync(root, { recursive: true });
-  cpSync(join8(toolchainRoot, "src"), join8(root, "src"), { recursive: true });
-  const modules = join8(dirname4(area.paramsPath), "node_modules");
+  cpSync(join11(toolchainRoot, "src"), join11(root, "src"), { recursive: true });
+  const tailwindSources = join11(root, ".notra", "work");
+  mkdirSync(tailwindSources, { recursive: true });
+  for (const dir of ["site", "entries"]) {
+    const link = join11(tailwindSources, dir);
+    if (!existsSync(link)) {
+      symlinkSync(join11(dirname7(area.paramsPath), dir), link, "junction");
+    }
+  }
+  const modules = join11(dirname7(area.paramsPath), "node_modules");
   if (!existsSync(modules)) {
     let dependencyRoot = toolchainRoot;
-    while (!existsSync(join8(dependencyRoot, "node_modules"))) {
-      const parent = dirname4(dependencyRoot);
+    while (!existsSync(join11(dependencyRoot, "node_modules"))) {
+      const parent = dirname7(dependencyRoot);
       if (parent === dependencyRoot) {
         throw new Error("Notra Sites runtime dependencies are missing");
       }
       dependencyRoot = parent;
     }
-    symlinkSync(join8(dependencyRoot, "node_modules"), modules, "junction");
+    symlinkSync(join11(dependencyRoot, "node_modules"), modules, "junction");
   }
-  const sourceWatcher = watch(join8(toolchainRoot, "src"), { recursive: true }, (_event, filename) => {
+  const sourceWatcher = watch(join11(toolchainRoot, "src"), { recursive: true }, (_event, filename) => {
     if (!filename) {
       return;
     }
-    const source = join8(toolchainRoot, "src", filename);
-    const destination = join8(root, "src", filename);
+    const source = join11(toolchainRoot, "src", filename);
+    const destination = join11(root, "src", filename);
     try {
       if (existsSync(source)) {
         cpSync(source, destination, { recursive: true });
@@ -4962,7 +7189,7 @@ async function startAstroDev(toolchainRoot, area) {
       "--root",
       root,
       "--config",
-      relative2(root, join8(toolchainRoot, "astro.config.mjs")),
+      relative3(root, join11(toolchainRoot, "astro.config.mjs")),
       "--host",
       "127.0.0.1",
       "--port",
@@ -5082,7 +7309,7 @@ ${headers.join(`\r
   socket.on("error", () => upstream.destroy());
   socket.on("close", () => upstream.destroy());
 }
-function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => []) {
+function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => [], redirects = () => []) {
   const [fallback] = areas;
   const targetFor = (pathname) => {
     const owner = resolveAreaForPath(mounts, pathname);
@@ -5121,6 +7348,15 @@ function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => [])
       outgoing.end(JSON.stringify({ count: errors.length, key: devErrorsKey(errors) }));
       return;
     }
+    const redirect = matchRedirect(redirects(), pathname);
+    if (redirect) {
+      outgoing.writeHead(redirect.status, {
+        location: redirect.location,
+        "Cache-Control": "no-store"
+      });
+      outgoing.end();
+      return;
+    }
     const errors = siteErrors();
     if (errors.length > 0 && isDocumentRequest(incoming)) {
       outgoing.writeHead(500, {
@@ -5132,6 +7368,14 @@ function startDevProxy(port, mounts, areas, waitForReady, siteErrors = () => [])
     }
     if (areas.some((area) => pathname.replace(/\/+$/, "") === joinMountPath(area.mount, AREA_PAGES_FILE))) {
       outgoing.writeHead(404);
+      outgoing.end();
+      return;
+    }
+    const faviconHost = pathname.split(`/${SITE_FAVICON_DIR}/`)[1];
+    if (faviconHost && SITE_FAVICON_HOST.test(faviconHost)) {
+      outgoing.writeHead(302, {
+        location: `${DEV_FAVICON_URL}?domain=${faviconHost}&sz=64`
+      });
       outgoing.end();
       return;
     }
@@ -5334,15 +7578,15 @@ async function startDevAreas(toolchainRoot, areas) {
 }
 
 // compiler/utils/dev-generated-assets.ts
-import { rm as rm4 } from "node:fs/promises";
-import { join as join9, relative as relative3, sep as sep2 } from "node:path";
+import { rm as rm5 } from "node:fs/promises";
+import { join as join12, relative as relative4, sep as sep2 } from "node:path";
 async function cleanDevGeneratedAssets(workDir, publicFiles, customScripts) {
-  const publicDir = join9(workDir, "site", "public");
+  const publicDir = join12(workDir, "site", "public");
   const retained = new Set([
-    ...publicFiles.map((path) => join9(publicDir, path)),
-    ...customScripts.map((name) => join9(publicDir, SITE_ASSETS_DIR, name))
+    ...publicFiles.map((path) => join12(publicDir, path)),
+    ...customScripts.map((name) => join12(publicDir, SITE_ASSETS_DIR, name))
   ]);
-  const generated = await listFiles(join9(publicDir, "_notra")).catch((error) => {
+  const generated = await listFiles(join12(publicDir, "_notra")).catch((error) => {
     if (error.code === "ENOENT") {
       return [];
     }
@@ -5352,9 +7596,23 @@ async function cleanDevGeneratedAssets(workDir, publicFiles, customScripts) {
     if (retained.has(path)) {
       return false;
     }
-    const name = relative3(publicDir, path).split(sep2).join("/");
+    const name = relative4(publicDir, path).split(sep2).join("/");
     return name.startsWith(`${SITE_ASSETS_DIR}/`) && /^custom-[A-Za-z0-9_-]+\.[a-f0-9]{10}\.js$/.test(name.slice(SITE_ASSETS_DIR.length + 1)) || name.startsWith(`${SITE_ASSETS_DIR}/fonts/`) && /^[a-f0-9]{64}\//.test(name.slice(`${SITE_ASSETS_DIR}/fonts/`.length)) || SITE_AREAS.some((area) => name === `${OG_IMAGES_DIR}/${area}.png` || name.startsWith(`${OG_IMAGES_DIR}/${area}/`) && name.endsWith(".png"));
-  }).map((path) => rm4(path, { force: true })));
+  }).map((path) => rm5(path, { force: true })));
+}
+
+// compiler/utils/source-links.ts
+function sourceLinkWarnings(validation, mounts, publicOrigin, publicFiles) {
+  if (!validation.config) {
+    return [];
+  }
+  return sourceLinkDiagnostics(validation.links, {
+    mounts,
+    publicOrigin,
+    publicFiles: new Set(publicFiles),
+    redirects: validation.config.redirects,
+    entries: validation.entries
+  });
 }
 
 // compiler/utils/dev-refresh.ts
@@ -5417,20 +7675,22 @@ function createDevRefresh(options) {
     if (closed || current !== revision) {
       return;
     }
-    const consentDiagnostics = consentScriptDiagnostics(config, prepared.customScripts);
+    const consentChecks = consentDiagnostics(config, prepared.customScripts, options.params.publicOrigin, options.params.hostingDomain);
     options.printDiagnostics([
       ...prepared.collectDiagnostics,
       ...prepared.validation.diagnostics,
       ...ogImages.diagnostics,
-      ...consentDiagnostics
+      ...consentChecks,
+      ...sourceLinkWarnings(prepared.validation, options.params.mounts, options.params.publicOrigin, [...prepared.publicFiles, ...Object.values(ogImages.manifest)])
     ]);
-    if (hasErrors(consentDiagnostics)) {
+    if (hasErrors(consentChecks)) {
       return;
     }
     const params = {
       ...options.params,
       config,
       fontStylesheet: prepared.fontStylesheet,
+      fontFallbacks: prepared.fontFallbacks,
       hasReactComponents: hasReactComponents(prepared.validation.outputs),
       publicFiles: [
         ...new Set([
@@ -5438,8 +7698,8 @@ function createDevRefresh(options) {
           ...Object.values(ogImages.manifest)
         ])
       ].sort(),
-      headScripts: siteHeadScripts(config, options.params.mount, prepared.customScripts, false),
-      consent: siteConsent(config, prepared.customScripts, false, true)
+      headScripts: siteHeadScripts(config, options.params.mount, prepared.customScripts, false, options.params.hostingDomain),
+      consent: siteConsent(config, prepared.customScripts, false, true, options.params.publicOrigin, options.params.hostingDomain)
     };
     const snapshot = JSON.stringify(params);
     if (snapshot === published && active) {
@@ -5518,7 +7778,16 @@ function createDevRefresh(options) {
 }
 
 // compiler/utils/local-options.ts
-import { basename } from "node:path";
+import { realpathSync, statSync } from "node:fs";
+import {
+  basename as basename2,
+  dirname as dirname8,
+  isAbsolute,
+  join as join13,
+  relative as relative5,
+  resolve as resolve3,
+  sep as sep3
+} from "node:path";
 
 // ../../packages/sites-core/src/utils/default-config.ts
 function createDefaultSiteConfig(name) {
@@ -5530,8 +7799,118 @@ function createDefaultSiteConfig(name) {
 }
 
 // compiler/utils/local-options.ts
+function isDirectory(path) {
+  try {
+    return statSync(path).isDirectory();
+  } catch (error) {
+    const { code } = error;
+    if (code === "ENOENT" || code === "ENOTDIR") {
+      return false;
+    }
+    throw error;
+  }
+}
+function isSiteArea(value) {
+  return value === "blog" || value === "changelog";
+}
+function parseMountFlags(flags = []) {
+  if (flags.length === 0) {
+    return;
+  }
+  const mounts = {};
+  for (const flag of flags) {
+    const separator = flag.indexOf("=");
+    const area = flag.slice(0, Math.max(separator, 0)).trim();
+    const path = flag.slice(separator + 1).trim();
+    if (separator === -1 || !isSiteArea(area)) {
+      throw new UsageError(`--mount ${flag}: expected blog=<path> or changelog=<path>, like --mount blog=/newsroom`);
+    }
+    if (!path.startsWith("/")) {
+      throw new UsageError(`--mount ${flag}: the path must start with /`);
+    }
+    if (mounts[area] !== undefined) {
+      throw new UsageError(`--mount ${flag}: ${area} is mounted twice`);
+    }
+    mounts[area] = path;
+  }
+  try {
+    return normalizeSiteMounts(mounts);
+  } catch (error) {
+    throw new UsageError(`--mount: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+function localMounts(siteRoot, target, area, mounts) {
+  if (mounts) {
+    if (area && !mounts[area]) {
+      throw new UsageError(`--area ${area} needs a --mount ${area}=<path>`);
+    }
+    return mounts;
+  }
+  if (target) {
+    return target.mounts;
+  }
+  const blog = area === "blog" || isDirectory(join13(siteRoot, "blog"));
+  const changelog = area === "changelog" || isDirectory(join13(siteRoot, "changelog"));
+  return {
+    ...blog || !changelog ? { blog: "/blog" } : {},
+    ...changelog || !blog ? { changelog: "/changelog" } : {}
+  };
+}
 function localDefaultConfig(siteRoot, target) {
-  return target?.defaultConfig ?? createDefaultSiteConfig(basename(siteRoot).trim().slice(0, siteConfigSchema.shape.name.maxLength ?? 80).trim() || "Local site");
+  return target?.defaultConfig ?? createDefaultSiteConfig(basename2(siteRoot).trim().slice(0, siteConfigSchema.shape.name.maxLength ?? 80).trim() || "Local site");
+}
+function parseOrigin(origin) {
+  const url = URL.canParse(origin) ? new URL(origin) : null;
+  if (!(url?.protocol === "http:" || url?.protocol === "https:")) {
+    throw new UsageError(`--origin ${origin}: expected an http(s) URL, like https://example.com`);
+  }
+  return url.origin;
+}
+function localBuildTarget(siteRoot, target, overrides) {
+  const origin = overrides.origin === undefined ? undefined : parseOrigin(overrides.origin);
+  if (target) {
+    return {
+      ...target,
+      ...origin ? { publicOrigin: origin } : {},
+      ...overrides.mounts ? { mounts: overrides.mounts } : {}
+    };
+  }
+  return siteBuildRequestSchema.parse({
+    siteId: LOCAL_SITE_ID,
+    deploymentId: LOCAL_SITE_ID,
+    publicOrigin: origin ?? LOCAL_BUILD_ORIGIN,
+    mounts: localMounts(siteRoot, undefined, undefined, overrides.mounts),
+    noindex: true,
+    defaultConfig: localDefaultConfig(siteRoot)
+  });
+}
+function realPath(path) {
+  const missing = [];
+  let existing = resolve3(path);
+  for (;; ) {
+    try {
+      return join13(realpathSync(existing), ...missing.reverse());
+    } catch (error) {
+      const parent = dirname8(existing);
+      if (error.code !== "ENOENT" || parent === existing) {
+        throw error;
+      }
+      missing.push(basename2(existing));
+      existing = parent;
+    }
+  }
+}
+function assertOutsideSource(siteRoot, outDir) {
+  const out = realPath(outDir);
+  const source = realPath(siteRoot);
+  const path = relative5(out, source);
+  const outside = path === ".." || path.startsWith(`..${sep3}`) || isAbsolute(path);
+  const [firstSegment] = relative5(source, out).split(sep3);
+  const inSourceFolder = outside && firstSegment !== ".." && SITE_SOURCE_ROOTS.has(firstSegment ?? "");
+  if (!outside || inSourceFolder) {
+    const problem = outside ? `is inside the site's ${firstSegment} folder` : "holds the site source";
+    throw new UsageError(`--out ${outDir} ${problem}, and the build empties it first. Use a separate folder, like ${join13(siteRoot, ".notra", "out")}`);
+  }
 }
 
 // compiler/cli.ts
@@ -5559,6 +7938,8 @@ async function main() {
       source: { type: "string", default: "." },
       target: { type: "string" },
       out: { type: "string" },
+      mount: { type: "string", multiple: true },
+      origin: { type: "string" },
       area: { type: "string" },
       port: { type: "string", default: "4321" },
       json: { type: "boolean", default: false },
@@ -5571,18 +7952,23 @@ async function main() {
 `);
     return;
   }
-  const siteRoot = resolve2(values.source ?? ".");
+  const siteRoot = resolve4(values.source ?? ".");
   if (command === "validate") {
     const target = values.target ? await readBuildTarget(values.target) : undefined;
-    if (target) {
-      normalizeSiteMounts(target.mounts);
-    }
+    const site = localBuildTarget(siteRoot, target, {
+      origin: values.origin,
+      mounts: parseMountFlags(values.mount)
+    });
     const { collected, files } = await readSiteFiles(siteRoot);
     const result = validateSite({
       files,
       defaultConfig: localDefaultConfig(siteRoot, target)
     });
-    const diagnostics = [...collected.diagnostics, ...result.diagnostics];
+    const diagnostics = [
+      ...collected.diagnostics,
+      ...result.diagnostics,
+      ...sourceLinkWarnings(result, normalizeSiteMounts(site.mounts), site.publicOrigin, collected.files.filter((file) => file.path.startsWith("public/")).map((file) => file.path.slice("public".length)))
+    ];
     const ok = !hasErrors(diagnostics);
     if (values.json) {
       process.stdout.write(`${JSON.stringify({ ok, diagnostics, entries: result.entries }, null, 2)}
@@ -5596,25 +7982,28 @@ async function main() {
     process.exit(ok ? 0 : 1);
   }
   if (command === "build") {
-    if (!(values.target && values.out)) {
-      throw new Error("build needs --target and --out");
+    if (!values.out) {
+      throw new UsageError("build needs --out <dir>");
     }
-    const target = await readBuildTarget(values.target);
+    const outDir = resolve4(values.out);
+    assertOutsideSource(siteRoot, outDir);
+    const target = localBuildTarget(siteRoot, values.target ? await readBuildTarget(values.target) : undefined, { origin: values.origin, mounts: parseMountFlags(values.mount) });
     const result = await buildSite({
       toolchainRoot: TOOLCHAIN_ROOT,
       siteRoot,
       target,
-      outDir: resolve2(values.out)
+      outDir,
+      localFavicons: !values.target
     });
     if (values["result-file"]) {
-      await writeFile3(values["result-file"], JSON.stringify(result));
+      await writeFile6(values["result-file"], JSON.stringify(result));
     }
     if (values.json) {
       process.stdout.write(`${JSON.stringify(result)}
 `);
     } else {
       printDiagnostics(result.diagnostics);
-      process.stderr.write(result.ok ? `✔ Built ${result.areas.map((area) => `${area.area} at ${area.mount} (${area.durationMs} ms)`).join(", ")}: ${result.fileCount} files, ${(result.totalBytes / 1024).toFixed(0)} KB
+      process.stderr.write(result.ok ? `✔ Built ${result.areas.map((area) => `${area.area} at ${area.mount} (${area.durationMs} ms)`).join(", ")}: ${result.fileCount} files, ${(result.totalBytes / 1024).toFixed(0)} KB in ${outDir}
 ` : `Build failed
 `);
     }
@@ -5622,21 +8011,22 @@ async function main() {
   }
   if (command === "dev") {
     const target = values.target ? await readBuildTarget(values.target) : undefined;
-    const mounts = normalizeSiteMounts(target?.mounts ?? { blog: "/blog", changelog: "/changelog" });
+    const { area } = values;
+    if (area !== undefined && area !== "blog" && area !== "changelog") {
+      throw new UsageError("--area must be blog or changelog");
+    }
+    const mounts = normalizeSiteMounts(localMounts(siteRoot, target, area, parseMountFlags(values.mount)));
     const defaultConfig = localDefaultConfig(siteRoot, target);
     const requestedPort = Number(values.port ?? "4321");
     if (!Number.isInteger(requestedPort) || requestedPort < 1 || requestedPort > 65533) {
-      throw new Error("--port must be an integer between 1 and 65533");
+      throw new UsageError("--port must be an integer between 1 and 65533");
     }
     const port = await findUnusedPort(requestedPort);
     if (port !== requestedPort) {
       process.stderr.write(`Port ${requestedPort} is in use, using ${port} instead.
 `);
     }
-    if (values.area && values.area !== "blog" && values.area !== "changelog") {
-      throw new Error("--area must be blog or changelog");
-    }
-    const workDir = await realpath(await mkdtemp2(join10(tmpdir(), "notra-sites-dev-")));
+    const workDir = await realpath(await mkdtemp2(join14(tmpdir(), "notra-sites-dev-")));
     const mounted = listMountedAreas(mounts);
     const areas = [];
     let nextPort = port + 1;
@@ -5647,11 +8037,11 @@ async function main() {
         areas.push({
           ...entry,
           port: areaPort,
-          paramsPath: join10(workDir, `params.dev.${entry.area}.json`)
+          paramsPath: join14(workDir, `params.dev.${entry.area}.json`)
         });
       }
     } catch (error) {
-      await rm5(workDir, { recursive: true, force: true });
+      await rm6(workDir, { recursive: true, force: true });
       throw error;
     }
     const selected = areas.find((entry) => entry.area === values.area) ?? areas[0];
@@ -5663,6 +8053,7 @@ async function main() {
     let documentGeneration = 0;
     let running = [];
     let siteErrors = [];
+    let redirects = [];
     const stopAreas = async () => {
       const stopping = running;
       running = [];
@@ -5673,6 +8064,7 @@ async function main() {
         area: selected.area,
         mount: selected.mount,
         publicOrigin: `http://localhost:${port}`,
+        hostingDomain: target?.hostingDomain,
         siteId: "local",
         deploymentId: "local",
         noindex: true,
@@ -5703,6 +8095,7 @@ async function main() {
           }
           renameSync(temporaryPath, area.paramsPath);
         }
+        redirects = siteRedirectRules(params.config.redirects);
         return true;
       },
       runAstro: async (astroCommand) => {
@@ -5727,7 +8120,7 @@ async function main() {
         watcher?.close();
         proxy?.close();
         await refresh.shutdown();
-        await rm5(workDir, { recursive: true, force: true });
+        await rm6(workDir, { recursive: true, force: true });
       })();
       return stopping;
     };
@@ -5754,7 +8147,7 @@ async function main() {
       });
       proxy = await startDevProxy(port, mounts, ordered, async () => {
         await watchedRefresh;
-      }, () => siteErrors);
+      }, () => siteErrors, () => redirects);
       if (interrupted) {
         proxy.close();
         await stop();
@@ -5783,7 +8176,14 @@ async function main() {
   process.exit(command ? 1 : 0);
 }
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}
+  let message = String(error);
+  const code = error?.code;
+  if (error instanceof UsageError || error instanceof TypeError && code?.startsWith("ERR_PARSE_ARGS")) {
+    message = error.message;
+  } else if (error instanceof Error) {
+    message = error.stack ?? error.message;
+  }
+  process.stderr.write(`${message}
 `);
   process.exit(1);
 });

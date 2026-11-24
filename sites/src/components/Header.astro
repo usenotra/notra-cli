@@ -24,7 +24,7 @@ const hasMenu = links.length > 0 || Boolean(cta) || Boolean(primary);
   data-site-header
   class="sticky top-0 z-30 bg-[color-mix(in_oklab,var(--page-background)_88%,transparent)] backdrop-blur-lg"
 >
-  <div class="site-container flex h-14 items-center gap-3">
+  <div class="site-container flex h-14 items-center gap-6">
     <a href={logoHref} class="flex min-w-0 items-center gap-2 rounded-md text-[0.9375rem] font-semibold tracking-[-0.01em]">
       {
         lightLogo && hasDarkLogo && (
@@ -36,7 +36,7 @@ const hasMenu = links.length > 0 || Boolean(cta) || Boolean(primary);
       }
       {
         lightLogo && !hasDarkLogo && (
-          <img src={lightLogo} alt="" width="24" height="24" class="size-6 shrink-0 rounded-md object-contain dark:box-content dark:bg-white dark:p-1" />
+          <img src={lightLogo} alt="" width="24" height="24" class="size-6 shrink-0 rounded-md object-contain dark:bg-white dark:p-0.5" />
         )
       }
       <span class="truncate" title={config.name}>{config.name}</span>
@@ -44,12 +44,9 @@ const hasMenu = links.length > 0 || Boolean(cta) || Boolean(primary);
 
     {
       hasSections && (
-        <>
-          <span aria-hidden="true" class="h-4 w-px shrink-0 bg-border" />
-          <div class="-ml-1 min-w-0">
-            <SiteAreas sections={sections} />
-          </div>
-        </>
+        <div class="-ml-2.5 min-w-0">
+          <SiteAreas sections={sections} />
+        </div>
       )
     }
 

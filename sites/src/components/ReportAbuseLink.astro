@@ -1,0 +1,9 @@
+---
+import { ABUSE_EMAIL } from "../constants/abuse";
+import { absoluteUrl } from "../lib/params";
+
+const url = absoluteUrl(Astro.url.pathname);
+const href = `mailto:${ABUSE_EMAIL}?subject=${encodeURIComponent(`Abuse report: ${new URL(url).host}`)}&body=${encodeURIComponent(`Page: ${url}\n\nWhat is wrong with it:\n`)}`;
+---
+
+<a href={href} rel="nofollow" class="text-xs whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground">Report abuse</a>

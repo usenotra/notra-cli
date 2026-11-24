@@ -31,4 +31,13 @@ describe('friendly errors', () => {
       .toBe('Your credentials no longer have access to the selected workspace.');
     expect(toFriendlyError(new ApiError('Forbidden', 403))).toMatchObject({ message: 'Forbidden', detail: 'HTTP 403' });
   });
+  test('explains the web analytics beta 403', () => {
+    const unavailable = new ApiError('Web analytics is not available for this workspace yet.', 403);
+    expect(toFriendlyError(unavailable)).toMatchObject({
+      message: 'Web analytics is a private beta that this workspace does not have access to yet.', exitCode: 3,
+    });
+    expect(toFriendlyError(unavailable).detail).toContain('`web-analytics` access');
+    expect(toFriendlyError(new ApiError('Web analytics is not available for this workspace yet.', 404)))
+      .toMatchObject({ detail: 'HTTP 404' });
+  });
 });

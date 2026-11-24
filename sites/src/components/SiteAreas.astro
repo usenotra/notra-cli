@@ -13,8 +13,8 @@ const sections = Astro.props.sections ?? await navbarAreas();
           href={section.href}
           aria-current={section.active ? "page" : undefined}
           class:list={[
-            "flex min-h-8 shrink-0 items-center whitespace-nowrap rounded-full px-2.5 transition-colors duration-150 ease-out",
-            section.active ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+            "flex h-7.5 shrink-0 items-center whitespace-nowrap rounded-md px-2.5 transition-colors duration-150 ease-out",
+            section.active ? "bg-foreground/[0.1] font-medium text-foreground dark:bg-foreground/[0.16]" : "text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground dark:hover:bg-foreground/[0.08]",
           ]}
         >
           {section.label}

@@ -1,12 +1,13 @@
 ---
+import { POST_CARD_CELL } from "../constants/post-card";
 import { cardImages } from "../lib/cards";
 import { blogCategories, blogSearchText, entryCategorySlugs } from "../lib/categories";
 import { getBlogEntries } from "../lib/entries";
 import { splitFeatured } from "../lib/featured";
 import { blogOptions } from "../lib/options";
 import { areaDescription, areaTitle } from "../lib/params";
-import { slotArea, slotSite } from "../lib/slot-data";
 import AreaHero from "./AreaHero.astro";
+import BlogEmpty from "./BlogEmpty.astro";
 import CategoryBar from "./CategoryBar.astro";
 import PostCard from "./PostCard.astro";
 import SiteSlot from "./SiteSlot.astro";
@@ -22,12 +23,16 @@ const filterable = entries.length > 0 && (categories.length > 0 || blogOptions.s
 const twoColumns = !filterable && rest.length % 3 !== 0 && rest.length % 2 === 0;
 const pinnedAbove = filterable && (layout === "grid" || layout === "magazine") && featured.length > 0;
 const inGrid = pinnedAbove ? [] : featured;
+const tileCount = twoColumns ? 2 : 3;
+const tileAll = blogOptions.card.style === "tile";
+const tiles = blogOptions.card.style === "auto" && layout === "grid" && !filterable && inGrid.length === 0 ? rest.slice(0, tileCount) : [];
+const plain = rest.slice(tiles.length);
 const categoriesOf = (entry: (typeof entries)[number]) => (filterable ? entryCategorySlugs(entry, categories) : undefined);
 const searchTextOf = (entry: (typeof entries)[number]) => (blogOptions.search ? blogSearchText(entry) : undefined);
 ---
 
 <div class="blog-index flex flex-col items-center gap-10 md:gap-14">
-  <SiteSlot name="blog-hero" data={{ site: slotSite(), area: slotArea() }} class="w-full">
+  <SiteSlot name="blog-hero" class="w-full">
     <AreaHero title={areaTitle("blog")} description={areaDescription("blog")} />
   </SiteSlot>
 
@@ -47,10 +52,7 @@ const searchTextOf = (entry: (typeof entries)[number]) => (blogOptions.search ? 
 
   {
     entries.length === 0 ? (
-      <div class="w-full max-w-(--layout-index) rounded-2xl border border-dashed border-border px-6 py-16 text-center">
-        <h2 class="font-heading text-lg font-(--font-heading-weight) tracking-[-0.015em]">No posts yet</h2>
-        <p class="mt-2 text-sm leading-6 text-muted-foreground">Add a Markdown file to blog/ and push.</p>
-      </div>
+      <BlogEmpty />
     ) : layout === "cards" ? (
       <ul data-category-list class="blog-cards grid w-full max-w-(--layout-index) grid-cols-1 gap-6 sm:grid-cols-2">
         {[...featured, ...rest].map((entry) => (
@@ -68,24 +70,37 @@ const searchTextOf = (entry: (typeof entries)[number]) => (blogOptions.search ? 
         ))}
       </ul>
     ) : (
-      <ul data-category-list class:list={["grid w-full max-w-(--layout-index) grid-cols-1 gap-x-8 gap-y-12 max-sm:gap-y-0 max-sm:divide-y max-sm:divide-border sm:grid-cols-2", !twoColumns && "lg:grid-cols-3"]}>
+      <div class="flex w-full max-w-(--layout-index) flex-col gap-0 sm:gap-20">
+      {tiles.length > 0 && (
+        <ul class:list={["grid grid-cols-1 max-sm:divide-y max-sm:divide-border sm:-mb-6 sm:grid-cols-2 sm:gap-x-6", !twoColumns && "lg:grid-cols-3"]}>
+          {tiles.map((entry, index) => (
+            <li class:list={["max-sm:py-6 max-sm:first:pt-0 sm:pb-6", POST_CARD_CELL]}>
+              <PostCard entry={entry} images={images} tile priority={index === 0} />
+            </li>
+          ))}
+        </ul>
+      )}
+      {(filterable || plain.length + inGrid.length > 0) && (
+      <ul data-category-list class:list={["grid grid-cols-1 gap-x-6 max-sm:divide-y max-sm:divide-border sm:grid-cols-2", tileAll ? "sm:-mb-6" : "sm:-mb-14", !twoColumns && "lg:grid-cols-3", tiles.length > 0 && "max-sm:border-t max-sm:border-border"]}>
         {inGrid.map((entry, index) => (
-          <li data-categories={categoriesOf(entry)} data-search={searchTextOf(entry)} class:list={["h-full max-sm:pb-8 sm:col-span-2", !twoColumns && "lg:col-span-3"]}>
+          <li data-categories={categoriesOf(entry)} data-search={searchTextOf(entry)} class:list={["h-full max-sm:pb-8 sm:col-span-2 sm:pb-14", !twoColumns && "lg:col-span-3"]}>
             <PostCard entry={entry} variant="feature" featured={layout === "grid" || split.featured.length > 0} images={images} priority={index === 0} />
           </li>
         ))}
         {pinnedAbove &&
           featured.map((entry) => (
-            <li class="h-full max-sm:py-6" data-categories={categoriesOf(entry)} data-search={searchTextOf(entry)} data-pinned hidden>
-              <PostCard entry={entry} images={images} />
+            <li class:list={["max-sm:py-6", tileAll ? "sm:pb-6" : "sm:pb-14", POST_CARD_CELL]} data-categories={categoriesOf(entry)} data-search={searchTextOf(entry)} data-pinned hidden>
+              <PostCard entry={entry} images={images} tile={tileAll} />
             </li>
           ))}
-        {rest.map((entry) => (
-          <li class="h-full max-sm:py-6" data-categories={categoriesOf(entry)} data-search={searchTextOf(entry)}>
-            <PostCard entry={entry} images={images} />
+        {plain.map((entry) => (
+          <li class:list={["max-sm:py-6", tileAll ? "sm:pb-6" : "sm:pb-14", POST_CARD_CELL]} data-categories={categoriesOf(entry)} data-search={searchTextOf(entry)}>
+            <PostCard entry={entry} images={images} tile={tileAll} />
           </li>
         ))}
       </ul>
+      )}
+      </div>
     )
   }
   {

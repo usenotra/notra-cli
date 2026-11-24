@@ -8,13 +8,13 @@ const last = authors.length - 1;
 
 {
   authors.length > 0 && (
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2.5">
       <div aria-hidden="true" class="flex shrink-0 -space-x-2">
         {authors.map((author) => (
-          <AuthorAvatar author={author} size={32} loading="eager" class="ring-2 ring-(--page-background)" />
+          <AuthorAvatar author={author} size={24} loading="eager" class="ring-2 ring-(--page-background)" />
         ))}
       </div>
-      <p class="text-[0.9375rem] text-muted-foreground">
+      <p class="text-sm text-muted-foreground">
         {authors.map((author, index) => (
           <>
             {index > 0 && (index === last ? " and " : ", ")}

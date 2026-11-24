@@ -74,7 +74,6 @@ export interface TipProps {
 export interface UpdateProps {
   label: string;
   description?: string;
-  tags?: string[];
 }
 
 export interface VideoProps {

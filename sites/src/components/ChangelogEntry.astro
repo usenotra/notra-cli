@@ -9,6 +9,7 @@ import { isoDate } from "../utils/dates";
 import { excerpt } from "../utils/excerpt";
 import CopyArticle from "./CopyArticle.astro";
 import Icon from "./Icon.astro";
+import TagLinks from "./TagLinks.astro";
 import TagList from "./TagList.astro";
 
 const { entry, standalone = false, layout = "timeline" } = Astro.props;
@@ -59,21 +60,29 @@ const summary = layout === "compact" ? (entry.data.description ?? excerpt(entry.
     </article>
   ) : (
     <article id={anchor}>
-      <p class="post-meta flex flex-wrap items-center gap-x-2">
-        <time datetime={isoDate(entry.data.date)}>{formatDate(entry.data.date)}</time>
-        {entry.data.version && <span>· {entry.data.version}</span>}
-        {entry.data.draft && <span class="text-warning">· Draft</span>}
-      </p>
-      <Heading id={standalone ? "page-title" : undefined} class="mt-3 font-heading text-[2rem] leading-[1.1] font-(--font-heading-weight) tracking-[-0.035em] text-balance sm:text-[2.5rem]">
-        {standalone ? entry.data.title : <a href={href(entry.id)} class="decoration-foreground/25 decoration-2 underline-offset-[0.15em] hover:underline">{entry.data.title}</a>}
-      </Heading>
-      {entry.data.description && <p class="mt-4 text-lg leading-8 text-pretty text-muted-foreground">{entry.data.description}</p>}
-      {standalone && config.changelog?.pageActions && <div class="[&:has([data-page-actions])]:mt-5"><CopyArticle markdownHref={markdownHref(href(entry.id))} pagePath={href(entry.id)} title={entry.data.title} /></div>}
-      {image && <img src={image} alt={imageAlt} class="image-outline mt-8 w-full rounded-2xl" loading={standalone ? "eager" : "lazy"} />}
-      <div class="mdx-content prose prose-notra mt-8 max-w-none" data-md-root={standalone ? "" : undefined}>
-        <Content />
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground tabular-nums [&>*+*]:before:mr-2 [&>*+*]:before:text-muted-foreground/60 [&>*+*]:before:content-['·']">
+        <time datetime={isoDate(entry.data.date)} class="text-foreground">{formatDate(entry.data.date)}</time>
+        {entry.data.version && <span>{entry.data.version}</span>}
+        {entry.data.draft && <span class="text-warning">Draft</span>}
+        <TagLinks tags={tags} />
       </div>
-      <TagList tags={tags} class="mt-8" />
+      <div class="min-w-0">
+        <Heading
+          id={standalone ? "page-title" : undefined}
+          class:list={[
+            "font-heading font-(--font-heading-weight) text-balance",
+            standalone ? "mt-4 text-[2.25rem] leading-[1.08] tracking-[-0.045em] sm:text-5xl" : "mt-3 text-2xl leading-[1.2] tracking-[-0.03em] sm:text-[1.75rem]",
+          ]}
+        >
+          {standalone ? entry.data.title : <a href={href(entry.id)} class="decoration-foreground/25 decoration-2 underline-offset-[0.15em] hover:underline">{entry.data.title}</a>}
+        </Heading>
+        {entry.data.description && <p class:list={["text-pretty text-muted-foreground", standalone ? "mt-4 text-lg leading-8" : "mt-3 text-base leading-7"]}>{entry.data.description}</p>}
+        {standalone && config.changelog?.pageActions && <div class="[&:has([data-page-actions])]:mt-5"><CopyArticle markdownHref={markdownHref(href(entry.id))} pagePath={href(entry.id)} title={entry.data.title} /></div>}
+        {image && <img src={image} alt={imageAlt} class:list={["image-outline w-full rounded-lg", standalone ? "mt-8" : "mt-6"]} loading={standalone ? "eager" : "lazy"} />}
+        <div class:list={["mdx-content prose prose-notra max-w-none", standalone ? "mt-8" : "changelog-body mt-4"]} data-md-root={standalone ? "" : undefined}>
+          <Content />
+        </div>
+      </div>
     </article>
   )
 }

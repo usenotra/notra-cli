@@ -1,5 +1,7 @@
 import type { SITE_SLOT_NAMES } from "@notra/sites-core/constants/site-layout";
 
+import type { AuthorSocialKind } from "./authors";
+
 export type SlotName = (typeof SITE_SLOT_NAMES)[number];
 
 export interface SiteMdxModule {
@@ -16,6 +18,8 @@ export interface SlotArea {
   title: string;
   description?: string;
   url: string;
+  /** Root-relative path on the serving host, like `/blog`, built like the theme's own links. */
+  path: string;
 }
 
 export interface SlotPost {
@@ -25,6 +29,24 @@ export interface SlotPost {
   tags: string[];
   authors: { name: string; title?: string; url?: string }[];
   url: string;
+  path: string;
+}
+
+export interface SlotAuthor {
+  id: string;
+  name: string;
+  title?: string;
+  bio?: string;
+  /** The avatar as the theme's own `<img>` loads it. */
+  avatar?: string;
+  /** The author's own website. */
+  url?: string;
+  /** The author page's full address. */
+  href: string;
+  /** The author page without the domain, like `area.path`. */
+  path: string;
+  socials: { kind: AuthorSocialKind; url: string; label: string }[];
+  postCount: number;
 }
 
 export interface SlotChangelogEntry {
@@ -32,6 +54,13 @@ export interface SlotChangelogEntry {
   version?: string;
   date: string;
   url: string;
+  path: string;
+}
+
+/** Data every slot gets; a slot's own data (like `before-footer`'s `area` id) takes precedence. */
+export interface SlotCommonData {
+  site: SlotSite;
+  area: SlotArea;
 }
 
 /** The kind of page being rendered, passed to header.mdx, footer.mdx and page-wide slots. */

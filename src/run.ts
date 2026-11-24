@@ -2,11 +2,16 @@
 
 import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
+import * as nodeModule from 'node:module';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Command, Errors } from './cli/core';
 import { VERSION } from './constants/version';
 import { isCommandTopic, resolveCommand } from './utils/command-resolution';
+
+// Reuse V8 bytecode for the bundled command chunks across runs (Node 22.1+).
+// Must run before the command module below is imported.
+nodeModule.enableCompileCache?.();
 
 const root = dirname(fileURLToPath(import.meta.url));
 const commandsRoot = join(root, 'commands');

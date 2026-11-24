@@ -4,6 +4,7 @@ import { footerColumns, footerFlatLinks, footerSocials } from "../lib/navigation
 import { config, href, params } from "../lib/params";
 import LinkIcon from "./LinkIcon.astro";
 import PoweredByNotra from "./PoweredByNotra.astro";
+import ReportAbuseLink from "./ReportAbuseLink.astro";
 import ThemeToggle from "./ThemeToggle.astro";
 
 const columns = footerColumns();
@@ -51,17 +52,16 @@ const year = new Date().getUTCFullYear();
     <div class="max-sm:order-last sm:justify-self-center">
       <ThemeToggle />
     </div>
-    {
-      (socials.length > 0 || params.branding) && (
-        <div class="flex items-center gap-4 sm:justify-self-end">
-          {socials.map((social) => (
-            <a href={social.href} rel="noopener" aria-label={social.label} title={social.label} class="transition-colors hover:text-foreground">
-              <LinkIcon icon={social.icon} size={16} />
-            </a>
-          ))}
-          {params.branding && <PoweredByNotra />}
-        </div>
-      )
-    }
+    <div class="flex items-center gap-4 sm:justify-self-end">
+      {
+        socials.map((social) => (
+          <a href={social.href} rel="noopener" aria-label={social.label} title={social.label} class="transition-colors hover:text-foreground">
+            <LinkIcon icon={social.icon} size={16} />
+          </a>
+        ))
+      }
+      <ReportAbuseLink />
+      {params.branding && <PoweredByNotra />}
+    </div>
   </div>
 </footer>

@@ -1,0 +1,133 @@
+---
+import { config } from "../lib/params";
+import type { DitherProps as Props } from "../types/theme";
+
+const { class: className } = Astro.props;
+const { colors } = config;
+---
+
+<div
+  aria-hidden="true"
+  class:list={["notra-dither pointer-events-none", className]}
+  data-notra-dither
+  data-color={colors.primary}
+  data-color-dark={colors.light ?? colors.primary}
+>
+</div>
+
+<script>
+  /*! Paper Shaders, Copyright 2026 Paper. Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0
+   * Powered by Paper Shaders: https://shaders.paper.design */
+  import { HERO_DITHER } from "../constants/theme";
+
+  // Paper's dither shader in the site's primary color. It loads once the page is idle, pauses off
+  // screen and holds still for reduced motion. Without WebGL the hero keeps its tinted background.
+  const hosts = [...document.querySelectorAll<HTMLElement>("[data-notra-dither]")];
+
+  function supportsWebGl() {
+    try {
+      return Boolean(document.createElement("canvas").getContext("webgl2"));
+    } catch {
+      return false;
+    }
+  }
+
+  async function start() {
+    const {
+      DitheringShapes,
+      DitheringTypes,
+      ShaderFitOptions,
+      ShaderMount,
+      ditheringFragmentShader,
+      getShaderColorFromString,
+    } = await import("@paper-design/shaders");
+    const root = document.documentElement;
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+    const speed = () => (reducedMotion.matches ? 0 : HERO_DITHER.speed);
+    const colorFor = (host: HTMLElement) => {
+      const dark = root.classList.contains("dark");
+      const color = (dark ? host.dataset.colorDark : host.dataset.color) ?? "#000000";
+      // Site colors may be #rgb; the alpha suffix needs the six-digit form.
+      const hex =
+        color.length === 4
+          ? `#${[...color.slice(1)].map((digit) => digit + digit).join("")}`
+          : color;
+      return getShaderColorFromString(hex + HERO_DITHER.alpha[dark ? "dark" : "light"]);
+    };
+    const mounts = new Map(
+      hosts.map((host) => [
+        host,
+        new ShaderMount(
+          host,
+          ditheringFragmentShader,
+          {
+            u_colorBack: getShaderColorFromString("#00000000"),
+            u_colorFront: colorFor(host),
+            u_shape: DitheringShapes[HERO_DITHER.shape],
+            u_type: DitheringTypes[HERO_DITHER.type],
+            u_pxSize: HERO_DITHER.pixelSize,
+            u_fit: ShaderFitOptions.cover,
+            u_scale: HERO_DITHER.scale,
+            u_rotation: 0,
+            u_offsetX: 0,
+            u_offsetY: 0,
+            u_originX: 0.5,
+            u_originY: 0.5,
+            u_worldWidth: 0,
+            u_worldHeight: 0,
+          },
+          undefined,
+          speed(),
+          0,
+          1,
+          HERO_DITHER.maxPixelCount
+        ),
+      ])
+    );
+    const visible = new Set<Element>();
+    const visibility = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          visible.add(entry.target);
+        } else {
+          visible.delete(entry.target);
+        }
+        mounts.get(entry.target as HTMLElement)?.setSpeed(entry.isIntersecting ? speed() : 0);
+      }
+    });
+    for (const host of mounts.keys()) {
+      visibility.observe(host);
+    }
+    new MutationObserver(() => {
+      for (const [host, mount] of mounts) {
+        mount.setUniforms({ u_colorFront: colorFor(host) });
+      }
+    }).observe(root, { attributeFilter: ["class"] });
+    reducedMotion.addEventListener("change", () => {
+      for (const [host, mount] of mounts) {
+        mount.setSpeed(visible.has(host) ? speed() : 0);
+      }
+    });
+  }
+
+  if (hosts.length > 0 && supportsWebGl()) {
+    const idle = window.requestIdleCallback ?? ((run: () => void) => setTimeout(run, 200));
+    idle(() => void start());
+  }
+</script>
+
+<style>
+  .notra-dither :global(canvas) {
+    animation: notra-dither-in 0.6s ease-out both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .notra-dither :global(canvas) {
+      animation: none;
+    }
+  }
+  @keyframes notra-dither-in {
+    from {
+      opacity: 0;
+    }
+  }
+</style>

@@ -1,3 +1,4 @@
+import { Flags } from '@oclif/core';
 import { NotraCommand } from '../base-command';
 import { BILLABLE_OPERATION_IDS } from '../constants/billing';
 import { API_ACTION_CONFIRMATIONS } from '../constants/api-commands';
@@ -13,6 +14,7 @@ import {
 import { operationBodySchema } from '../schemas/api-command';
 import { confirmAction } from '../utils/confirm';
 import { parseChatStream } from '../utils/chat-stream';
+import { pollJob } from '../utils/poll';
 
 export function createApiCommand(id: string, options: ApiCommandOptions = {}): typeof NotraCommand {
   const spec = getOperation(id);
@@ -24,6 +26,11 @@ export function createApiCommand(id: string, options: ApiCommandOptions = {}): t
     const definition = definitions[name];
     if (!definition) throw new Error(`Unknown default flag for ${id}: ${name}`);
     definitions[name] = { ...definition, default: value };
+  }
+  if (options.watch) {
+    definitions.watch = Flags.boolean({ description: 'Poll until it is done or failed.' });
+    definitions['poll-interval'] = Flags.integer({ default: 3, min: 1, description: 'Seconds between polls.' });
+    definitions['timeout-mins'] = Flags.integer({ default: 10, min: 1, description: 'Stop watching after this many minutes.' });
   }
   return class ApiCommand extends NotraCommand {
     static override description = options.description ?? spec.operation.summary;
@@ -37,7 +44,7 @@ export function createApiCommand(id: string, options: ApiCommandOptions = {}): t
       const { args, flags } = await this.parse(ApiCommand);
       const body = bodyValidator ? await readOperationBody(spec, flags, bodyValidator) : undefined;
       const prepared = prepareOperation(spec, args, flags, body);
-      if (spec.operation.method === 'DELETE' || BILLABLE_OPERATION_IDS.has(id)) {
+      if (BILLABLE_OPERATION_IDS.has(id) || (options.confirm ?? spec.operation.method === 'DELETE')) {
         const confirmed = await confirmAction(
           API_ACTION_CONFIRMATIONS[id] ?? `${spec.operation.summary}?`,
           { yes: flags.yes === true },
@@ -56,7 +63,22 @@ export function createApiCommand(id: string, options: ApiCommandOptions = {}): t
         }
         return;
       }
-      const result = await client.request(spec.operation.method, prepared.path, request);
+      const read = () => client.request(spec.operation.method, prepared.path, request);
+      const { watch } = options;
+      const result = watch && flags.watch
+        ? await pollJob({
+          fetch: read,
+          status: watch.status,
+          describe: watch.describe,
+          intervalMs: Number(flags['poll-interval']) * 1000,
+          timeoutMs: Number(flags['timeout-mins']) * 60 * 1000,
+        })
+        : await read();
+      if (watch && flags.watch && watch.status(result) === 'failed') process.exitCode = ExitCode.Generic;
+      if (options.render && !this.emitJson()) {
+        this.log(options.render(result));
+        return;
+      }
       this.printJson(response === 'chat' && typeof result === 'string' ? parseChatStream(result) : result);
     }
   };

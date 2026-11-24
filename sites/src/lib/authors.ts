@@ -1,10 +1,13 @@
+import { AUTHOR_PROFILE_FIELDS } from "../constants/authors";
 import type {
   AuthorFields,
+  AuthorSocial,
   EntryAuthorRef,
   ResolvedAuthor,
 } from "../types/authors";
 import type { BlogEntry, ChangelogEntry } from "../types/entries";
 import { mergeAuthorFields } from "../utils/merge-author-fields";
+import { webLink } from "../utils/web-link";
 import { absoluteUrl, assetUrl, config, href } from "./params";
 
 function configAuthor(id: string): AuthorFields | undefined {
@@ -16,22 +19,19 @@ function authorHref(id: string): string {
 }
 
 function resolved(id: string | null, author: AuthorFields): ResolvedAuthor {
+  // blog.json takes any scheme for older link fields; the author_link_scheme warning explains the dropped ones.
+  const website = webLink(author.url);
+  const profiles = AUTHOR_PROFILE_FIELDS.flatMap((kind) => {
+    const url = webLink(author[kind]);
+    return url ? [{ kind, url }] : [];
+  });
   const links = [
-    author.url,
-    author.x,
-    author.linkedin,
-    author.github,
-    author.youtube,
-  ].filter((link): link is string => Boolean(link));
-  const socials = (
-    [
-      ["x", author.x],
-      ["linkedin", author.linkedin],
-      ["github", author.github],
-      ["youtube", author.youtube],
-      ["website", author.url],
-    ] as const
-  ).flatMap(([kind, url]) => (url ? [{ kind, url }] : []));
+    ...(website ? [website] : []),
+    ...profiles.map((profile) => profile.url),
+  ];
+  const socials: AuthorSocial[] = website
+    ? [...profiles, { kind: "website", url: website }]
+    : profiles;
   return {
     id,
     name: author.name,
@@ -41,7 +41,7 @@ function resolved(id: string | null, author: AuthorFields): ResolvedAuthor {
     href: id ? authorHref(id) : undefined,
     links,
     socials,
-    url: author.url ?? links[0],
+    url: website ?? links[0],
   };
 }
 
