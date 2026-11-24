@@ -1,6 +1,9 @@
+import { resolve } from 'node:path';
 import { Command, Flags } from '../cli/core';
+import { confirmAction } from '../utils/confirm';
 import { resolveSiteSource } from '../utils/site-source';
 import { assertSitesNode, mountArgs, runSitesRuntime } from '../utils/sites-runtime';
+import { createStarterSite } from '../utils/starter-site';
 
 export default class Dev extends Command {
   static override description = 'Preview a local Notra Sites blog and changelog with live reload. No login required.';
@@ -8,6 +11,7 @@ export default class Dev extends Command {
     '<%= config.bin %> <%= command.id %>',
     '<%= config.bin %> <%= command.id %> --source ./hosted-site --port 4400',
     '<%= config.bin %> <%= command.id %> --mount blog=/newsroom',
+    '<%= config.bin %> <%= command.id %> --source ./my-site --create',
   ];
 
   static override flags = {
@@ -18,12 +22,21 @@ export default class Dev extends Command {
       helpValue: '<area>=<path>',
       multiple: true,
     }),
+    create: Flags.boolean({ description: 'Create a starter site when the folder has none, without asking.' }),
   };
 
   public async run(): Promise<void> {
     const { flags } = await this.parse(Dev);
     assertSitesNode('dev');
-    const source = await resolveSiteSource(flags.source);
+    const source = await resolveSiteSource(flags.source).catch(async (error: unknown) => {
+      const folder = resolve(flags.source);
+      const create = flags.create
+        || await confirmAction(`No Notra site in ${folder}. Create a starter site here?`, { defaultAnswer: true });
+      if (!create) throw error;
+      const starter = await createStarterSite(folder);
+      this.logToStderr(`Created a starter site in ${starter.root}: ${starter.files.join(', ')}`);
+      return starter.root;
+    });
     this.logToStderr(`Starting Notra Sites preview for ${source}`);
     const { code, interrupted } = await runSitesRuntime([
       'dev', '--source', source, '--port', String(flags.port), ...mountArgs(flags.mount),
