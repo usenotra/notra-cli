@@ -369,6 +369,29 @@ describe('curated API commands end to end', () => {
     }
   });
 
+  test('outreach sends, deletes and disconnects ask for --yes; undo-later does not', async () => {
+    for (const args of [
+      ['autopilot', 'outreach', 'send', 'pitch_1'],
+      ['autopilot', 'outreach', 'delete', 'pitch_1'],
+      ['autopilot', 'outreach', 'mailbox', 'disconnect'],
+      ['api', 'call', 'sendOutreachPitch', '--param', 'pitchId=pitch_1', '--body-file', '-'],
+      ['api', 'request', 'POST', '/v1/autopilot/outreach/pitches/pitch_1/send', '--body-file', '-'],
+    ]) {
+      const before = requests;
+      const result = await run(args, false, '{}');
+      expect(result.code, result.stdout).toBe(2);
+      expect(JSON.parse(result.stdout).error).toContain('Confirmation required');
+      expect(requests).toBe(before);
+    }
+
+    const undo = await run(['autopilot', 'outreach', 'undo-later', 'pitch_1']);
+    expect(undo.code, undo.stdout + undo.stderr).toBe(0);
+    expect(JSON.parse(undo.stdout)).toMatchObject({
+      method: 'DELETE',
+      path: '/v1/autopilot/outreach/pitches/pitch_1/later',
+    });
+  });
+
   test('Autopilot status needs no confirmation, but all run-control commands do', async () => {
     const status = await run(['autopilot', 'status']);
     expect(status.code, status.stdout).toBe(0);

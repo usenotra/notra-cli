@@ -99,6 +99,21 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "cancelOutreachPitch",
+    "method": "POST",
+    "path": "/v1/autopilot/outreach/pitches/{pitchId}/cancel",
+    "summary": "Cancel a scheduled pitch",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "pitchId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "cancelPostSchedule",
     "method": "DELETE",
     "path": "/v1/posts/{postId}/schedule",
@@ -468,6 +483,21 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "deleteOutreachPitch",
+    "method": "DELETE",
+    "path": "/v1/autopilot/outreach/pitches/{pitchId}",
+    "summary": "Delete a pitch",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "pitchId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "deletePost",
     "method": "DELETE",
     "path": "/v1/posts/{postId}",
@@ -568,6 +598,15 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "disconnectOutreachMailbox",
+    "method": "DELETE",
+    "path": "/v1/autopilot/outreach/mailbox",
+    "summary": "Disconnect the outreach mailbox",
+    "tag": "Autopilot outreach",
+    "parameters": [],
+    "hasBody": false
+  },
+  {
     "id": "dismissGeoNameCollision",
     "method": "POST",
     "path": "/v1/projects/{projectId}/geo/name-collisions/{collisionId}/dismiss",
@@ -606,6 +645,21 @@ export const OPENAPI_OPERATIONS = [
       }
     ],
     "hasBody": false
+  },
+  {
+    "id": "editOutreachPitch",
+    "method": "PATCH",
+    "path": "/v1/autopilot/outreach/pitches/{pitchId}",
+    "summary": "Edit a drafted pitch",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "pitchId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
   },
   {
     "id": "generateGeoPersonas",
@@ -1562,6 +1616,30 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "getOutreachMailbox",
+    "method": "GET",
+    "path": "/v1/autopilot/outreach/mailbox",
+    "summary": "Get the outreach mailbox",
+    "tag": "Autopilot outreach",
+    "parameters": [],
+    "hasBody": false
+  },
+  {
+    "id": "getOutreachPitch",
+    "method": "GET",
+    "path": "/v1/autopilot/outreach/pitches/{pitchId}",
+    "summary": "Get an outreach pitch",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "pitchId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "getPost",
     "method": "GET",
     "path": "/v1/posts/{postId}",
@@ -1856,6 +1934,21 @@ export const OPENAPI_OPERATIONS = [
         "name": "projectId",
         "in": "query",
         "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "laterOutreachPitch",
+    "method": "POST",
+    "path": "/v1/autopilot/outreach/pitches/{pitchId}/later",
+    "summary": "Put a draft off until the next brief",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "pitchId",
+        "in": "path",
+        "required": true
       }
     ],
     "hasBody": false
@@ -2383,6 +2476,36 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "listOutreachPitches",
+    "method": "GET",
+    "path": "/v1/autopilot/outreach/pitches",
+    "summary": "List outreach pitches",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "status",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "stage",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "followUpDue",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "search",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "listPostAuthors",
     "method": "GET",
     "path": "/v1/posts/authors",
@@ -2575,6 +2698,36 @@ export const OPENAPI_OPERATIONS = [
     "summary": "List outbound webhook subscriptions",
     "tag": "Webhooks",
     "parameters": [],
+    "hasBody": false
+  },
+  {
+    "id": "markOutreachPitchListed",
+    "method": "POST",
+    "path": "/v1/autopilot/outreach/pitches/{pitchId}/mark-listed",
+    "summary": "Mark a pitch as listed",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "pitchId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "markOutreachPitchSent",
+    "method": "POST",
+    "path": "/v1/autopilot/outreach/pitches/{pitchId}/mark-sent",
+    "summary": "Mark a pitch as sent",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "pitchId",
+        "in": "path",
+        "required": true
+      }
+    ],
     "hasBody": false
   },
   {
@@ -2873,6 +3026,21 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": true
   },
   {
+    "id": "sendOutreachPitch",
+    "method": "POST",
+    "path": "/v1/autopilot/outreach/pitches/{pitchId}/send",
+    "summary": "Send or schedule a pitch",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "pitchId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
     "id": "startAutopilotRun",
     "method": "POST",
     "path": "/v1/autopilot/runs",
@@ -3000,6 +3168,21 @@ export const OPENAPI_OPERATIONS = [
       {
         "name": "domain",
         "in": "query",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "undoLaterOutreachPitch",
+    "method": "DELETE",
+    "path": "/v1/autopilot/outreach/pitches/{pitchId}/later",
+    "summary": "Undo putting a draft off",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "pitchId",
+        "in": "path",
         "required": true
       }
     ],
@@ -3179,6 +3362,21 @@ export const OPENAPI_OPERATIONS = [
     "parameters": [
       {
         "name": "projectId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
+    "id": "updateOutreachPitchDetails",
+    "method": "PATCH",
+    "path": "/v1/autopilot/outreach/pitches/{pitchId}/details",
+    "summary": "Update a pitch's stage, follow-up or deal",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "pitchId",
         "in": "path",
         "required": true
       }
@@ -3380,6 +3578,17 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "type": "string",
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "cancelOutreachPitch": {
+    "parameters": {
+      "pitchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A pitch's id from the pitch list"
       }
     }
   },
@@ -4831,6 +5040,17 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "deleteOutreachPitch": {
+    "parameters": {
+      "pitchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A pitch's id from the pitch list"
+      }
+    }
+  },
   "deletePost": {
     "parameters": {
       "postId": {
@@ -4899,6 +5119,9 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "disconnectOutreachMailbox": {
+    "parameters": {}
+  },
   "dismissGeoNameCollision": {
     "parameters": {
       "projectId": {
@@ -4925,6 +5148,50 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$"
       }
+    }
+  },
+  "editOutreachPitch": {
+    "parameters": {
+      "pitchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A pitch's id from the pitch list"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "to": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                ""
+              ]
+            },
+            {
+              "type": "string",
+              "maxLength": 254,
+              "format": "email"
+            }
+          ],
+          "description": "One email address to send to. Empty sends to the address found on the page"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5000,
+          "description": "Plain text. The unsubscribe line is added when it is sent; don't write one"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "generateGeoPersonas": {
@@ -5736,6 +6003,20 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "getOutreachMailbox": {
+    "parameters": {}
+  },
+  "getOutreachPitch": {
+    "parameters": {
+      "pitchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A pitch's id from the pitch list"
+      }
+    }
+  },
   "getPost": {
     "parameters": {
       "postId": {
@@ -6071,6 +6352,17 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$",
         "description": "Bind the token to one project. Omit to track the whole organization."
+      }
+    }
+  },
+  "laterOutreachPitch": {
+    "parameters": {
+      "pitchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A pitch's id from the pitch list"
       }
     }
   },
@@ -6496,6 +6788,48 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
   "listIntegrations": {
     "parameters": {}
   },
+  "listOutreachPitches": {
+    "parameters": {
+      "status": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "scheduled",
+          "sent",
+          "listed",
+          "expired",
+          "skipped"
+        ],
+        "description": "Only pitches in this status"
+      },
+      "stage": {
+        "type": "string",
+        "enum": [
+          "drafted",
+          "sent",
+          "no_reply",
+          "replied",
+          "negotiating",
+          "accepted",
+          "declined"
+        ],
+        "description": "Only pitches at this stage"
+      },
+      "followUpDue": {
+        "type": "string",
+        "enum": [
+          "true",
+          "false"
+        ],
+        "description": "true: only sent pitches whose follow-up is due now"
+      },
+      "search": {
+        "type": "string",
+        "maxLength": 200,
+        "description": "Matches the contact, address, site, page title or subject"
+      }
+    }
+  },
   "listPostAuthors": {
     "parameters": {}
   },
@@ -6651,6 +6985,28 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
   },
   "listWebhookEndpoints": {
     "parameters": {}
+  },
+  "markOutreachPitchListed": {
+    "parameters": {
+      "pitchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A pitch's id from the pitch list"
+      }
+    }
+  },
+  "markOutreachPitchSent": {
+    "parameters": {
+      "pitchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A pitch's id from the pitch list"
+      }
+    }
   },
   "patchSkill": {
     "parameters": {
@@ -7341,6 +7697,38 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "sendOutreachPitch": {
+    "parameters": {
+      "pitchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A pitch's id from the pitch list"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "sendAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "string",
+              "enum": [
+                "suggested"
+              ]
+            }
+          ],
+          "description": "Omit to send now. An ISO time up to 30 days ahead schedules it; suggested uses the pitch's suggestedSendAt, a weekday morning in the recipient's time zone"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
   "startAutopilotRun": {
     "parameters": {},
     "body": {
@@ -7650,6 +8038,17 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "minLength": 1,
         "maxLength": 128,
         "description": "Website domain, for example `example.com`."
+      }
+    }
+  },
+  "undoLaterOutreachPitch": {
+    "parameters": {
+      "pitchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A pitch's id from the pitch list"
       }
     }
   },
@@ -8531,6 +8930,233 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "enabled",
         "scanIntervalHours"
       ]
+    }
+  },
+  "updateOutreachPitchDetails": {
+    "parameters": {
+      "pitchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A pitch's id from the pitch list"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "stage": {
+          "anyOf": [
+            {
+              "enum": [
+                "drafted",
+                "sent",
+                "no_reply",
+                "replied",
+                "negotiating",
+                "accepted",
+                "declined",
+                null
+              ],
+              "description": "Set the stage by hand, or null to go back to what the thread says. A newer reply from them replaces a stage set by hand",
+              "type": "string"
+            },
+            {
+              "enum": [
+                "drafted",
+                "sent",
+                "no_reply",
+                "replied",
+                "negotiating",
+                "accepted",
+                "declined",
+                null
+              ],
+              "description": "Set the stage by hand, or null to go back to what the thread says. A newer reply from them replaces a stage set by hand",
+              "type": "null"
+            }
+          ]
+        },
+        "followUpAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "string",
+              "enum": [
+                "auto"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When to follow up; null for never, auto for a few days after the last message"
+        },
+        "deal": {
+          "anyOf": [
+            {
+              "properties": {
+                "decision": {
+                  "type": "string",
+                  "enum": [
+                    "free",
+                    "paid",
+                    "declined",
+                    "undecided"
+                  ]
+                },
+                "amount": {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "maximum": 1000000,
+                      "type": "number"
+                    },
+                    {
+                      "minimum": 0,
+                      "maximum": 1000000,
+                      "type": "null"
+                    }
+                  ]
+                },
+                "currency": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[A-Za-z]{3}$",
+                      "description": "ISO 4217, e.g. USD; read in either case",
+                      "type": "string"
+                    },
+                    {
+                      "pattern": "^[A-Za-z]{3}$",
+                      "description": "ISO 4217, e.g. USD; read in either case",
+                      "type": "null"
+                    }
+                  ]
+                },
+                "terms": {
+                  "anyOf": [
+                    {
+                      "maxLength": 500,
+                      "type": "string"
+                    },
+                    {
+                      "maxLength": 500,
+                      "type": "null"
+                    }
+                  ]
+                },
+                "placementUrl": {
+                  "anyOf": [
+                    {
+                      "maxLength": 2000,
+                      "format": "uri",
+                      "description": "Where the listing is live",
+                      "type": "string"
+                    },
+                    {
+                      "maxLength": 2000,
+                      "format": "uri",
+                      "description": "Where the listing is live",
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "decision",
+                "amount",
+                "currency",
+                "terms",
+                "placementUrl"
+              ],
+              "description": "What they asked for in return. Kept over what Autopilot reads from later replies while their decision stays the same",
+              "type": "object"
+            },
+            {
+              "properties": {
+                "decision": {
+                  "type": "string",
+                  "enum": [
+                    "free",
+                    "paid",
+                    "declined",
+                    "undecided"
+                  ]
+                },
+                "amount": {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "maximum": 1000000,
+                      "type": "number"
+                    },
+                    {
+                      "minimum": 0,
+                      "maximum": 1000000,
+                      "type": "null"
+                    }
+                  ]
+                },
+                "currency": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[A-Za-z]{3}$",
+                      "description": "ISO 4217, e.g. USD; read in either case",
+                      "type": "string"
+                    },
+                    {
+                      "pattern": "^[A-Za-z]{3}$",
+                      "description": "ISO 4217, e.g. USD; read in either case",
+                      "type": "null"
+                    }
+                  ]
+                },
+                "terms": {
+                  "anyOf": [
+                    {
+                      "maxLength": 500,
+                      "type": "string"
+                    },
+                    {
+                      "maxLength": 500,
+                      "type": "null"
+                    }
+                  ]
+                },
+                "placementUrl": {
+                  "anyOf": [
+                    {
+                      "maxLength": 2000,
+                      "format": "uri",
+                      "description": "Where the listing is live",
+                      "type": "string"
+                    },
+                    {
+                      "maxLength": 2000,
+                      "format": "uri",
+                      "description": "Where the listing is live",
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "decision",
+                "amount",
+                "currency",
+                "terms",
+                "placementUrl"
+              ],
+              "description": "What they asked for in return. Kept over what Autopilot reads from later replies while their decision stays the same",
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   },
   "updatePost": {
