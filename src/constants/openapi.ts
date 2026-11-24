@@ -1939,6 +1939,21 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "laterOutreachPitch",
+    "method": "POST",
+    "path": "/v1/autopilot/outreach/pitches/{pitchId}/later",
+    "summary": "Put a draft off until the next brief",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "pitchId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "listAgentChats",
     "method": "GET",
     "path": "/v2/agent-chats",
@@ -3073,6 +3088,21 @@ export const OPENAPI_OPERATIONS = [
       {
         "name": "domain",
         "in": "query",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "undoLaterOutreachPitch",
+    "method": "DELETE",
+    "path": "/v1/autopilot/outreach/pitches/{pitchId}/later",
+    "summary": "Undo putting a draft off",
+    "tag": "Autopilot outreach",
+    "parameters": [
+      {
+        "name": "pitchId",
+        "in": "path",
         "required": true
       }
     ],
@@ -4750,14 +4780,23 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
             "3d",
             "7d"
           ],
-          "default": "1d",
-          "description": "How long the preview stays open."
+          "description": "How long the preview stays open. Leave out to keep the current preview's lifetime when rebuilding it, or 1d for a first preview."
         },
         "password": {
-          "type": "string",
-          "minLength": 8,
-          "maxLength": 128,
-          "description": "Lets people outside the workspace open the preview with this password."
+          "anyOf": [
+            {
+              "minLength": 8,
+              "maxLength": 128,
+              "description": "Lets people outside the workspace open the preview with this password (they can read it, not comment). null removes the password; leave it out to keep the current one.",
+              "type": "string"
+            },
+            {
+              "minLength": 8,
+              "maxLength": 128,
+              "description": "Lets people outside the workspace open the preview with this password (they can read it, not comment). null removes the password; leave it out to keep the current one.",
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -5045,8 +5084,19 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       "type": "object",
       "properties": {
         "to": {
-          "type": "string",
-          "maxLength": 254,
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                ""
+              ]
+            },
+            {
+              "type": "string",
+              "maxLength": 254,
+              "format": "email"
+            }
+          ],
           "description": "One email address to send to. Empty sends to the address found on the page"
         },
         "subject": {
@@ -6222,6 +6272,17 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$",
         "description": "Bind the token to one project. Omit to track the whole organization."
+      }
+    }
+  },
+  "laterOutreachPitch": {
+    "parameters": {
+      "pitchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A pitch's id from the pitch list"
       }
     }
   },
@@ -7804,6 +7865,17 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "minLength": 1,
         "maxLength": 128,
         "description": "Website domain, for example `example.com`."
+      }
+    }
+  },
+  "undoLaterOutreachPitch": {
+    "parameters": {
+      "pitchId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A pitch's id from the pitch list"
       }
     }
   },

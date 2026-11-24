@@ -37,7 +37,7 @@ export function createApiCommand(id: string, options: ApiCommandOptions = {}): t
       const { args, flags } = await this.parse(ApiCommand);
       const body = bodyValidator ? await readOperationBody(spec, flags, bodyValidator) : undefined;
       const prepared = prepareOperation(spec, args, flags, body);
-      if (spec.operation.method === 'DELETE' || BILLABLE_OPERATION_IDS.has(id) || options.confirm) {
+      if (BILLABLE_OPERATION_IDS.has(id) || (options.confirm ?? spec.operation.method === 'DELETE')) {
         const confirmed = await confirmAction(
           API_ACTION_CONFIRMATIONS[id] ?? `${spec.operation.summary}?`,
           { yes: flags.yes === true },

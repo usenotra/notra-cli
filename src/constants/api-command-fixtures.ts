@@ -13,6 +13,8 @@ export const API_COMMAND_FIXTURES: ReadonlyArray<ApiCommandFixture> = [
   { command: 'autopilot outreach cancel', path: '/v1/autopilot/outreach/pitches/pitch_1/cancel', method: 'POST', args: ['pitch_1'] },
   { command: 'autopilot outreach mark-sent', path: '/v1/autopilot/outreach/pitches/pitch_1/mark-sent', method: 'POST', args: ['pitch_1'] },
   { command: 'autopilot outreach mark-listed', path: '/v1/autopilot/outreach/pitches/pitch_1/mark-listed', method: 'POST', args: ['pitch_1'] },
+  { command: 'autopilot outreach later', path: '/v1/autopilot/outreach/pitches/pitch_1/later', method: 'POST', args: ['pitch_1'] },
+  { command: 'autopilot outreach undo-later', path: '/v1/autopilot/outreach/pitches/pitch_1/later', method: 'DELETE', args: ['pitch_1'] },
   { command: 'autopilot outreach details', path: '/v1/autopilot/outreach/pitches/pitch_1/details', method: 'PATCH', args: ['pitch_1', '--stage', 'null', '--follow-up-at', 'auto'], body: { stage: null, followUpAt: 'auto' } },
   { command: 'autopilot outreach delete', path: '/v1/autopilot/outreach/pitches/pitch_1', method: 'DELETE', args: ['pitch_1'] },
   { command: 'autopilot outreach mailbox show', path: '/v1/autopilot/outreach/mailbox' },

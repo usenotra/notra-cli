@@ -15,7 +15,9 @@ export type ApiCommandOptions = {
   // Skip the selected-workspace header, e.g. so a stale selection cannot block discovery.
   unscoped?: boolean;
   response?: 'json' | 'chat' | 'ndjson';
-  // Ask before irreversible actions that are neither DELETE nor billable.
+  // Ask before irreversible actions that are neither DELETE nor billable;
+  // false skips the question for a DELETE that only undoes something.
+  // Billable actions always ask.
   confirm?: boolean;
   bodySchema?: ZodObject;
 };

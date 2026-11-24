@@ -227,6 +227,8 @@ notra autopilot outreach send pitch_123 --yes          # now
 notra autopilot outreach cancel pitch_123
 notra autopilot outreach details pitch_123 --stage negotiating
 notra autopilot outreach mark-listed pitch_123
+notra autopilot outreach later pitch_123         # back in the next daily brief
+notra autopilot outreach undo-later pitch_123
 notra autopilot outreach delete pitch_123 --yes
 notra autopilot outreach mailbox show
 ```
