@@ -1,0 +1,27 @@
+src/commands/autopilot/outreach/details.ts
+  s_49803bda86e6af::t_a36a786358fe2e 4
+src/commands/autopilot/outreach/log.ts
+  s_49803bda86e6af::t_a36a786358fe2e 1-5
+src/constants/openapi.ts
+  s_49803bda86e6af::t_52a5e4312abcb7 47-54,369-398,648-662,733-771,1974-1988,2079-2118,2851-2859,2890-2904,3050-3064,3230-3244,3330-3339,3403-3411,3716-3730,3763-3780,4492,4497,5200-5201,5205,5214-5235,5402-5423,5528-5552,5668,5673,5699,5704,5724,5729,5826,5831,5851,5856,5891,5896,5916,5921,5969,5974,6017,6022,6042,6047,6067,6072,6092,6097,6123,6128,6148,6153,6173,6178,6215,6220,6257,6262,6368,6373,6535-6545,6714-6764,6939,6944,7045,7050,7114,7119,7145,7150,7374-7463,7486-7517,7983-8008,8265-8288,8359,8363,8367-8386,8480,8591,8630-8838,9941-9954,10788-10797
+README.md
+  s_49803bda86e6af::t_a36a786358fe2e 167,223,229,235,248-253
+src/constants/api-command-fixtures.ts
+  s_49803bda86e6af::t_a36a786358fe2e 11,20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5ccefd1f66cfe133aa96cae8ff5ea1df14042012",
+  "prompts": {},
+  "sessions": {
+    "s_49803bda86e6af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a60e02d2-f41d-410c-a0a8-da31c830e442",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jan Burzinski <156842394+janburzinski@users.noreply.github.com>"
+    }
+  }
+}
