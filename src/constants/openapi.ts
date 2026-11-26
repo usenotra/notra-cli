@@ -44,6 +44,15 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "addAutopilotRule",
+    "method": "POST",
+    "path": "/v1/autopilot/rules",
+    "summary": "Add a standing rule",
+    "tag": "Autopilot",
+    "parameters": [],
+    "hasBody": true
+  },
+  {
     "id": "addGeoNameCollision",
     "method": "POST",
     "path": "/v1/projects/{projectId}/geo/name-collisions",
@@ -358,6 +367,36 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": true
   },
   {
+    "id": "deleteAutopilotRule",
+    "method": "DELETE",
+    "path": "/v1/autopilot/rules/{ruleId}",
+    "summary": "Delete a standing rule",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "ruleId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "deleteAutopilotWorkflow",
+    "method": "DELETE",
+    "path": "/v1/autopilot/workflows/{workflowId}",
+    "summary": "Delete a custom workflow",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "workflowId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "deleteBrandColor",
     "method": "DELETE",
     "path": "/v1/brand-identities/{brandIdentityId}/colors/{colorId}",
@@ -607,6 +646,21 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "dismissAutopilotFinding",
+    "method": "POST",
+    "path": "/v1/autopilot/findings/{findingId}/dismiss",
+    "summary": "Dismiss a finding",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "findingId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
     "id": "dismissGeoNameCollision",
     "method": "POST",
     "path": "/v1/projects/{projectId}/geo/name-collisions/{collisionId}/dismiss",
@@ -675,6 +729,45 @@ export const OPENAPI_OPERATIONS = [
       }
     ],
     "hasBody": true
+  },
+  {
+    "id": "getAutopilotBrief",
+    "method": "GET",
+    "path": "/v1/autopilot/brief",
+    "summary": "Get today's daily brief",
+    "tag": "Autopilot",
+    "parameters": [],
+    "hasBody": false
+  },
+  {
+    "id": "getAutopilotFinding",
+    "method": "GET",
+    "path": "/v1/autopilot/findings/{findingId}",
+    "summary": "Get an Autopilot finding",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "findingId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "getAutopilotRun",
+    "method": "GET",
+    "path": "/v1/autopilot/runs/{runId}",
+    "summary": "Get an Autopilot run and its log",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "runId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
   },
   {
     "id": "getAutopilotStatus",
@@ -1879,6 +1972,21 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "holdAutopilotFinding",
+    "method": "POST",
+    "path": "/v1/autopilot/findings/{findingId}/hold",
+    "summary": "Hold an automatic publish",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "findingId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "importGeoCompetitors",
     "method": "POST",
     "path": "/v1/projects/{projectId}/geo/competitors/import",
@@ -1959,6 +2067,46 @@ export const OPENAPI_OPERATIONS = [
     "path": "/v2/agent-chats",
     "summary": "List agent sessions",
     "tag": "Agent",
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "listAutopilotFindings",
+    "method": "GET",
+    "path": "/v1/autopilot/findings",
+    "summary": "List Autopilot findings",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "status",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "kind",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "listAutopilotRuns",
+    "method": "GET",
+    "path": "/v1/autopilot/runs",
+    "summary": "List recent Autopilot runs",
+    "tag": "Autopilot",
     "parameters": [
       {
         "name": "limit",
@@ -2701,6 +2849,15 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "logOutreachPitch",
+    "method": "POST",
+    "path": "/v1/autopilot/outreach/pitches",
+    "summary": "Log an outreach contact",
+    "tag": "Autopilot outreach",
+    "parameters": [],
+    "hasBody": true
+  },
+  {
     "id": "markOutreachPitchListed",
     "method": "POST",
     "path": "/v1/autopilot/outreach/pitches/{pitchId}/mark-listed",
@@ -2729,6 +2886,21 @@ export const OPENAPI_OPERATIONS = [
       }
     ],
     "hasBody": false
+  },
+  {
+    "id": "mergeAutopilotFinding",
+    "method": "POST",
+    "path": "/v1/autopilot/findings/{findingId}/merge",
+    "summary": "Merge a finding's pull request",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "findingId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
   },
   {
     "id": "patchSkill",
@@ -2869,6 +3041,21 @@ export const OPENAPI_OPERATIONS = [
     "parameters": [
       {
         "name": "projectId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
+    "id": "requestAutopilotChanges",
+    "method": "POST",
+    "path": "/v1/autopilot/findings/{findingId}/request-changes",
+    "summary": "Ask for changes on a pull request",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "findingId",
         "in": "path",
         "required": true
       }
@@ -3041,6 +3228,21 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": true
   },
   {
+    "id": "setAutopilotWorkflowEnabled",
+    "method": "PATCH",
+    "path": "/v1/autopilot/workflows/{workflowId}",
+    "summary": "Turn a custom workflow on or off",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "workflowId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": true
+  },
+  {
     "id": "startAutopilotRun",
     "method": "POST",
     "path": "/v1/autopilot/runs",
@@ -3125,6 +3327,16 @@ export const OPENAPI_OPERATIONS = [
         "name": "startIndex",
         "in": "query",
         "required": false
+      },
+      {
+        "name": "follow",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "includeTailIndex",
+        "in": "query",
+        "required": false
       }
     ],
     "hasBody": false
@@ -3187,6 +3399,15 @@ export const OPENAPI_OPERATIONS = [
       }
     ],
     "hasBody": false
+  },
+  {
+    "id": "updateAutopilotSettings",
+    "method": "PATCH",
+    "path": "/v1/autopilot/settings",
+    "summary": "Update Autopilot settings",
+    "tag": "Autopilot",
+    "parameters": [],
+    "hasBody": true
   },
   {
     "id": "updateBrandColor",
@@ -3492,6 +3713,21 @@ export const OPENAPI_OPERATIONS = [
       }
     ],
     "hasBody": true
+  },
+  {
+    "id": "writeAutopilotFinding",
+    "method": "POST",
+    "path": "/v1/autopilot/findings/{findingId}/write",
+    "summary": "Write a suggested idea now",
+    "tag": "Autopilot",
+    "parameters": [
+      {
+        "name": "findingId",
+        "in": "path",
+        "required": true
+      }
+    ],
+    "hasBody": false
   }
 ] as const satisfies ReadonlyArray<OpenApiOperation>;
 
@@ -3522,6 +3758,24 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$"
       }
+    }
+  },
+  "addAutopilotRule": {
+    "parameters": {},
+    "body": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 300,
+          "description": "A standing preference, e.g. 'Never write about pricing'"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
     }
   },
   "addGeoNameCollision": {
@@ -4235,12 +4489,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
           "anyOf": [
             {
               "minLength": 1,
-              "description": "Branch to read activity from. Defaults to the repository's default branch.",
+              "description": "Branch to read activity from. Defaults to the repository's default branch. An explicit branch is saved without verification if GitHub explicitly denies the token permission to look up branches.",
               "type": "string"
             },
             {
               "minLength": 1,
-              "description": "Branch to read activity from. Defaults to the repository's default branch.",
+              "description": "Branch to read activity from. Defaults to the repository's default branch. An explicit branch is saved without verification if GitHub explicitly denies the token permission to look up branches.",
               "type": "null"
             }
           ]
@@ -4943,17 +5197,40 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
               "post.unpublished",
               "geo.scan.completed",
               "geo.scan.failed",
-              "geo.alert.triggered"
+              "geo.alert.triggered",
+              "autopilot.run.finished"
             ]
           },
           "minItems": 1,
-          "maxItems": 13
+          "maxItems": 14
         }
       },
       "required": [
         "url",
         "events"
       ]
+    }
+  },
+  "deleteAutopilotRule": {
+    "parameters": {
+      "ruleId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A rule's id from Autopilot status"
+      }
+    }
+  },
+  "deleteAutopilotWorkflow": {
+    "parameters": {
+      "workflowId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A custom workflow's id from Autopilot status"
+      }
     }
   },
   "deleteBrandColor": {
@@ -5122,6 +5399,28 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
   "disconnectOutreachMailbox": {
     "parameters": {}
   },
+  "dismissAutopilotFinding": {
+    "parameters": {
+      "findingId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A finding's id from the finding list or status"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Why, in the person's words. A stated preference becomes a standing rule"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
   "dismissGeoNameCollision": {
     "parameters": {
       "projectId": {
@@ -5223,6 +5522,31 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
           ],
           "description": "With personaId, only rewrite its conversation prompts and keep its details."
         }
+      }
+    }
+  },
+  "getAutopilotBrief": {
+    "parameters": {}
+  },
+  "getAutopilotFinding": {
+    "parameters": {
+      "findingId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A finding's id from the finding list or status"
+      }
+    }
+  },
+  "getAutopilotRun": {
+    "parameters": {
+      "runId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A run's id from the run list"
       }
     }
   },
@@ -5341,12 +5665,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
       }
     }
@@ -5372,12 +5696,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
       }
     }
@@ -5397,12 +5721,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Only used together with `from`; ignored when `from` is not set."
       }
     }
@@ -5499,12 +5823,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. The window from `from` through `to` must span 1 to 366 days."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Defaults to today. Without `from`, the window is the `days` days ending on this day."
       }
     }
@@ -5524,12 +5848,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. The window from `from` through `to` must span 1 to 366 days."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Defaults to today. Without `from`, the window is the `days` days ending on this day."
       }
     }
@@ -5564,12 +5888,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
       }
     }
@@ -5589,12 +5913,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
       }
     }
@@ -5642,12 +5966,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
       },
       "host": {
@@ -5690,12 +6014,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Only used together with `from`; ignored when `from` is not set."
       }
     }
@@ -5715,12 +6039,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Only used together with `from`; ignored when `from` is not set."
       }
     }
@@ -5740,12 +6064,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Only used together with `from`; ignored when `from` is not set."
       }
     }
@@ -5765,12 +6089,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Only used together with `from`; ignored when `from` is not set."
       },
       "scanId": {
@@ -5796,12 +6120,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Only used together with `from`; ignored when `from` is not set."
       }
     }
@@ -5821,12 +6145,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Only used together with `from`; ignored when `from` is not set."
       }
     }
@@ -5846,12 +6170,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
       },
       "host": {
@@ -5888,12 +6212,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
       },
       "host": {
@@ -5930,12 +6254,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
       },
       "host": {
@@ -6041,12 +6365,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
       }
     }
@@ -6205,6 +6529,17 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
           "true"
         ],
         "description": "Send true to also list pending workspace invitations. Only applies to OAuth tokens and account API keys."
+      }
+    }
+  },
+  "holdAutopilotFinding": {
+    "parameters": {
+      "findingId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A finding's id from the finding list or status"
       }
     }
   },
@@ -6373,6 +6708,56 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "minimum": 1,
         "maximum": 50,
         "default": 20
+      }
+    }
+  },
+  "listAutopilotFindings": {
+    "parameters": {
+      "status": {
+        "type": "string",
+        "enum": [
+          "suggested",
+          "open",
+          "proposed",
+          "merged",
+          "dismissed",
+          "expired",
+          "failed"
+        ],
+        "description": "suggested: an idea not written yet. open: being written. proposed: a pull request waits for review. merged, dismissed, expired, failed"
+      },
+      "kind": {
+        "type": "string",
+        "enum": [
+          "readiness",
+          "keywords",
+          "commits",
+          "prompts",
+          "competitors",
+          "refresh",
+          "comparisons",
+          "rendering",
+          "links",
+          "landing"
+        ],
+        "description": "Only this automation's findings"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 25,
+        "description": "Newest first; at most 100"
+      }
+    }
+  },
+  "listAutopilotRuns": {
+    "parameters": {
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50,
+        "default": 10
       }
     }
   },
@@ -6551,12 +6936,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Only used together with `from`; ignored when `from` is not set."
       },
       "scanId": {
@@ -6657,12 +7042,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. The window from `from` through `to` must span 1 to 366 days."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Defaults to today. Without `from`, the window is the `days` days ending on this day."
       },
       "cursor": {
@@ -6726,12 +7111,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
       },
       "limit": {
@@ -6757,12 +7142,12 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       },
       "from": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
       },
       "to": {
         "type": "string",
-        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "format": "date",
         "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
       },
       "limit": {
@@ -6986,6 +7371,96 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
   "listWebhookEndpoints": {
     "parameters": {}
   },
+  "logOutreachPitch": {
+    "parameters": {},
+    "body": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "maxLength": 2000,
+          "format": "uri",
+          "description": "The page you want the brand listed on, or the site's homepage when it's about the whole site"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Who you contacted, e.g. Jane Doe"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 254,
+          "format": "email",
+          "description": "Their email address"
+        },
+        "publisher": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "The site or company they're at, e.g. TechCrunch. Defaults to the page's domain"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "The page's title"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "The subject of what you sent, if it was an email"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5000,
+          "description": "What you sent them, if you want it kept"
+        },
+        "sentAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When you contacted them; omit for now. Can't be in the future"
+        },
+        "stage": {
+          "type": "string",
+          "enum": [
+            "sent",
+            "no_reply",
+            "replied",
+            "negotiating",
+            "accepted",
+            "declined"
+          ],
+          "description": "Where the conversation stands now; omit for sent. replied, negotiating, accepted or declined when it already went further"
+        },
+        "followUpAt": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "description": "When to follow up; null for never, omitted for a few days after sentAt",
+              "type": "string"
+            },
+            {
+              "format": "date-time",
+              "description": "When to follow up; null for never, omitted for a few days after sentAt",
+              "type": "null"
+            }
+          ]
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Your own notes on the contact, like how you know them or what you talked about"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false
+    }
+  },
   "markOutreachPitchListed": {
     "parameters": {
       "pitchId": {
@@ -7006,6 +7481,38 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "pattern": "^[A-Za-z0-9_-]+$",
         "description": "A pitch's id from the pitch list"
       }
+    }
+  },
+  "mergeAutopilotFinding": {
+    "parameters": {
+      "findingId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A finding's id from the finding list or status"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": [
+            "squash",
+            "merge",
+            "rebase"
+          ],
+          "description": "Omit for the first method the repository allows"
+        },
+        "headSha": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 64,
+          "description": "The finding's headSha you reviewed; the merge is refused if the branch moved past it"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "patchSkill": {
@@ -7473,6 +7980,32 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       ]
     }
   },
+  "requestAutopilotChanges": {
+    "parameters": {
+      "findingId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A finding's id from the finding list or status"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "instruction": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 2000,
+          "description": "What to change. Posted as a comment on the pull request, and Autopilot changes the branch"
+        }
+      },
+      "required": [
+        "instruction"
+      ],
+      "additionalProperties": false
+    }
+  },
   "resolvePostComments": {
     "parameters": {
       "postId": {
@@ -7729,6 +8262,30 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       "additionalProperties": false
     }
   },
+  "setAutopilotWorkflowEnabled": {
+    "parameters": {
+      "workflowId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A custom workflow's id from Autopilot status"
+      }
+    },
+    "body": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "false stops its schedule"
+        }
+      },
+      "required": [
+        "enabled"
+      ],
+      "additionalProperties": false
+    }
+  },
   "startAutopilotRun": {
     "parameters": {},
     "body": {
@@ -7799,16 +8356,34 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       "startIndex": {
         "anyOf": [
           {
-            "minimum": 0,
-            "description": "Index of the first stored line to send, to resume a stream after the last line you received.",
+            "description": "Index of the first stored line to send. Negative indices are relative to the recorded tail.",
             "type": "integer"
           },
           {
-            "minimum": 0,
-            "description": "Index of the first stored line to send, to resume a stream after the last line you received.",
+            "description": "Index of the first stored line to send. Negative indices are relative to the recorded tail.",
             "type": "null"
           }
         ]
+      },
+      "follow": {
+        "type": "string",
+        "enum": [
+          "0",
+          "1",
+          "true",
+          "false"
+        ],
+        "description": "Use false to read recorded history without following live events."
+      },
+      "includeTailIndex": {
+        "type": "string",
+        "enum": [
+          "0",
+          "1",
+          "true",
+          "false"
+        ],
+        "description": "Use 1 to bound the read and return the recorded tail index."
       }
     }
   },
@@ -7902,7 +8477,7 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
           "type": "string",
           "minLength": 1,
           "maxLength": 200,
-          "description": "Submitting the same key twice returns the original feedback instead of creating a duplicate."
+          "description": "Retries with the same key, project and JSON payload return an acknowledgement of the original feedback. Authenticated callers must use the same credential; the public feedback URL does not authenticate callers. The HTTP User-Agent header is ignored for keyed retries. Reusing a key for another submission returns 409."
         },
         "metadata": {
           "type": "object",
@@ -8013,7 +8588,7 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
           "type": "string",
           "minLength": 1,
           "maxLength": 200,
-          "description": "Submitting the same key twice returns the original feedback instead of creating a duplicate."
+          "description": "Retries with the same key, project and JSON payload return an acknowledgement of the original feedback. Authenticated callers must use the same credential; the public feedback URL does not authenticate callers. The HTTP User-Agent header is ignored for keyed retries. Reusing a key for another submission returns 409."
         },
         "metadata": {
           "type": "object",
@@ -8050,6 +8625,215 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "pattern": "^[A-Za-z0-9_-]+$",
         "description": "A pitch's id from the pitch list"
       }
+    }
+  },
+  "updateAutopilotSettings": {
+    "parameters": {},
+    "body": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "false pauses Autopilot entirely, true turns it back on"
+        },
+        "dailyBrief": {
+          "type": "boolean",
+          "description": "false stops the daily brief for the whole workspace; drafts are then emailed"
+        },
+        "briefHour": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23,
+          "description": "Hour of day (0-23) the daily run and brief happen"
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "IANA timezone such as Europe/Berlin"
+        },
+        "jobs": {
+          "type": "object",
+          "properties": {
+            "readiness": {
+              "type": "boolean"
+            },
+            "keywords": {
+              "type": "boolean"
+            },
+            "commits": {
+              "type": "boolean"
+            },
+            "prompts": {
+              "type": "boolean"
+            },
+            "refresh": {
+              "type": "boolean"
+            },
+            "comparisons": {
+              "type": "boolean"
+            },
+            "rendering": {
+              "type": "boolean"
+            },
+            "links": {
+              "type": "boolean"
+            },
+            "landing": {
+              "type": "boolean"
+            },
+            "outreach": {
+              "type": "boolean"
+            }
+          },
+          "description": "Automations to turn on (true) or off (false); omitted ones keep their setting. readiness: fixes from the Agent Readiness checks. keywords: posts for AI search gaps. commits: posts about shipped releases. prompts: suggests prompts to pause. refresh: updates stale pages. comparisons: comparison pages. rendering: makes pages readable by AI crawlers. links: internal links. landing: landing page copy. outreach: pitches to pages AI cites."
+        },
+        "approvals": {
+          "type": "object",
+          "properties": {
+            "posts": {
+              "type": "string",
+              "enum": [
+                "ask",
+                "auto"
+              ],
+              "description": "ask: a person merges it. auto: Autopilot publishes it itself"
+            },
+            "updates": {
+              "type": "string",
+              "enum": [
+                "ask",
+                "auto"
+              ],
+              "description": "ask: a person merges it. auto: Autopilot publishes it itself"
+            },
+            "fixes": {
+              "type": "string",
+              "enum": [
+                "ask",
+                "auto"
+              ],
+              "description": "ask: a person merges it. auto: Autopilot publishes it itself"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Whether Autopilot waits for a person (ask) or publishes on its own (auto), per kind of change. Omitted kinds keep their setting"
+        },
+        "stalePullRequestDays": {
+          "anyOf": [
+            {
+              "type": "number",
+              "enum": [
+                7
+              ]
+            },
+            {
+              "type": "number",
+              "enum": [
+                14
+              ]
+            },
+            {
+              "type": "number",
+              "enum": [
+                30
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Days before an untouched draft pull request is closed; null never"
+        },
+        "contentPath": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "description": "Folder in the repository new posts go into, e.g. content/blog; null lets Autopilot find it",
+              "type": "string"
+            },
+            {
+              "maxLength": 200,
+              "description": "Folder in the repository new posts go into, e.g. content/blog; null lets Autopilot find it",
+              "type": "null"
+            }
+          ]
+        },
+        "draftEmails": {
+          "type": "string",
+          "enum": [
+            "without_slack",
+            "always"
+          ],
+          "description": "without_slack: no separate email, the daily brief announces drafts. always: an email for each draft right away as well"
+        },
+        "slackBriefStyle": {
+          "type": "string",
+          "enum": [
+            "daily",
+            "single"
+          ],
+          "description": "How the daily brief shows up in Slack. daily: a new message each day. single: one message edited each day, with a thread reply that also shows in the channel when something needs a decision"
+        },
+        "slackBriefMentions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?:here|channel|[UWS][A-Z0-9]{2,})$"
+          },
+          "maxItems": 10,
+          "description": "Who the brief mentions on a day something waits on a decision, so they get a notification: here, channel, Slack member ids (U…) or user group ids (S…). The whole list, replacing the current one; [] mentions no one"
+        },
+        "reviewers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^@?[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:\\/[A-Za-z0-9][A-Za-z0-9_.-]{0,99})?$"
+          },
+          "maxItems": 10,
+          "description": "The whole list of GitHub logins and org/team names asked to review Autopilot's pull requests; it replaces the current one. [] removes them all"
+        },
+        "releaseFilters": {
+          "type": "object",
+          "properties": {
+            "excludedAuthors": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:\\[bot\\])?$"
+              },
+              "maxItems": 50,
+              "description": "GitHub logins whose pull requests are never written about"
+            },
+            "paths": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "maxItems": 20
+              },
+              "description": "Per repository (owner/name), only pull requests touching these paths or globs count, e.g. apps/web or docs/**"
+            },
+            "repositories": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 201,
+                "pattern": "^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$"
+              },
+              "maxItems": 15,
+              "description": "Repositories (owner/name) whose releases are read; empty picks them automatically"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Which pull requests the commits automation writes about. Each field named replaces its current value; omitted fields stay"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "updateBrandColor": {
@@ -9154,6 +9938,20 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
               "type": "null"
             }
           ]
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "description": "Your own notes on the contact; replaces the old note. Null or empty clears it",
+              "type": "string"
+            },
+            {
+              "maxLength": 2000,
+              "description": "Your own notes on the contact; replaces the old note. Null or empty clears it",
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -9986,6 +10784,17 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "name"
       ],
       "description": "The whole author: fields you leave out are removed. Links must be https URLs."
+    }
+  },
+  "writeAutopilotFinding": {
+    "parameters": {
+      "findingId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "A finding's id from the finding list or status"
+      }
     }
   }
 };
