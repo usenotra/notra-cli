@@ -473,6 +473,9 @@ describe('curated API commands end to end', () => {
       ['geo', 'traffic', 'web-breakdowns', 'project_1', '--days', '366'],
       ['geo', 'traffic', 'journey-stats', 'project_1', '--from', 'last-week'],
       ['geo', 'traffic', 'imports'],
+      ['geo', 'visibility', 'pick-reasons', 'project_1', '--limit', '201'],
+      ['geo', 'visibility', 'pick-reason-evidence', 'project_1', '--brand', 'Acme', '--reason', 'fits_request'],
+      ['geo', 'visibility', 'pick-reason-evidence', 'project_1', '--reason', 'price'],
     ]) {
       const before = requests;
       const result = await run(args, false, 'null');

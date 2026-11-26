@@ -966,6 +966,76 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "getGeoPickReasons",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/visibility/pick-reasons",
+    "summary": "Get why AI answers pick each brand",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "brand",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "getGeoPickRequests",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/visibility/pick-reasons/requests",
+    "summary": "Get how the pick changes with what users ask for",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "getGeoPromptHistory",
     "method": "GET",
     "path": "/v1/projects/{projectId}/geo/prompts/{promptId}/history",
@@ -2192,6 +2262,51 @@ export const OPENAPI_OPERATIONS = [
         "name": "projectId",
         "in": "path",
         "required": true
+      }
+    ],
+    "hasBody": false
+  },
+  {
+    "id": "listGeoPickReasonEvidence",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/visibility/pick-reasons/evidence",
+    "summary": "List answers that picked a brand for one reason",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "brand",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "reason",
+        "in": "query",
+        "required": true
+      },
+      {
+        "name": "engine",
+        "in": "query",
+        "required": false
       }
     ],
     "hasBody": false
@@ -5435,6 +5550,68 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
       }
     }
   },
+  "getGeoPickReasons": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when `from` is set. Defaults to 30 days."
+      },
+      "from": {
+        "type": "string",
+        "format": "date",
+        "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
+      },
+      "to": {
+        "type": "string",
+        "format": "date",
+        "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
+      },
+      "brand": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "description": "Only this brand. Your company name or an alias returns your own brand; a competitor name also matches its synonyms and spellings that differ only in punctuation."
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 200,
+        "description": "Most brands to return, your own included. Defaults to 25."
+      }
+    }
+  },
+  "getGeoPickRequests": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when `from` is set. Defaults to 30 days."
+      },
+      "from": {
+        "type": "string",
+        "format": "date",
+        "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
+      },
+      "to": {
+        "type": "string",
+        "format": "date",
+        "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
+      }
+    }
+  },
   "getGeoPromptHistory": {
     "parameters": {
       "projectId": {
@@ -6533,6 +6710,61 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "type": "string",
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "listGeoPickReasonEvidence": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when `from` is set. Defaults to 30 days."
+      },
+      "from": {
+        "type": "string",
+        "format": "date",
+        "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
+      },
+      "to": {
+        "type": "string",
+        "format": "date",
+        "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
+      },
+      "brand": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "description": "Brand as listed by getGeoPickReasons. Your company name or an alias reads your own brand."
+      },
+      "reason": {
+        "type": "string",
+        "enum": [
+          "price",
+          "reviews",
+          "features",
+          "integrations",
+          "ease_of_use",
+          "support",
+          "security",
+          "performance",
+          "availability",
+          "delivery",
+          "trial_refunds",
+          "brand"
+        ],
+        "description": "Reason to show answers for: `price`, `reviews`, `features`, `integrations`, `ease_of_use`, `support`, `security`, `performance`, `availability`, `delivery`, `trial_refunds`, `brand`."
+      },
+      "engine": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "description": "Only answers from this engine id, or from an engine family such as `claude` or `chatgpt`. Omit for all engines."
       }
     }
   },
