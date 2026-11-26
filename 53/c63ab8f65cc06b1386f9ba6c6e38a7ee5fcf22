@@ -1,0 +1,30 @@
+src/cli/api-command.test.ts
+  s_49803bda86e6af::t_66cb6e3875ee22 51-54,288-297,376-380
+src/lib/http-client.ts
+  s_49803bda86e6af::t_d8d102c0f8ed09 59-64,67
+src/constants/api-commands.ts
+  s_49803bda86e6af::t_f52fca9d4afcbe 14-17
+  s_49803bda86e6af::t_d8d102c0f8ed09 3-6
+src/constants/billing.ts
+  s_49803bda86e6af::t_d8d102c0f8ed09 13-14
+src/cli/api-command.ts
+  s_49803bda86e6af::t_d8d102c0f8ed09 6,62-68
+src/constants/http.ts
+  s_49803bda86e6af::t_4501190c32e309 15-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "53c63ab8f65cc06b1386f9ba6c6e38a7ee5fcf22",
+  "prompts": {},
+  "sessions": {
+    "s_49803bda86e6af": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a60e02d2-f41d-410c-a0a8-da31c830e442",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jan Burzinski <156842394+janburzinski@users.noreply.github.com>"
+    }
+  }
+}
