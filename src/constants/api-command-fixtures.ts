@@ -62,6 +62,8 @@ export const API_COMMAND_FIXTURES: ReadonlyArray<ApiCommandFixture> = [
   { command: 'geo sentiment evidence', path: '/v1/projects/project_1/geo/sentiment/evidence', args: ['project_1', '--cursor', 'abc'], query: { cursor: 'abc' } },
   { command: 'geo shelf list', path: '/v1/projects/project_1/geo/shelf-sources', args: ['project_1', '--offset', '5', '--limit', '10'], query: { offset: '5', limit: '10' } },
   { command: 'geo visibility prompt-summaries', path: '/v1/projects/project_1/geo/visibility/prompt-results/summaries', args: ['project_1', '--limit', '10', '--engine', 'openai', '--mentioned', 'false', '--cursor', '20', '--query', 'best tools'], query: { limit: '10', engine: 'openai', mentioned: 'false', cursor: '20', query: 'best tools' } },
+  { command: 'geo visibility pick-reasons', path: '/v1/projects/project_1/geo/visibility/pick-reasons', args: ['project_1', '--days', '7', '--brand', 'Acme', '--limit', '10'], query: { days: '7', brand: 'Acme', limit: '10' } },
+  { command: 'geo visibility pick-reason-evidence', path: '/v1/projects/project_1/geo/visibility/pick-reasons/evidence', args: ['project_1', '--brand', 'Rival', '--reason', 'ease_of_use', '--engine', 'claude', '--from', '2026-11-01'], query: { brand: 'Rival', reason: 'ease_of_use', engine: 'claude', from: '2026-11-01' } },
   { command: 'geo visibility prompt-detail', path: '/v1/projects/project_1/geo/visibility/prompt-results/check%2F1', args: ['project_1', 'check/1'] },
   { command: 'geo prompts suggestions list', path: '/v1/projects/project_1/geo/prompts/suggestions', args: ['project_1'] },
   { command: 'geo prompts suggestions accept', path: '/v1/projects/project_1/geo/prompts/suggestions/suggestion_1/accept', method: 'POST', args: ['project_1', 'suggestion_1'] },

@@ -150,9 +150,9 @@ accepts `--json` for machine-readable output.
 
 GEO commands cover projects, settings, answer engines, prompts and Search
 Console prompt suggestions, sequences, competitors, scans, visibility,
-sentiment, scan changes, prompt history, citation shelf sources, content gaps,
-briefs, agent readiness, AI traffic, and web analytics. Rescan a single prompt
-with `notra geo scans start <projectId> --prompt <promptId>`. Run
+sentiment, pick reasons, scan changes, prompt history, citation shelf sources,
+content gaps, briefs, agent readiness, AI traffic, and web analytics. Rescan a
+single prompt with `notra geo scans start <projectId> --prompt <promptId>`. Run
 `notra geo --help` to browse the complete command tree.
 
 ### Content and workspace workflows
@@ -298,6 +298,8 @@ notra geo changes <projectId>
 notra geo prompts history <projectId> <promptId> --scan-id <scanId>
 notra geo visibility prompt-summaries <projectId> --limit 20 --mentioned false
 notra geo visibility prompt-detail <projectId> <checkId>
+notra geo visibility pick-reasons <projectId> --days 30
+notra geo visibility pick-reason-evidence <projectId> --brand Acme --reason price --engine claude
 notra geo sentiment get <projectId> --days 30
 notra geo sentiment analysis <projectId> --days 30
 notra geo sentiment evidence <projectId> --cursor <cursor>
@@ -309,6 +311,15 @@ combines eight read-only signals into a bounded diagnosis with recommended next
 actions. Optional sections have a five-second timeout and become warnings when
 unavailable; a failed visibility overview still fails the command. Stored
 sentiment analysis does not start a billed analysis run.
+
+`pick-reasons` shows, for your brand and each competitor, how many answers
+picked it (top pick or recommended) and the reasons they credit, such as price,
+reviews or integrations, and how many answers are not analyzed yet. `--json`
+adds the breakdown per engine. `pick-reason-evidence` lists up to
+20 answers behind one brand and reason, with the prompt and quote; `--reason`
+is one of `price`, `reviews`, `features`, `integrations`, `ease_of_use`,
+`support`, `security`, `performance`, `availability`, `delivery`,
+`trial_refunds` or `brand`. Both default to the last 30 days.
 
 ### Web analytics (private beta)
 
