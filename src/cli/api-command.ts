@@ -3,6 +3,7 @@ import { NotraCommand } from '../base-command';
 import { BILLABLE_OPERATION_IDS } from '../constants/billing';
 import { API_ACTION_CONFIRMATIONS } from '../constants/api-commands';
 import { ExitCode } from '../constants/exit';
+import { STREAM_TAIL_INDEX_HEADER } from '../constants/http';
 import type { ApiCommandOptions } from '../types/api-command';
 import {
   getOperation,
@@ -58,7 +59,13 @@ export function createApiCommand(id: string, options: ApiCommandOptions = {}): t
         : options.unscoped ? this.unscopedAuthenticatedApi() : this.authenticatedApi();
       const request = { ...prepared, timeoutMs: Number(flags.timeout) * 1000 };
       if (response === 'ndjson') {
-        for await (const event of client.stream(spec.operation.method, prepared.path, request)) {
+        // Metadata a stream returns in headers goes to stderr, so stdout
+        // stays one event per line.
+        const printTailIndex = (headers: Headers) => {
+          const tailIndex = headers.get(STREAM_TAIL_INDEX_HEADER);
+          if (tailIndex !== null) this.logToStderr(JSON.stringify({ tailIndex: Number(tailIndex) }));
+        };
+        for await (const event of client.stream(spec.operation.method, prepared.path, request, printTailIndex)) {
           this.printJson(event);
         }
         return;

@@ -10,6 +10,8 @@ export const BILLABLE_OPERATION_IDS: ReadonlySet<string> = new Set([
   'runSchedule',
   'startAutopilotRun',
   'startAutopilotWorkflowRun',
+  'writeAutopilotFinding',
+  'requestAutopilotChanges',
   'createChat',
   'postChatMessage',
   'createAgentSession',

@@ -48,7 +48,10 @@ describe('curated API commands end to end', () => {
           if (streamHang) return new Response(new ReadableStream({ start(controller) {
             controller.enqueue(new TextEncoder().encode('{"type":"pending"}\n'));
           } }));
-          return new Response('{"type":"text.delta","text":"Hallo 🌍"}\n{"type":"done"}', { headers: { 'content-type': 'application/x-ndjson' } });
+          return new Response('{"type":"text.delta","text":"Hallo 🌍"}\n{"type":"done"}', { headers: {
+            'content-type': 'application/x-ndjson',
+            ...(url.searchParams.get('includeTailIndex') ? { 'x-eve-stream-tail-index': '41' } : {}),
+          } });
         }
         if ((url.pathname === '/v1/chats' || url.pathname === '/v1/chats/chat_1') && request.method === 'POST') {
           if (chatError) return new Response('data: {"type":"error","errorText":"No credits"}\n\n');
@@ -282,6 +285,16 @@ describe('curated API commands end to end', () => {
     } finally { chatError = false; }
   });
 
+  test('agent events replay from the tail and report the tail index on stderr', async () => {
+    const result = await run(['agents', 'events', 'session_1', '--start-index', '-10', '--include-tail-index', '1']);
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.stdout.trim().split('\n').map((line) => JSON.parse(line))).toEqual([
+      { type: 'text.delta', text: 'Hallo 🌍' },
+      { type: 'done' },
+    ]);
+    expect(result.stderr).toContain('{"tailIndex":41}');
+  });
+
   test('live event streams emit a JSON timeout error after partial output', async () => {
     streamHang = true;
     try {
@@ -360,6 +373,11 @@ describe('curated API commands end to end', () => {
       ['api', 'call', 'runSchedule', '--param', 'scheduleId=schedule_1'], ['brands', 'colors', 'delete', 'brand_1', 'color_1'],
       ['api', 'request', 'POST', '/v1/projects/project_1/geo/scans/prompts/prompt_1'],
       ['geo', 'prompts', 'suggestions', 'dismiss', 'project_1', 'suggestion_1'],
+      ['api', 'call', 'mergeAutopilotFinding', '--param', 'findingId=finding_1', '--body-file', '-'],
+      ['api', 'request', 'POST', '/v1/autopilot/findings/finding_1/merge', '--body-file', '-'],
+      ['api', 'call', 'writeAutopilotFinding', '--param', 'findingId=finding_1'],
+      ['api', 'call', 'requestAutopilotChanges', '--param', 'findingId=finding_1', '--body-file', '-'],
+      ['api', 'call', 'dismissAutopilotFinding', '--param', 'findingId=finding_1', '--body-file', '-'],
     ]) {
       const before = requests;
       const result = await run(args, false, '{"message":"Hello"}');
@@ -453,7 +471,6 @@ describe('curated API commands end to end', () => {
       ['chats', 'message', 'chat_1', '--message', 'Hi', '--approvals', '[{"id":"approval_1","approved":true}]', '--yes'],
       ['agents', 'message', 'session_1', '--yes'],
       ['agents', 'message', 'session_1', '--input-responses', '[]', '--yes'],
-      ['agents', 'events', 'session_1', '--start-index', '-1'],
       ['skills', 'create', '--body-file', '-'],
       ['skills', 'create', '--name', 'humanizer', '--content', 'a', '--content-file', 'b'],
       ['geo', 'prompts', 'suggestions', 'accept', 'project_1'],

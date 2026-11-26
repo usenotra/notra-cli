@@ -164,7 +164,7 @@ with `notra geo scans start <projectId> --prompt <promptId>`. Run
 | `comments` | Find posts with open comments (also by preview link), read threads, reply, resolve |
 | `schedules` | List, create from GitHub and/or Linear integrations, update only the fields you send, delete; run once now, list recent runs |
 | `autopilot` | Inspect settings, active runs, custom workflows and open findings; start or stop a run |
-| `autopilot outreach` | List and read pitches, edit drafts, send or schedule, cancel, mark sent or listed, correct stage, follow-up or deal, delete; show or disconnect the mailbox |
+| `autopilot outreach` | List and read pitches, log contacts you made yourself, edit drafts, send or schedule, cancel, mark sent or listed, correct stage, follow-up, deal or notes, delete; show or disconnect the mailbox |
 | `brands colors` | List, create, update, delete brand guideline colors |
 | `integrations activity` | List merged pull requests, commits or releases of a connected GitHub repository |
 | `event-triggers` | List, get, create, replace configuration, delete |
@@ -220,17 +220,19 @@ again to grant its permissions.
 ### Autopilot outreach
 
 Pitches Autopilot drafts to pages that AI answers cite without your brand, sent
-from the workspace's own Gmail or Outlook.
+from the workspace's own Gmail or Outlook, and contacts you made yourself.
 
 ```bash
 notra autopilot outreach list --status draft
 notra autopilot outreach list --follow-up-due true
 notra autopilot outreach get pitch_123
+notra autopilot outreach log --url https://techcrunch.com/best-ai-seo-tools --name "Jane Doe" --email jane@techcrunch.com --note "Met her at Web Summit"
 notra autopilot outreach edit pitch_123 --subject "your AI search tools guide"
 notra autopilot outreach send pitch_123 --send-at suggested --yes
 notra autopilot outreach send pitch_123 --yes          # now
 notra autopilot outreach cancel pitch_123
 notra autopilot outreach details pitch_123 --stage negotiating
+notra autopilot outreach details pitch_123 --note "Wants a demo first"
 notra autopilot outreach mark-listed pitch_123
 notra autopilot outreach later pitch_123         # back in the next daily brief
 notra autopilot outreach undo-later pitch_123
@@ -243,8 +245,12 @@ notra autopilot outreach mailbox show
 recipient's time zone, shown as `suggestedSendAt` by `get`. Every pitch goes
 out as plain text with an unsubscribe link. Connecting a mailbox needs the
 owner's sign-in in a browser: open the `connectUrl` from `mailbox show`.
-Reading needs `autopilot.read`; everything else needs `autopilot.write` and a
-workspace owner or admin.
+`log` records a contact you made outside Notra (by email, a form, a call or in
+person) as already sent, so it gets a stage, a follow-up date and notes like any
+pitch; nothing is sent. A page that already has a pitch answers with its id:
+use `mark-sent` or `details` on that one instead. Reading needs
+`autopilot.read`; everything else needs `autopilot.write` and a workspace owner
+or admin.
 
 ### JSON request bodies
 
