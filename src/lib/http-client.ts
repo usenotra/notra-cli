@@ -56,9 +56,15 @@ export class HttpClient {
     return options.decode ? options.decode(payload) : payload;
   }
 
-  async *stream(method: ApiHttpMethod, path: string, options: ApiRequestOptions = {}): AsyncGenerator<unknown> {
+  async *stream(
+    method: ApiHttpMethod,
+    path: string,
+    options: ApiRequestOptions = {},
+    onHeaders?: (headers: Headers) => void,
+  ): AsyncGenerator<unknown> {
     const response = await this.fetchResponse(method, path, options);
     if (!response.ok) assertResponseOk(response, parseResponse(await this.transfer(() => response.text())));
+    onHeaders?.(response.headers);
     if (!response.body) return;
     const reader = response.body.getReader();
     const parser = new NdjsonParser();
