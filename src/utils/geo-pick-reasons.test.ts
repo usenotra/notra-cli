@@ -35,4 +35,9 @@ describe('pick reasons output', () => {
     });
     expect(output).toBe('anthropic/claude-sonnet-5  2026-11-20  Top pick\n  Best changelog tool?\n  (no exact quote)');
   });
+
+  test('reports a malformed response instead of rendering it as empty', () => {
+    expect(() => renderPickReasons({ pending: 0, brands: [] })).toThrow('Unexpected API response');
+    expect(() => renderPickReasonEvidence({ organization: {} })).toThrow('Unexpected API response');
+  });
 });

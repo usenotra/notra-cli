@@ -1,7 +1,9 @@
 import chalk from 'chalk';
+import { Errors } from '@oclif/core';
 import { GEO_PICK_LABELS, GEO_PICK_REASON_LABELS, GEO_PICK_REASONS_SHOWN } from '../constants/geo';
 import { formatDate, renderTable, sanitizeTerminalText, shouldUseColor } from './output';
 import type { GeoPickReasonEvidenceResponse, GeoPickReasonsResponse, GeoPickReasonShare } from '../types/geo-pick-reasons';
+import { isRecord } from './records';
 
 const dim = (text: string) => (shouldUseColor() ? chalk.dim(text) : text);
 const bold = (text: string) => (shouldUseColor() ? chalk.bold(text) : text);
@@ -13,9 +15,23 @@ function formatReasons(reasons: ReadonlyArray<GeoPickReasonShare>): string {
     .join('  ');
 }
 
+/** A response missing these fields is an API problem, not "no data"; say so instead of guessing. */
+function unexpectedResponse(): never {
+  throw new Errors.CLIError('Unexpected API response. Run with --json to see it.');
+}
+
+function isPickReasonsResponse(value: unknown): value is GeoPickReasonsResponse {
+  return isRecord(value) && typeof value.configured === 'boolean' && typeof value.pending === 'number' && Array.isArray(value.brands);
+}
+
+function isPickReasonEvidenceResponse(value: unknown): value is GeoPickReasonEvidenceResponse {
+  return isRecord(value) && Array.isArray(value.evidence);
+}
+
 /** One row per brand: its picks and the reasons cited most. Per-engine detail stays in --json. */
 export function renderPickReasons(result: unknown): string {
-  const { configured, pending, brands } = result as GeoPickReasonsResponse;
+  if (!isPickReasonsResponse(result)) unexpectedResponse();
+  const { configured, pending, brands } = result;
   if (!configured) return dim('No GEO project found.');
   const table = renderTable(brands, {
     empty: dim('No answers picked a brand in this window.'),
@@ -33,7 +49,8 @@ export function renderPickReasons(result: unknown): string {
 
 /** Each answer: engine, day and pick, then the prompt and the quote below it. */
 export function renderPickReasonEvidence(result: unknown): string {
-  const { evidence } = result as GeoPickReasonEvidenceResponse;
+  if (!isPickReasonEvidenceResponse(result)) unexpectedResponse();
+  const { evidence } = result;
   if (evidence.length === 0) return dim('No answers picked this brand for this reason in the window.');
   return evidence.map((answer) => [
     `${bold(sanitizeTerminalText(answer.engine))}  ${formatDate(answer.capturedAt).slice(0, 10)}  ${GEO_PICK_LABELS[answer.pick] ?? sanitizeTerminalText(answer.pick)}`,

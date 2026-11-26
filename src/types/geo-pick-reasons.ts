@@ -15,6 +15,7 @@ export type GeoPickReasonsResponse = {
 export type GeoPickReasonEvidenceResponse = {
   evidence: {
     checkId: string;
+    scanId: string;
     promptId: string;
     prompt: string;
     engine: string;
