@@ -1006,6 +1006,36 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "getGeoPickRequests",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/visibility/pick-reasons/requests",
+    "summary": "Get how the pick changes with what users ask for",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "getGeoPromptHistory",
     "method": "GET",
     "path": "/v1/projects/{projectId}/geo/prompts/{promptId}/history",
@@ -5554,6 +5584,31 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "minimum": 1,
         "maximum": 200,
         "description": "Most brands to return, your own included. Defaults to 25."
+      }
+    }
+  },
+  "getGeoPickRequests": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when `from` is set. Defaults to 30 days."
+      },
+      "from": {
+        "type": "string",
+        "format": "date",
+        "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
+      },
+      "to": {
+        "type": "string",
+        "format": "date",
+        "description": "Last UTC day to include (YYYY-MM-DD). Also applies without `from`: it cuts off the `days` window, which still counts back from today. Omit to include today."
       }
     }
   },

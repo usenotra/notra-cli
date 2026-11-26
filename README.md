@@ -300,6 +300,7 @@ notra geo visibility prompt-summaries <projectId> --limit 20 --mentioned false
 notra geo visibility prompt-detail <projectId> <checkId>
 notra geo visibility pick-reasons <projectId> --days 30
 notra geo visibility pick-reason-evidence <projectId> --brand Acme --reason price --engine claude
+notra geo visibility pick-requests <projectId> --days 30
 notra geo sentiment get <projectId> --days 30
 notra geo sentiment analysis <projectId> --days 30
 notra geo sentiment evidence <projectId> --cursor <cursor>
@@ -312,14 +313,18 @@ actions. Optional sections have a five-second timeout and become warnings when
 unavailable; a failed visibility overview still fails the command. Stored
 sentiment analysis does not start a billed analysis run.
 
-`pick-reasons` shows, for your brand and each competitor, how many answers
-picked it (top pick or recommended) and the reasons they credit, such as price,
-reviews or integrations, and how many answers are not analyzed yet. `--json`
+`pick-reasons` starts with all products (every brand's picks pooled) and then
+shows, for your brand and each competitor, how many answers picked it (top pick
+or recommended) and the reasons they credit, such as price, reviews or
+integrations, and how many answers are not analyzed yet. `--json`
 adds the breakdown per engine. `pick-reason-evidence` lists up to
 20 answers behind one brand and reason, with the prompt and quote; `--reason`
 is one of `price`, `reviews`, `features`, `integrations`, `ease_of_use`,
 `support`, `security`, `performance`, `availability`, `delivery`,
-`trial_refunds` or `brand`. Both default to the last 30 days.
+`trial_refunds` or `brand`. `pick-requests` splits pick rates by what the
+prompt asks for (budget, small team, beginner, enterprise, pro-level,
+integrations, speed, industry or no specific need) and marks the request where
+another brand gets picked most. All three default to the last 30 days.
 
 ### Web analytics (private beta)
 
