@@ -909,6 +909,36 @@ export const OPENAPI_OPERATIONS = [
     "hasBody": false
   },
   {
+    "id": "getGeoContentCitations",
+    "method": "GET",
+    "path": "/v1/projects/{projectId}/geo/visibility/content-citations",
+    "summary": "Get published content and its AI citations",
+    "tag": "GEO",
+    "parameters": [
+      {
+        "name": "projectId",
+        "in": "path",
+        "required": true
+      },
+      {
+        "name": "days",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "from",
+        "in": "query",
+        "required": false
+      },
+      {
+        "name": "to",
+        "in": "query",
+        "required": false
+      }
+    ],
+    "hasBody": false
+  },
+  {
     "id": "getGeoIngestSetup",
     "method": "GET",
     "path": "/v1/geo/ingest/setup",
@@ -5637,6 +5667,31 @@ export const OPENAPI_REQUEST_SCHEMAS: Record<string, OperationRequestSchema> = {
         "type": "string",
         "minLength": 1,
         "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      }
+    }
+  },
+  "getGeoContentCitations": {
+    "parameters": {
+      "projectId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]{1,100}$"
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "description": "Rolling window size in days. Ignored when `from` is set. Defaults to 30 days."
+      },
+      "from": {
+        "type": "string",
+        "format": "date",
+        "description": "First UTC day to include (YYYY-MM-DD). Replaces `days`. Without `to`, the window runs through today."
+      },
+      "to": {
+        "type": "string",
+        "format": "date",
+        "description": "Last UTC day to include (YYYY-MM-DD). Only used together with `from`; ignored when `from` is not set."
       }
     }
   },

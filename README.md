@@ -304,6 +304,7 @@ notra geo changes <projectId>
 notra geo prompts history <projectId> <promptId> --scan-id <scanId>
 notra geo visibility prompt-summaries <projectId> --limit 20 --mentioned false
 notra geo visibility prompt-detail <projectId> <checkId>
+notra geo visibility content-citations <projectId> --days 90
 notra geo sentiment get <projectId> --days 30
 notra geo sentiment analysis <projectId> --days 30
 notra geo sentiment evidence <projectId> --cursor <cursor>
