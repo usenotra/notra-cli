@@ -58,6 +58,7 @@ export const API_COMMAND_FIXTURES: ReadonlyArray<ApiCommandFixture> = [
   { command: 'agents message', path: '/v2/eve/v1/session/session_1', method: 'POST', args: ['session_1', '--message', 'Continue'], body: { message: 'Continue' } },
   { command: 'agents events', path: '/v2/eve/v1/session/session_1/stream', args: ['session_1', '--start-index', '7'], query: { startIndex: '7' }, stream: true },
   { command: 'geo changes', path: '/v1/projects/project_1/geo/changes', args: ['project_1'] },
+  { command: 'geo visibility content-citations', path: '/v1/projects/project_1/geo/visibility/content-citations', args: ['project_1', '--days', '30'], query: { days: '30' } },
   { command: 'geo prompts history', path: '/v1/projects/project_1/geo/prompts/prompt_1/history', args: ['project_1', 'prompt_1', '--scan-id', 'scan_1'], query: { scanId: 'scan_1' } },
   { command: 'geo sentiment get', path: '/v1/projects/project_1/geo/sentiment', args: ['project_1', '--days', '30'], query: { days: '30' } },
   { command: 'geo sentiment analysis', path: '/v1/projects/project_1/geo/sentiment/analysis', args: ['project_1', '--from', '2026-09-01', '--to', '2026-09-30'], query: { from: '2026-09-01', to: '2026-09-30' } },
